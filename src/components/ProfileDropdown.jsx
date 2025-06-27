@@ -8,8 +8,7 @@ import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
 const {
-  FiUser, FiBell, FiSave, FiLogOut, FiStar, FiMail,
-  FiEdit3, FiCheck, FiX, FiChevronDown
+  FiUser, FiBell, FiSave, FiLogOut, FiStar, FiMail, FiEdit3, FiCheck, FiX, FiChevronDown
 } = FiIcons;
 
 const ProfileDropdown = () => {
@@ -18,8 +17,8 @@ const ProfileDropdown = () => {
   const [formData, setFormData] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
-
   const dropdownRef = useRef(null);
+
   const { user, logout } = useAuth();
   const { preferences, loading, updatePreferences, getDaysUntilUsernameChange } = useSettings();
 
@@ -137,7 +136,7 @@ const ProfileDropdown = () => {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="absolute right-0 mt-2 w-96 max-h-[80vh] overflow-hidden glass rounded-3xl shadow-2xl z-50 border border-white/20"
+            className="absolute right-0 mt-2 w-96 max-h-[80vh] overflow-hidden glass rounded-3xl shadow-2xl z-[9999] border border-white/20"
           >
             {/* Header */}
             <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-4 text-white">
