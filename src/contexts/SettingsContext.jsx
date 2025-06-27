@@ -30,33 +30,19 @@ export const SettingsProvider = ({ children }) => {
     bio: ''
   };
 
-  // Helper function to safely convert array to JSON string
-  const arrayToJsonString = (arr) => {
-    if (!Array.isArray(arr)) return '[]';
-    try {
-      return JSON.stringify(arr);
-    } catch (e) {
-      console.warn('Failed to stringify array:', arr, e);
-      return '[]';
-    }
-  };
-
-  // Helper function to safely parse JSON string to array
-  const jsonStringToArray = (jsonStr) => {
-    if (!jsonStr) return [];
-    if (Array.isArray(jsonStr)) return jsonStr; // Already an array
-    
-    try {
-      if (typeof jsonStr === 'string') {
-        if (jsonStr.trim() === '' || jsonStr.trim() === 'null') return [];
-        const parsed = JSON.parse(jsonStr);
+  // Helper function to ensure we have a valid array for JSONB
+  const ensureArray = (value) => {
+    if (Array.isArray(value)) return value;
+    if (!value) return [];
+    if (typeof value === 'string') {
+      try {
+        const parsed = JSON.parse(value);
         return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
       }
-      return [];
-    } catch (e) {
-      console.warn('Failed to parse JSON string:', jsonStr, e);
-      return [];
     }
+    return [];
   };
 
   // Load user preferences with better error handling
@@ -96,11 +82,11 @@ export const SettingsProvider = ({ children }) => {
       }
 
       if (data) {
-        console.log('Loaded preferences:', data);
+        console.log('Loaded preferences from DB:', data);
         
-        // Parse arrays safely
-        const dietaryPreferences = jsonStringToArray(data.dietary_preferences);
-        const preferredCuisine = jsonStringToArray(data.preferred_cuisine);
+        // Handle JSONB arrays properly - they come as actual arrays from PostgreSQL
+        const dietaryPreferences = ensureArray(data.dietary_preferences);
+        const preferredCuisine = ensureArray(data.preferred_cuisine);
 
         setPreferences({
           ...defaultPreferences,
@@ -159,15 +145,17 @@ export const SettingsProvider = ({ children }) => {
         display_name: user.name,
         avatar_url: user.avatar,
         bio: '',
-        dietary_preferences: arrayToJsonString([]),
+        dietary_preferences: [], // Send as actual array for JSONB
         cooking_skill_level: 'beginner',
-        preferred_cuisine: arrayToJsonString([]),
+        preferred_cuisine: [], // Send as actual array for JSONB
         notifications_enabled: true,
         email_notifications: true,
         theme_preference: 'light',
         measurement_system: 'metric',
         username_change_count: 0
       };
+
+      console.log('Inserting initial data:', initialData);
 
       const { data, error } = await supabase
         .from('user_preferences_mp2024')
@@ -190,9 +178,9 @@ export const SettingsProvider = ({ children }) => {
         displayName: data.display_name,
         avatarUrl: data.avatar_url,
         bio: data.bio || '',
-        dietaryPreferences: jsonStringToArray(data.dietary_preferences),
+        dietaryPreferences: ensureArray(data.dietary_preferences),
         cookingSkillLevel: data.cooking_skill_level || 'beginner',
-        preferredCuisine: jsonStringToArray(data.preferred_cuisine),
+        preferredCuisine: ensureArray(data.preferred_cuisine),
         notificationsEnabled: data.notifications_enabled ?? true,
         emailNotifications: data.email_notifications ?? true,
         themePreference: data.theme_preference || 'light',
@@ -294,7 +282,7 @@ export const SettingsProvider = ({ children }) => {
         updates.username_change_count = (preferences.usernameChangeCount || 0) + 1;
       }
 
-      // Prepare data for Supabase with safe JSON conversion
+      // Prepare data for Supabase - send arrays directly for JSONB columns
       const supabaseData = {
         user_id: user.id,
         username: updates.username || preferences.username,
@@ -302,9 +290,9 @@ export const SettingsProvider = ({ children }) => {
         display_name: updates.displayName || preferences.displayName,
         avatar_url: updates.avatarUrl || preferences.avatarUrl,
         bio: updates.bio !== undefined ? updates.bio : preferences.bio,
-        dietary_preferences: arrayToJsonString(updates.dietaryPreferences || preferences.dietaryPreferences),
+        dietary_preferences: ensureArray(updates.dietaryPreferences || preferences.dietaryPreferences), // Direct array for JSONB
         cooking_skill_level: updates.cookingSkillLevel || preferences.cookingSkillLevel,
-        preferred_cuisine: arrayToJsonString(updates.preferredCuisine || preferences.preferredCuisine),
+        preferred_cuisine: ensureArray(updates.preferredCuisine || preferences.preferredCuisine), // Direct array for JSONB
         notifications_enabled: updates.notificationsEnabled !== undefined ? updates.notificationsEnabled : preferences.notificationsEnabled,
         email_notifications: updates.emailNotifications !== undefined ? updates.emailNotifications : preferences.emailNotifications,
         theme_preference: updates.themePreference || preferences.themePreference,
@@ -318,7 +306,7 @@ export const SettingsProvider = ({ children }) => {
         supabaseData.username_change_count = updates.username_change_count;
       }
 
-      console.log('Sending to Supabase:', supabaseData);
+      console.log('Sending to Supabase (with direct arrays):', supabaseData);
 
       const { data, error } = await supabase
         .from('user_preferences_mp2024')
@@ -337,8 +325,8 @@ export const SettingsProvider = ({ children }) => {
           const updatedPreferences = {
             ...preferences,
             ...updates,
-            dietaryPreferences: updates.dietaryPreferences || preferences.dietaryPreferences,
-            preferredCuisine: updates.preferredCuisine || preferences.preferredCuisine
+            dietaryPreferences: ensureArray(updates.dietaryPreferences || preferences.dietaryPreferences),
+            preferredCuisine: ensureArray(updates.preferredCuisine || preferences.preferredCuisine)
           };
           
           setPreferences(updatedPreferences);
@@ -361,9 +349,9 @@ export const SettingsProvider = ({ children }) => {
 
       console.log('Update successful:', data);
 
-      // Parse the returned arrays safely
-      const dietaryPreferences = jsonStringToArray(data.dietary_preferences);
-      const preferredCuisine = jsonStringToArray(data.preferred_cuisine);
+      // Handle the returned data - JSONB arrays come back as actual arrays
+      const dietaryPreferences = ensureArray(data.dietary_preferences);
+      const preferredCuisine = ensureArray(data.preferred_cuisine);
 
       // Update local state
       const updatedPreferences = {
@@ -399,7 +387,7 @@ export const SettingsProvider = ({ children }) => {
       if (updates.username && updates.username !== preferences.username) {
         toast.success(`✅ Username updated to "${data.username}"!`);
       } else {
-        toast.success('Settings saved successfully!');
+        toast.success('✅ Settings saved successfully!');
       }
 
       return { success: true, data: updatedPreferences };
@@ -409,20 +397,22 @@ export const SettingsProvider = ({ children }) => {
       
       // Provide more specific error messages
       if (error.message && error.message.includes('malformed array literal')) {
-        toast.error('Error saving array data - please try again');
-      } else if (error.message && error.message.includes('relation') || error.message.includes('does not exist')) {
+        toast.error('Database format error - please try refreshing and signing in again');
+      } else if (error.message && (error.message.includes('relation') || error.message.includes('does not exist'))) {
         toast.error('Database unavailable - changes saved locally');
         
         // Save locally as fallback
         const updatedPreferences = {
           ...preferences,
-          ...updates
+          ...updates,
+          dietaryPreferences: ensureArray(updates.dietaryPreferences || preferences.dietaryPreferences),
+          preferredCuisine: ensureArray(updates.preferredCuisine || preferences.preferredCuisine)
         };
         setPreferences(updatedPreferences);
         
         return { success: true, data: updatedPreferences };
       } else {
-        toast.error('Failed to update preferences');
+        toast.error('Failed to update preferences - please try again');
       }
       
       return { success: false, error: error.message };
