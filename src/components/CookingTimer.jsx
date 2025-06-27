@@ -19,6 +19,7 @@ const CookingTimer = () => {
     currentStep, 
     timeLeft, 
     isTimerRunning, 
+    timer,
     stopCookingMode, 
     nextStep, 
     prevStep, 
@@ -33,14 +34,16 @@ const CookingTimer = () => {
 
   // Monitor timer completion for completion state
   useEffect(() => {
-    if (timeLeft === 0 && !isTimerRunning && timeLeft !== null) {
+    // FIXED: Only show completion if timer just finished (timeLeft is 0 but timer object still exists)
+    // This prevents showing alarm on page refresh when timer is already cleared
+    if (timeLeft === 0 && timer && !isTimerRunning) {
       // Timer just finished
       setIsTimerComplete(true);
-    } else if (timeLeft > 0) {
-      // Timer is running or paused, not complete
+    } else if (timeLeft > 0 || !timer) {
+      // Timer is running, paused, or no timer exists
       setIsTimerComplete(false);
     }
-  }, [timeLeft, isTimerRunning, currentStep]);
+  }, [timeLeft, isTimerRunning, timer]);
 
   // Handle timer reset - also reset completion state
   const handleResetTimer = () => {
@@ -57,7 +60,8 @@ const CookingTimer = () => {
   // ENHANCED: Show different floating widgets based on cooking mode state
   if (!isActive || !currentRecipe) {
     // Show persistent timer indicator if there's an active timer but cooking mode is closed
-    if (timeLeft > 0 || isTimerComplete) {
+    // FIXED: Only show if timer exists (not just timeLeft > 0)
+    if ((timeLeft > 0 && timer) || (isTimerComplete && timer)) {
       return (
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
@@ -182,7 +186,8 @@ const CookingTimer = () => {
   // ENHANCED: Different minimized states based on timer status - NOW IN BOTTOM RIGHT
   if (isMinimized) {
     // If timer is active, show countdown-focused widget
-    if (timeLeft > 0 || isTimerComplete) {
+    // FIXED: Only show if timer exists
+    if ((timeLeft > 0 && timer) || (isTimerComplete && timer)) {
       return (
         <motion.div
           initial={{ scale: 0, opacity: 0, y: 100 }}
@@ -482,7 +487,7 @@ const CookingTimer = () => {
                         )}
                       </div>
 
-                      {timeLeft > 0 || isTimerComplete ? (
+                      {(timeLeft > 0 && timer) || (isTimerComplete && timer) ? (
                         <div className="flex items-center justify-center space-x-2">
                           {!isTimerComplete && (
                             <motion.button

@@ -33,15 +33,26 @@ export const CookingModeProvider = ({ children }) => {
           if (state.timer && state.timer.endTime) {
             const now = Date.now();
             const timeRemaining = Math.max(0, Math.floor((state.timer.endTime - now) / 1000));
+            
             if (timeRemaining > 0) {
+              // Timer is still running
               setTimeLeft(timeRemaining);
               setIsTimerRunning(state.isTimerRunning);
               setTimer(state.timer);
             } else {
-              // Timer has expired
+              // Timer has expired - clear it completely and don't show alarm
               setTimeLeft(0);
               setIsTimerRunning(false);
               setTimer(null);
+              
+              // Update localStorage to remove expired timer
+              const updatedState = {
+                ...state,
+                timer: null,
+                timeLeft: 0,
+                isTimerRunning: false
+              };
+              localStorage.setItem('cooking_mode_state', JSON.stringify(updatedState));
             }
           }
         }
@@ -77,7 +88,8 @@ export const CookingModeProvider = ({ children }) => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             setIsTimerRunning(false);
-            // Timer finished - no browser notification
+            // Timer finished - clear timer state completely
+            setTimer(null);
             return 0;
           }
           return prev - 1;
