@@ -22,11 +22,35 @@ const Landing = () => {
   });
   const [loading, setLoading] = useState(false);
   const [sharedRecipeData, setSharedRecipeData] = useState(null);
+  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
 
   const { login, register, user, pendingVerification, verifyEmail, resendVerificationCode, skipEmailVerification } = useAuth();
   const { saveSharedRecipe } = useRecipes();
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Animated phrases that will cycle through
+  const animatedPhrases = [
+    "Level Up",
+    "Master Cooking",
+    "Build Skills", 
+    "Earn XP",
+    "Unlock Badges",
+    "Cook Smart",
+    "Plan Better",
+    "Save Time",
+    "Get Organized",
+    "Become Chef"
+  ];
+
+  // Cycle through phrases every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentPhraseIndex((prev) => (prev + 1) % animatedPhrases.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [animatedPhrases.length]);
 
   useEffect(() => {
     // Check for shared recipe in URL
@@ -241,7 +265,41 @@ const Landing = () => {
 
                 <h1 className="text-6xl lg:text-7xl font-bold text-gray-900 leading-tight">
                   Plan, Cook &{' '}
-                  <span className="gradient-text block mt-2">Level Up</span>
+                  <span className="relative inline-block">
+                    {/* Enhanced gradient with more vibrant colors */}
+                    <span 
+                      className="block mt-2"
+                      style={{
+                        background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 25%, #ffd23f 50%, #ff6b9d 75%, #c44569 100%)',
+                        backgroundSize: '300% 300%',
+                        animation: 'gradientShift 4s ease infinite',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        backgroundClip: 'text',
+                        fontWeight: '900',
+                        textShadow: '0 0 30px rgba(255, 107, 53, 0.3)'
+                      }}
+                    >
+                      {/* Animated text container */}
+                      <div className="relative h-24 overflow-hidden">
+                        <AnimatePresence mode="wait">
+                          <motion.span
+                            key={currentPhraseIndex}
+                            initial={{ y: 100, opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: -100, opacity: 0 }}
+                            transition={{
+                              duration: 0.6,
+                              ease: [0.25, 0.46, 0.45, 0.94]
+                            }}
+                            className="absolute inset-0 flex items-center"
+                          >
+                            {animatedPhrases[currentPhraseIndex]}
+                          </motion.span>
+                        </AnimatePresence>
+                      </div>
+                    </span>
+                  </span>
                 </h1>
 
                 <p className="text-xl text-gray-600 leading-relaxed font-medium">
@@ -585,6 +643,21 @@ const Landing = () => {
           </motion.div>
         </div>
       </section>
+
+      {/* Add CSS for gradient animation */}
+      <style jsx>{`
+        @keyframes gradientShift {
+          0% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+          100% {
+            background-position: 0% 50%;
+          }
+        }
+      `}</style>
     </div>
   );
 };
