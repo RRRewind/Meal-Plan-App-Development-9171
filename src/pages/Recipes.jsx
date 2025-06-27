@@ -32,49 +32,87 @@ const Recipes = () => {
     image: ''
   });
 
-  const { 
-    recipes, 
-    sharedRecipes, 
-    savedRecipes, 
-    getAllUniqueRecipes, // FIXED: Use this instead of combining manually
-    saveRecipe, 
-    unsaveRecipe, 
+  const {
+    recipes,
+    sharedRecipes,
+    savedRecipes,
+    getAllUniqueRecipes,
+    saveRecipe,
+    unsaveRecipe,
     deleteRecipe,
     canDeleteRecipe,
-    isRecipeSaved, 
-    shareRecipe, 
-    emailShareRecipe, 
-    hasSharedRecipe, 
-    addRecipe, 
+    isRecipeSaved,
+    shareRecipe,
+    emailShareRecipe,
+    hasSharedRecipe,
+    addRecipe,
     cleanupDuplicates,
-    completeReset 
+    completeReset
   } = useRecipes();
+
   const { startCookingMode } = useCookingMode();
   const { addXP } = useGamification();
   const { user } = useAuth();
 
-  // FIXED: Use getAllUniqueRecipes to prevent duplicates
+  // Get all unique recipes
   const allRecipes = getAllUniqueRecipes();
 
+  // Get user's own created recipes (not default/shared)
+  const userCreatedRecipes = recipes.filter(recipe => 
+    recipe.isUserCreated || (!recipe.isDefault && !recipe.shared)
+  );
+
+  // Get community recipes (shared but not created by current user)
+  const communityRecipes = sharedRecipes.filter(recipe => 
+    recipe.shared && recipe.sharedByUserId !== user?.id
+  );
+
+  // Calculate filter counts correctly
   const filters = [
     { id: 'all', name: 'All Recipes', count: allRecipes.length },
     { id: 'saved', name: 'Saved', count: savedRecipes.length },
-    { id: 'shared', name: 'Community', count: sharedRecipes.length },
-    { id: 'my-recipes', name: 'My Recipes', count: recipes.filter(r => r.isUserCreated || !r.isDefault).length }
+    { id: 'community', name: 'Community', count: communityRecipes.length },
+    { id: 'my-recipes', name: 'My Recipes', count: userCreatedRecipes.length }
   ];
 
-  const filteredRecipes = allRecipes.filter(recipe => {
-    const matchesSearch = recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      recipe.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      recipe.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Filter recipes based on selected filter and search term
+  const getFilteredRecipes = () => {
+    let recipesToFilter = [];
 
-    const matchesFilter = selectedFilter === 'all' ||
-      (selectedFilter === 'saved' && isRecipeSaved(recipe.id)) ||
-      (selectedFilter === 'shared' && recipe.shared) ||
-      (selectedFilter === 'my-recipes' && (recipe.isUserCreated || (!recipe.isDefault && isRecipeSaved(recipe.id))));
+    switch (selectedFilter) {
+      case 'all':
+        recipesToFilter = allRecipes;
+        break;
+      case 'saved':
+        recipesToFilter = savedRecipes;
+        break;
+      case 'community':
+        recipesToFilter = communityRecipes;
+        break;
+      case 'my-recipes':
+        recipesToFilter = userCreatedRecipes;
+        break;
+      default:
+        recipesToFilter = allRecipes;
+    }
 
-    return matchesSearch && matchesFilter;
-  });
+    // Apply search filter
+    if (!searchTerm.trim()) {
+      return recipesToFilter;
+    }
+
+    return recipesToFilter.filter(recipe => {
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        recipe.title?.toLowerCase().includes(searchLower) ||
+        recipe.description?.toLowerCase().includes(searchLower) ||
+        recipe.tags?.some(tag => tag.toLowerCase().includes(searchLower)) ||
+        recipe.ingredients?.some(ing => ing.name?.toLowerCase().includes(searchLower))
+      );
+    });
+  };
+
+  const filteredRecipes = getFilteredRecipes();
 
   const handleSaveRecipe = (recipe) => {
     if (isRecipeSaved(recipe.id)) {
@@ -115,7 +153,12 @@ const Recipes = () => {
   };
 
   const handleShareRecipe = (recipe) => {
-    const result = shareRecipe(recipe);
+    if (!user) {
+      toast.error('Please sign in to share recipes');
+      return;
+    }
+
+    const result = shareRecipe(recipe, user);
     if (result.success) {
       addXP(15, 'Recipe shared');
       toast.success(result.message);
@@ -125,6 +168,11 @@ const Recipes = () => {
   };
 
   const handleEmailShareRecipe = (recipe) => {
+    if (!user) {
+      toast.error('Please sign in to share recipes');
+      return;
+    }
+
     try {
       emailShareRecipe(recipe);
       addXP(10, 'Recipe shared via email');
@@ -137,7 +185,6 @@ const Recipes = () => {
   const handleCleanupDuplicates = () => {
     const result = cleanupDuplicates();
     setCleanupResult(result);
-    
     if (result.success) {
       toast.success(`🧹 ${result.message}`);
       addXP(20, 'Cleaned up duplicates');
@@ -209,7 +256,10 @@ const Recipes = () => {
               Recipe Collection
             </h1>
             <p className="text-gray-600 font-medium">
-              Build your perfect recipe collection from scratch
+              {selectedFilter === 'all' && 'Discover and manage all your recipes'}
+              {selectedFilter === 'saved' && 'Your personally saved recipe favorites'}
+              {selectedFilter === 'community' && 'Recipes shared by the community'}
+              {selectedFilter === 'my-recipes' && 'Recipes you\'ve created'}
             </p>
           </div>
           <div className="flex items-center space-x-3 mt-4 sm:mt-0">
@@ -223,7 +273,7 @@ const Recipes = () => {
               <SafeIcon icon={FiRotateCcw} />
               <span>Reset All</span>
             </motion.button>
-            
+
             {/* Enhanced Cleanup Duplicates Button */}
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
@@ -234,6 +284,7 @@ const Recipes = () => {
               <SafeIcon icon={FiZap} />
               <span>Smart Cleanup</span>
             </motion.button>
+
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -265,6 +316,7 @@ const Recipes = () => {
                 className="w-full pl-12 pr-4 py-4 input-modern rounded-xl text-lg font-medium"
               />
             </div>
+
             {/* Filters */}
             <div className="flex flex-wrap gap-3">
               {filters.map((filter) => (
@@ -280,9 +332,13 @@ const Recipes = () => {
                   }`}
                 >
                   <span>{filter.name}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    selectedFilter === filter.id ? 'bg-white/20' : 'bg-gray-100'
-                  }`}>
+                  <span
+                    className={`text-xs px-2 py-1 rounded-full ${
+                      selectedFilter === filter.id
+                        ? 'bg-white/20'
+                        : 'bg-gray-100'
+                    }`}
+                  >
                     {filter.count}
                   </span>
                 </motion.button>
@@ -318,6 +374,7 @@ const Recipes = () => {
                 <SafeIcon icon={FiPlus} className="text-xl" />
                 <span>Add Your First Recipe</span>
               </motion.button>
+
               <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
                 <div className="glass p-6 rounded-xl">
                   <SafeIcon icon={FiBookOpen} className="text-2xl text-primary-500 mb-3" />
@@ -338,173 +395,207 @@ const Recipes = () => {
             </div>
           </motion.div>
         ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-          >
-            {filteredRecipes.map((recipe, index) => (
+          <>
+            {/* Filter Results Info */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="mb-6"
+            >
+              <p className="text-sm text-gray-600 font-medium">
+                {searchTerm ? (
+                  <>Showing {filteredRecipes.length} result{filteredRecipes.length !== 1 ? 's' : ''} for "{searchTerm}" in {filters.find(f => f.id === selectedFilter)?.name}</>
+                ) : (
+                  <>Showing {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''} in {filters.find(f => f.id === selectedFilter)?.name}</>
+                )}
+              </p>
+            </motion.div>
+
+            {filteredRecipes.length === 0 ? (
               <motion.div
-                key={recipe.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                whileHover={{ y: -8 }}
-                className="glass rounded-2xl overflow-hidden shadow-lg card-hover glow-effect"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-16"
               >
-                {/* Recipe Image */}
-                <div className="aspect-video bg-gradient-to-br from-primary-100 to-secondary-100 relative overflow-hidden">
-                  {recipe.image ? (
-                    <img
-                      src={recipe.image}
-                      alt={recipe.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <SafeIcon icon={FiStar} className="text-4xl text-primary-400" />
-                    </div>
-                  )}
-                  {/* Action Buttons */}
-                  <div className="absolute top-3 right-3 flex space-x-2">
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => handleSaveRecipe(recipe)}
-                      className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
-                        isRecipeSaved(recipe.id)
-                          ? 'bg-red-500 text-white'
-                          : 'bg-white/90 text-gray-600 hover:bg-white hover:text-red-500'
-                      }`}
-                    >
-                      <SafeIcon icon={FiHeart} className="text-sm" />
-                    </motion.button>
-                    {user && (
-                      <>
+                <SafeIcon icon={FiSearch} className="text-6xl text-gray-300 mb-4 mx-auto" />
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  No recipes found
+                </h3>
+                <p className="text-gray-600 font-medium mb-4">
+                  {searchTerm ? `No recipes match "${searchTerm}" in ${filters.find(f => f.id === selectedFilter)?.name}` : `No recipes in ${filters.find(f => f.id === selectedFilter)?.name} yet`}
+                </p>
+                {(selectedFilter === 'my-recipes' || selectedFilter === 'all') && (
+                  <motion.button
+                    whileHover={{ scale: 1.05, y: -2 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setShowAddModal(true)}
+                    className="btn-gradient text-white px-6 py-3 rounded-xl font-semibold shadow-lg flex items-center space-x-2 mx-auto"
+                  >
+                    <SafeIcon icon={FiPlus} />
+                    <span>Add Recipe</span>
+                  </motion.button>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
+              >
+                {filteredRecipes.map((recipe, index) => (
+                  <motion.div
+                    key={recipe.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ y: -8 }}
+                    className="glass rounded-2xl overflow-hidden shadow-lg card-hover glow-effect"
+                  >
+                    {/* Recipe Image */}
+                    <div className="aspect-video bg-gradient-to-br from-primary-100 to-secondary-100 relative overflow-hidden">
+                      {recipe.image ? (
+                        <img
+                          src={recipe.image}
+                          alt={recipe.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <SafeIcon icon={FiStar} className="text-4xl text-primary-400" />
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div className="absolute top-3 right-3 flex space-x-2">
                         <motion.button
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
-                          onClick={() => handleEmailShareRecipe(recipe)}
-                          className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-blue-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
-                        >
-                          <SafeIcon icon={FiMail} className="text-sm" />
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => handleShareRecipe(recipe)}
+                          onClick={() => handleSaveRecipe(recipe)}
                           className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
-                            hasSharedRecipe(recipe.id)
-                              ? 'bg-green-500 text-white'
-                              : 'bg-white/90 text-gray-600 hover:bg-white hover:text-primary-500'
+                            isRecipeSaved(recipe.id)
+                              ? 'bg-red-500 text-white'
+                              : 'bg-white/90 text-gray-600 hover:bg-white hover:text-red-500'
                           }`}
                         >
-                          <SafeIcon icon={hasSharedRecipe(recipe.id) ? FiCheck : FiShare2} className="text-sm" />
+                          <SafeIcon icon={FiHeart} className="text-sm" />
                         </motion.button>
-                        {canDeleteRecipe(recipe) && (
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleDeleteRecipe(recipe)}
-                            className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-red-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
-                          >
-                            <SafeIcon icon={FiTrash2} className="text-sm" />
-                          </motion.button>
+
+                        {user && (
+                          <>
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => handleEmailShareRecipe(recipe)}
+                              className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-blue-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
+                            >
+                              <SafeIcon icon={FiMail} className="text-sm" />
+                            </motion.button>
+
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => handleShareRecipe(recipe)}
+                              className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
+                                hasSharedRecipe(recipe.id)
+                                  ? 'bg-green-500 text-white'
+                                  : 'bg-white/90 text-gray-600 hover:bg-white hover:text-primary-500'
+                              }`}
+                            >
+                              <SafeIcon icon={hasSharedRecipe(recipe.id) ? FiCheck : FiShare2} className="text-sm" />
+                            </motion.button>
+
+                            {canDeleteRecipe(recipe) && (
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => handleDeleteRecipe(recipe)}
+                                className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-red-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
+                              >
+                                <SafeIcon icon={FiTrash2} className="text-sm" />
+                              </motion.button>
+                            )}
+                          </>
                         )}
-                      </>
-                    )}
-                  </div>
-                  {/* Recipe Type Badge */}
-                  <div className="absolute bottom-3 left-3 flex space-x-2">
-                    <span className="bg-white/90 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-                      {recipe.difficulty}
-                    </span>
-                    {recipe.isUserCreated && (
-                      <span className="bg-secondary-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-                        My Recipe
-                      </span>
-                    )}
-                    {recipe.shared && !recipe.isUserCreated && (
-                      <span className="bg-blue-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-                        Community
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Recipe Content */}
-                <div className="p-6">
-                  <h3 className="font-bold text-xl text-gray-900 mb-2">
-                    {recipe.title}
-                  </h3>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">
-                    {recipe.description}
-                  </p>
-
-                  {/* Recipe Stats */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-4 text-sm text-gray-500 font-medium">
-                      <div className="flex items-center">
-                        <SafeIcon icon={FiClock} className="mr-1" />
-                        {recipe.cookTime}m
                       </div>
-                      <div className="flex items-center">
-                        <SafeIcon icon={FiUsers} className="mr-1" />
-                        {recipe.servings}
-                      </div>
-                    </div>
-                    {recipe.shared && hasSharedRecipe(recipe.originalId || recipe.id) && (
-                      <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">
-                        Shared by You
-                      </span>
-                    )}
-                  </div>
 
-                  {/* Tags */}
-                  {recipe.tags && recipe.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {recipe.tags.slice(0, 3).map((tag, tagIndex) => (
-                        <span
-                          key={tagIndex}
-                          className="text-xs bg-primary-50 text-primary-600 px-3 py-1 rounded-full font-semibold"
-                        >
-                          {tag}
+                      {/* Recipe Type Badge */}
+                      <div className="absolute bottom-3 left-3 flex space-x-2">
+                        <span className="bg-white/90 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                          {recipe.difficulty}
                         </span>
-                      ))}
+                        {recipe.isUserCreated && (
+                          <span className="bg-secondary-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                            My Recipe
+                          </span>
+                        )}
+                        {recipe.shared && !recipe.isUserCreated && (
+                          <span className="bg-blue-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                            Community
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  )}
 
-                  {/* Cook Button */}
-                  <motion.button
-                    whileHover={{ scale: 1.02, y: -2 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => startCookingMode(recipe)}
-                    className="w-full btn-gradient text-white py-3 px-4 rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
-                  >
-                    <SafeIcon icon={FiPlay} />
-                    <span>Start Cooking</span>
-                  </motion.button>
-                </div>
+                    {/* Recipe Content */}
+                    <div className="p-6">
+                      <h3 className="font-bold text-xl text-gray-900 mb-2">
+                        {recipe.title}
+                      </h3>
+                      <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">
+                        {recipe.description}
+                      </p>
+
+                      {/* Recipe Stats */}
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-4 text-sm text-gray-500 font-medium">
+                          <div className="flex items-center">
+                            <SafeIcon icon={FiClock} className="mr-1" />
+                            {recipe.cookTime}m
+                          </div>
+                          <div className="flex items-center">
+                            <SafeIcon icon={FiUsers} className="mr-1" />
+                            {recipe.servings}
+                          </div>
+                        </div>
+                        {recipe.shared && hasSharedRecipe(recipe.originalId || recipe.id) && (
+                          <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">
+                            Shared by You
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Tags */}
+                      {recipe.tags && recipe.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {recipe.tags.slice(0, 3).map((tag, tagIndex) => (
+                            <span
+                              key={tagIndex}
+                              className="text-xs bg-primary-50 text-primary-600 px-3 py-1 rounded-full font-semibold"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Cook Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => startCookingMode(recipe)}
+                        className="w-full btn-gradient text-white py-3 px-4 rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
+                      >
+                        <SafeIcon icon={FiPlay} />
+                        <span>Start Cooking</span>
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                ))}
               </motion.div>
-            ))}
-          </motion.div>
-        )}
-
-        {filteredRecipes.length === 0 && allRecipes.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-16"
-          >
-            <SafeIcon icon={FiSearch} className="text-6xl text-gray-300 mb-4 mx-auto" />
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">
-              No recipes found
-            </h3>
-            <p className="text-gray-600 font-medium">
-              Try adjusting your search or filters
-            </p>
-          </motion.div>
+            )}
+          </>
         )}
 
         {/* Complete Reset Modal */}
