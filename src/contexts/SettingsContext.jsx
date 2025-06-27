@@ -37,6 +37,7 @@ export const SettingsProvider = ({ children }) => {
     if (!user) return;
 
     try {
+      setLoading(true);
       const { data, error } = await supabase
         .from('user_preferences_mp2024')
         .select('*')
@@ -72,6 +73,8 @@ export const SettingsProvider = ({ children }) => {
     } catch (error) {
       console.error('Error loading preferences:', error);
       toast.error('Failed to load preferences');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -152,7 +155,10 @@ export const SettingsProvider = ({ children }) => {
           current_user_id: user?.id
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('RPC Error:', error);
+        throw error;
+      }
 
       const isAvailable = data === true;
       const result = {
@@ -189,7 +195,11 @@ export const SettingsProvider = ({ children }) => {
           user_id_param: user.id
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('RPC Error:', error);
+        throw error;
+      }
+      
       return data === true;
 
     } catch (error) {
@@ -304,7 +314,7 @@ export const SettingsProvider = ({ children }) => {
         });
       }
 
-      toast.success('Preferences updated successfully!');
+      toast.success('Settings saved successfully!');
       return { success: true, data: updatedPreferences };
 
     } catch (error) {

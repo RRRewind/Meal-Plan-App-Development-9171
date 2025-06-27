@@ -14,6 +14,7 @@ const UsernameInput = ({
   className = "" 
 }) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
+  const [isCheckingLocal, setIsCheckingLocal] = useState(false);
   const { 
     usernameAvailability, 
     checkingUsername, 
@@ -38,18 +39,30 @@ const UsernameInput = ({
   // Check availability when debounced value changes
   useEffect(() => {
     if (debouncedValue && debouncedValue.length >= 3 && showAvailability) {
-      checkUsernameAvailability(debouncedValue);
+      const checkAvailability = async () => {
+        setIsCheckingLocal(true);
+        try {
+          await checkUsernameAvailability(debouncedValue);
+        } finally {
+          setIsCheckingLocal(false);
+        }
+      };
+      checkAvailability();
     }
   }, [debouncedValue, checkUsernameAvailability, showAvailability]);
 
   // Check username change permissions
   const checkChangePermissions = useCallback(async () => {
-    const canChangeResult = await canChangeUsername();
-    setCanChange(canChangeResult);
-    
-    if (!canChangeResult) {
-      const days = getDaysUntilUsernameChange();
-      setCooldownDays(days);
+    try {
+      const canChangeResult = await canChangeUsername();
+      setCanChange(canChangeResult);
+      
+      if (!canChangeResult) {
+        const days = getDaysUntilUsernameChange();
+        setCooldownDays(days);
+      }
+    } catch (error) {
+      console.error('Error checking change permissions:', error);
     }
   }, [canChangeUsername, getDaysUntilUsernameChange]);
 
@@ -62,9 +75,10 @@ const UsernameInput = ({
   const availability = usernameAvailability[debouncedValue];
   const isCurrentUsername = preferences?.username === debouncedValue;
   const showCooldownWarning = !canChange && value !== preferences?.username;
+  const isLoading = checkingUsername || isCheckingLocal;
 
   const getStatusIcon = () => {
-    if (checkingUsername) {
+    if (isLoading) {
       return <SafeIcon icon={FiLoader} className="text-gray-400 animate-spin" />;
     }
 
@@ -104,7 +118,7 @@ const UsernameInput = ({
       };
     }
 
-    if (checkingUsername) {
+    if (isLoading) {
       return {
         message: 'Checking availability...',
         color: 'text-gray-600',
@@ -144,7 +158,7 @@ const UsernameInput = ({
   const statusMessage = getStatusMessage();
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="relative">
         <input
           type="text"
@@ -155,14 +169,14 @@ const UsernameInput = ({
           }}
           disabled={disabled}
           placeholder="Enter username"
-          className={`w-full px-4 py-3 pr-12 input-modern rounded-xl font-medium ${className} ${
+          className={`w-full px-3 py-2 pr-10 input-modern rounded-lg font-medium ${className} ${
             disabled ? 'opacity-50 cursor-not-allowed' : ''
           }`}
           maxLength={30}
           minLength={3}
         />
         
-        <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
           {getStatusIcon()}
         </div>
       </div>
@@ -170,35 +184,37 @@ const UsernameInput = ({
       {/* Status Message */}
       {showAvailability && statusMessage && (
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`p-3 rounded-lg border ${statusMessage.bgColor} ${statusMessage.borderColor}`}
+          className={`p-2 rounded-lg border text-xs ${statusMessage.bgColor} ${statusMessage.borderColor}`}
         >
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
             {showCooldownWarning && (
-              <SafeIcon icon={FiAlertCircle} className={statusMessage.color} />
+              <SafeIcon icon={FiAlertCircle} className={`${statusMessage.color} text-xs`} />
             )}
-            <p className={`text-sm font-medium ${statusMessage.color}`}>
+            <p className={`font-medium ${statusMessage.color}`}>
               {statusMessage.message}
             </p>
           </div>
           
           {showCooldownWarning && (
             <p className="text-xs text-gray-600 mt-1">
-              You've changed your username {preferences?.usernameChangeCount || 0} time{(preferences?.usernameChangeCount || 0) !== 1 ? 's' : ''}.
-              Username changes are limited to once every 14 days to prevent abuse.
+              Changed {preferences?.usernameChangeCount || 0} time{(preferences?.usernameChangeCount || 0) !== 1 ? 's' : ''}.
+              Limited to once every 14 days.
             </p>
           )}
         </motion.div>
       )}
 
-      {/* Username Rules */}
-      <div className="text-xs text-gray-500 space-y-1">
-        <p>• 3-30 characters long</p>
-        <p>• Letters, numbers, and underscores only</p>
-        <p>• Must be unique across all users</p>
-        <p>• Can be changed once every 14 days</p>
-      </div>
+      {/* Username Rules - Only show in full settings */}
+      {className.includes('text-lg') && (
+        <div className="text-xs text-gray-500 space-y-1">
+          <p>• 3-30 characters long</p>
+          <p>• Letters, numbers, and underscores only</p>
+          <p>• Must be unique across all users</p>
+          <p>• Can be changed once every 14 days</p>
+        </div>
+      )}
     </div>
   );
 };

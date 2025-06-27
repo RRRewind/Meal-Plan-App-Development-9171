@@ -25,7 +25,6 @@ const Landing = () => {
 
   const { login, register, user, pendingVerification, verifyEmail, resendVerificationCode, skipEmailVerification } = useAuth();
   const { saveSharedRecipe } = useRecipes();
-  const { checkUsernameAvailability } = useSettings();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -80,16 +79,6 @@ const Landing = () => {
       if (isLogin) {
         result = await login(formData.email, formData.password);
       } else {
-        // Check username availability before registration
-        if (formData.username) {
-          const isAvailable = await checkUsernameAvailability(formData.username);
-          if (!isAvailable) {
-            toast.error('Username is not available');
-            setLoading(false);
-            return;
-          }
-        }
-        
         result = await register(formData.username, formData.email, formData.password);
       }
 

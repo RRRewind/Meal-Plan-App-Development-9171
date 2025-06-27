@@ -2,33 +2,28 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import ProfileDropdown from './ProfileDropdown';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 
-const { FiHome, FiCalendar, FiBook, FiShoppingCart, FiUser, FiLogOut, FiStar, FiTrendingUp, FiShield, FiSettings } = FiIcons;
+const { FiHome, FiCalendar, FiBook, FiShoppingCart, FiStar, FiShield } = FiIcons;
 
 const Layout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: FiHome },
     { name: 'Scheduler', href: '/scheduler', icon: FiCalendar },
     { name: 'Recipes', href: '/recipes', icon: FiBook },
     { name: 'Shopping List', href: '/shopping-list', icon: FiShoppingCart },
-    { name: 'Settings', href: '/settings', icon: FiSettings },
   ];
 
   // Add admin panel for admin users
   if (user?.isAdmin) {
     navigation.push({ name: 'Admin Panel', href: '/admin', icon: FiShield });
   }
-
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
@@ -42,12 +37,6 @@ const Layout = ({ children }) => {
                 <SafeIcon icon={FiBook} className="text-white text-sm" />
               </div>
               <span className="text-xl font-bold text-gray-900">Meal Plan</span>
-              {user?.isAdmin && (
-                <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-bold flex items-center space-x-1">
-                  <SafeIcon icon={FiShield} className="text-xs" />
-                  <span>ADMIN</span>
-                </span>
-              )}
             </div>
 
             {/* Navigation */}
@@ -93,29 +82,8 @@ const Layout = ({ children }) => {
                     </div>
                   </div>
 
-                  {/* User Avatar */}
-                  <div className="flex items-center space-x-2">
-                    <img
-                      src={user.avatar}
-                      alt={user.name}
-                      className="w-8 h-8 rounded-full border-2 border-primary-200"
-                    />
-                    <span className="hidden sm:block text-sm font-medium text-gray-700">
-                      {user.name}
-                      {user.isAdmin && (
-                        <span className="ml-1 text-purple-600">👑</span>
-                      )}
-                    </span>
-                  </div>
-
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleLogout}
-                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors duration-200"
-                  >
-                    <SafeIcon icon={FiLogOut} className="text-sm" />
-                  </motion.button>
+                  {/* Profile Dropdown */}
+                  <ProfileDropdown />
                 </div>
               )}
             </div>
@@ -125,7 +93,7 @@ const Layout = ({ children }) => {
 
       {/* Mobile Navigation */}
       <div className="md:hidden bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50">
-        <div className={`grid ${user?.isAdmin ? 'grid-cols-6' : 'grid-cols-5'} gap-1 p-2`}>
+        <div className={`grid ${user?.isAdmin ? 'grid-cols-5' : 'grid-cols-4'} gap-1 p-2`}>
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
