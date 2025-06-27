@@ -29,6 +29,99 @@ export const RecipeProvider = ({ children }) => {
     return String(userObj.id || userObj.user_id || '');
   };
 
+  // Load community recipes from Supabase
+  const loadCommunityRecipes = async () => {
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('community_recipes_mp2024')
+        .select('*')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Transform Supabase data to app format
+      const transformedRecipes = data.map(recipe => ({
+        id: recipe.id,
+        originalId: recipe.original_recipe_id,
+        title: recipe.title,
+        description: recipe.description,
+        cookTime: recipe.cook_time,
+        servings: recipe.servings,
+        difficulty: recipe.difficulty,
+        ingredients: recipe.ingredients || [],
+        steps: recipe.steps || [],
+        tags: recipe.tags || [],
+        image: recipe.image_url,
+        url: recipe.recipe_url,
+        shared: true,
+        sharedByUserId: recipe.shared_by_user_id,
+        sharedBy: recipe.shared_by_username,
+        sharedAt: recipe.created_at,
+        approvedAt: recipe.approved_at,
+        approvedBy: recipe.approved_by,
+        shareCount: recipe.share_count || 0,
+        viewCount: recipe.view_count || 0
+      }));
+
+      setSharedRecipes(transformedRecipes);
+      console.log(`Loaded ${transformedRecipes.length} community recipes from Supabase`);
+
+    } catch (error) {
+      console.error('Error loading community recipes:', error);
+      // Fallback to localStorage
+      const localSharedRecipes = JSON.parse(localStorage.getItem('shared_recipes') || '[]');
+      setSharedRecipes(localSharedRecipes);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load pending recipes from Supabase (admin only)
+  const loadPendingRecipes = async () => {
+    if (!user?.isAdmin) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('pending_recipes_mp2024')
+        .select('*')
+        .order('submitted_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Transform Supabase data to app format
+      const transformedRecipes = data.map(recipe => ({
+        id: recipe.id,
+        originalId: recipe.original_recipe_id,
+        title: recipe.title,
+        description: recipe.description,
+        cookTime: recipe.cook_time,
+        servings: recipe.servings,
+        difficulty: recipe.difficulty,
+        ingredients: recipe.ingredients || [],
+        steps: recipe.steps || [],
+        tags: recipe.tags || [],
+        image: recipe.image_url,
+        url: recipe.recipe_url,
+        sharedByUserId: recipe.shared_by_user_id,
+        sharedBy: recipe.shared_by_username,
+        submittedAt: recipe.submitted_at,
+        status: 'pending'
+      }));
+
+      setPendingRecipes(transformedRecipes);
+      console.log(`Loaded ${transformedRecipes.length} pending recipes from Supabase`);
+
+    } catch (error) {
+      console.error('Error loading pending recipes:', error);
+      // Fallback to localStorage for demo
+      const localPendingRecipes = JSON.parse(localStorage.getItem('pending_recipes') || '[]');
+      setPendingRecipes(localPendingRecipes);
+    }
+  };
+
   // Enhanced duplicate detection - more thorough comparison
   const areRecipesIdentical = (recipe1, recipe2) => {
     // Normalize strings for comparison
@@ -178,7 +271,7 @@ export const RecipeProvider = ({ children }) => {
         steps: recipe.steps || [],
         tags: recipe.tags || [],
         image: recipe.image_url,
-        url: recipe.recipe_url, // NEW: Map URL field
+        url: recipe.recipe_url,
         isUserCreated: true,
         createdAt: recipe.created_at,
         shared: recipe.is_shared
@@ -186,6 +279,7 @@ export const RecipeProvider = ({ children }) => {
 
       setRecipes(transformedRecipes);
       console.log(`Loaded ${transformedRecipes.length} recipes from Supabase`);
+
     } catch (error) {
       console.error('Error loading user recipes:', error);
       toast.error('Failed to load recipes from database');
@@ -220,7 +314,7 @@ export const RecipeProvider = ({ children }) => {
         steps: recipe.steps || [],
         tags: recipe.tags || [],
         image_url: recipe.image || null,
-        recipe_url: recipe.url || null, // NEW: Save URL field
+        recipe_url: recipe.url || null,
         is_shared: recipe.shared || false
       };
 
@@ -244,13 +338,14 @@ export const RecipeProvider = ({ children }) => {
         steps: data.steps || [],
         tags: data.tags || [],
         image: data.image_url,
-        url: data.recipe_url, // NEW: Transform URL field
+        url: data.recipe_url,
         isUserCreated: true,
         createdAt: data.created_at,
         shared: data.is_shared
       };
 
       return transformedRecipe;
+
     } catch (error) {
       console.error('Error saving recipe to Supabase:', error);
       throw error;
@@ -276,10 +371,172 @@ export const RecipeProvider = ({ children }) => {
         .eq('user_id', userId); // Ensure user can only delete their own recipes
 
       if (error) throw error;
-
       return true;
+
     } catch (error) {
       console.error('Error deleting recipe from Supabase:', error);
+      throw error;
+    }
+  };
+
+  // Share recipe to community (Supabase)
+  const shareRecipeToSupabase = async (recipe, currentUser) => {
+    if (!currentUser) {
+      throw new Error('User must be logged in to share recipes');
+    }
+
+    try {
+      const recipeData = {
+        original_recipe_id: recipe.id,
+        title: recipe.title,
+        description: recipe.description,
+        cook_time: parseInt(recipe.cookTime) || 0,
+        servings: parseInt(recipe.servings) || 1,
+        difficulty: recipe.difficulty || 'Easy',
+        ingredients: recipe.ingredients || [],
+        steps: recipe.steps || [],
+        tags: recipe.tags || [],
+        image_url: recipe.image || null,
+        recipe_url: recipe.url || null,
+        shared_by_user_id: getSafeUserId(currentUser),
+        shared_by_username: currentUser.username || currentUser.name || 'Unknown',
+        status: currentUser.isAdmin ? 'approved' : 'pending'
+      };
+
+      if (currentUser.isAdmin) {
+        // Admin can directly add to community
+        const { data, error } = await supabase
+          .from('community_recipes_mp2024')
+          .insert({
+            ...recipeData,
+            approved_by: currentUser.username || 'admin',
+            approved_at: new Date().toISOString()
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Reload community recipes
+        await loadCommunityRecipes();
+
+        return {
+          success: true,
+          message: 'Recipe added to community!',
+          recipeId: data.id
+        };
+      } else {
+        // Regular users submit for approval
+        const { data, error } = await supabase
+          .from('pending_recipes_mp2024')
+          .insert(recipeData)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        // Reload pending recipes if admin
+        if (currentUser.isAdmin) {
+          await loadPendingRecipes();
+        }
+
+        return {
+          success: true,
+          message: 'Recipe submitted for community review! Admin will approve shortly.',
+          recipeId: data.id
+        };
+      }
+
+    } catch (error) {
+      console.error('Error sharing recipe to Supabase:', error);
+      throw error;
+    }
+  };
+
+  // Admin: Approve pending recipe
+  const approveRecipeInSupabase = async (pendingRecipeId, adminUser) => {
+    if (!adminUser?.isAdmin) {
+      throw new Error('Admin access required');
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('approve_recipe_mp2024', {
+        pending_recipe_id: pendingRecipeId,
+        admin_username: adminUser.username || 'admin'
+      });
+
+      if (error) throw error;
+
+      // Reload both lists
+      await Promise.all([
+        loadCommunityRecipes(),
+        loadPendingRecipes()
+      ]);
+
+      return {
+        success: true,
+        message: 'Recipe approved and added to community!',
+        recipeId: data
+      };
+
+    } catch (error) {
+      console.error('Error approving recipe:', error);
+      throw error;
+    }
+  };
+
+  // Admin: Reject pending recipe
+  const rejectRecipeInSupabase = async (pendingRecipeId, adminUser, reason = '') => {
+    if (!adminUser?.isAdmin) {
+      throw new Error('Admin access required');
+    }
+
+    try {
+      const { error } = await supabase
+        .from('pending_recipes_mp2024')
+        .delete()
+        .eq('id', pendingRecipeId);
+
+      if (error) throw error;
+
+      // Reload pending recipes
+      await loadPendingRecipes();
+
+      return {
+        success: true,
+        message: `Recipe rejected${reason ? ': ' + reason : ''}`
+      };
+
+    } catch (error) {
+      console.error('Error rejecting recipe:', error);
+      throw error;
+    }
+  };
+
+  // Admin: Remove community recipe
+  const removeSharedRecipeFromSupabase = async (recipeId, adminUser) => {
+    if (!adminUser?.isAdmin) {
+      throw new Error('Admin access required');
+    }
+
+    try {
+      const { error } = await supabase
+        .from('community_recipes_mp2024')
+        .delete()
+        .eq('id', recipeId);
+
+      if (error) throw error;
+
+      // Reload community recipes
+      await loadCommunityRecipes();
+
+      return {
+        success: true,
+        message: 'Recipe removed from community'
+      };
+
+    } catch (error) {
+      console.error('Error removing community recipe:', error);
       throw error;
     }
   };
@@ -321,6 +578,7 @@ export const RecipeProvider = ({ children }) => {
         message: 'All recipes have been completely removed! You now have a blank canvas to build your perfect recipe collection.',
         totalReset: true
       };
+
     } catch (error) {
       console.error('Error during complete reset:', error);
       return {
@@ -385,36 +643,28 @@ export const RecipeProvider = ({ children }) => {
 
   // Load data on mount and when user changes
   useEffect(() => {
-    // Check for complete reset flag
-    const shouldReset = localStorage.getItem('complete_recipe_reset');
-    if (shouldReset === 'true') {
-      localStorage.removeItem('complete_recipe_reset');
-      completeReset();
-      return;
-    }
+    // Load community recipes for all users
+    loadCommunityRecipes();
 
-    // Load user's recipes from Supabase if logged in
+    // Load user-specific data if logged in
     if (user) {
       loadUserRecipes();
+      if (user.isAdmin) {
+        loadPendingRecipes();
+      }
     } else {
       setRecipes([]);
+      setPendingRecipes([]);
     }
 
     // Load saved recipes from localStorage
     const savedRecipesData = JSON.parse(localStorage.getItem('saved_recipes') || '[]');
     setSavedRecipes(savedRecipesData);
 
-    // Load shared recipes from localStorage
-    const sharedRecipesData = JSON.parse(localStorage.getItem('shared_recipes') || '[]');
-    setSharedRecipes(sharedRecipesData);
-
-    // Load pending recipes from localStorage
-    const pendingRecipesData = JSON.parse(localStorage.getItem('pending_recipes') || '[]');
-    setPendingRecipes(pendingRecipesData);
-
     // Load user shared recipes set
     const userSharedData = JSON.parse(localStorage.getItem('user_shared_recipes') || '[]');
     setUserSharedRecipes(new Set(userSharedData));
+
   }, [user]);
 
   const addRecipe = async (recipe) => {
@@ -435,6 +685,7 @@ export const RecipeProvider = ({ children }) => {
 
     try {
       setLoading(true);
+
       // Save to Supabase
       const savedRecipe = await saveRecipeToSupabase(recipe);
 
@@ -443,8 +694,10 @@ export const RecipeProvider = ({ children }) => {
 
       toast.success('✅ Recipe added successfully!');
       return { success: true, recipe: savedRecipe };
+
     } catch (error) {
       console.error('Error adding recipe:', error);
+
       // Fallback to localStorage
       const newRecipe = {
         ...recipe,
@@ -462,6 +715,7 @@ export const RecipeProvider = ({ children }) => {
 
       toast.success('✅ Recipe added successfully (saved locally)!');
       return { success: true, recipe: newRecipe };
+
     } finally {
       setLoading(false);
     }
@@ -474,6 +728,7 @@ export const RecipeProvider = ({ children }) => {
 
     try {
       setLoading(true);
+
       // Try to delete from Supabase first
       await deleteRecipeFromSupabase(recipeId);
 
@@ -485,11 +740,6 @@ export const RecipeProvider = ({ children }) => {
       setSavedRecipes(updatedSaved);
       localStorage.setItem('saved_recipes', JSON.stringify(updatedSaved));
 
-      // Remove from shared recipes (only user-shared ones)
-      const updatedShared = sharedRecipes.filter(r => r.id !== recipeId || r.isDefault);
-      setSharedRecipes(updatedShared);
-      localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author && !r.isDefault)));
-
       // Remove from user shared set
       const updatedUserShared = new Set([...userSharedRecipes]);
       updatedUserShared.delete(recipeId);
@@ -497,11 +747,14 @@ export const RecipeProvider = ({ children }) => {
       localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
 
       return { success: true, message: 'Recipe deleted successfully!' };
+
     } catch (error) {
       console.error('Error deleting recipe:', error);
+
       // Fallback to local deletion
       setRecipes(prev => prev.filter(r => r.id !== recipeId));
       return { success: true, message: 'Recipe deleted successfully!' };
+
     } finally {
       setLoading(false);
     }
@@ -525,6 +778,7 @@ export const RecipeProvider = ({ children }) => {
     const updatedSaved = [...savedRecipes, recipe];
     setSavedRecipes(updatedSaved);
     localStorage.setItem('saved_recipes', JSON.stringify(updatedSaved));
+
     return { success: true, message: 'Recipe saved successfully!' };
   };
 
@@ -534,8 +788,8 @@ export const RecipeProvider = ({ children }) => {
     localStorage.setItem('saved_recipes', JSON.stringify(updatedSaved));
   };
 
-  // NEW: Share recipe to community (goes to admin approval first)
-  const shareRecipe = (recipe, currentUser) => {
+  // NEW: Share recipe to community (with Supabase sync)
+  const shareRecipe = async (recipe, currentUser) => {
     if (userSharedRecipes.has(recipe.id)) {
       return { success: false, message: 'You have already shared this recipe to the community' };
     }
@@ -544,101 +798,169 @@ export const RecipeProvider = ({ children }) => {
       return { success: false, message: 'You must be logged in to share recipes' };
     }
 
-    // Create pending recipe for admin approval
-    const shareId = `${recipe.title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
-    const pendingRecipe = {
-      ...recipe,
-      originalId: recipe.id,
-      shared: true,
-      sharedAt: new Date().toISOString(),
-      shareId,
-      sharedBy: currentUser.username || currentUser.name,
-      sharedByUserId: currentUser.id,
-      status: 'pending', // pending, approved, rejected
-      submittedAt: new Date().toISOString()
-    };
+    try {
+      // Use Supabase for recipe sharing
+      const result = await shareRecipeToSupabase(recipe, currentUser);
 
-    // Add to pending recipes
-    const updatedPending = [...pendingRecipes, pendingRecipe];
-    setPendingRecipes(updatedPending);
-    localStorage.setItem('pending_recipes', JSON.stringify(updatedPending));
+      // Track that this recipe has been shared (for user reference)
+      const updatedUserShared = new Set([...userSharedRecipes, recipe.id]);
+      setUserSharedRecipes(updatedUserShared);
+      localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
 
-    // Track that this recipe has been shared (for user reference)
-    const updatedUserShared = new Set([...userSharedRecipes, recipe.id]);
-    setUserSharedRecipes(updatedUserShared);
-    localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
+      return result;
 
-    return { success: true, shareId, message: 'Recipe submitted for community review! Admin will approve shortly.' };
+    } catch (error) {
+      console.error('Error sharing recipe:', error);
+
+      // Fallback to localStorage for demo mode
+      const shareId = `${recipe.title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
+      const pendingRecipe = {
+        ...recipe,
+        originalId: recipe.id,
+        shared: true,
+        sharedAt: new Date().toISOString(),
+        shareId,
+        sharedBy: currentUser.username || currentUser.name,
+        sharedByUserId: currentUser.id,
+        status: 'pending',
+        submittedAt: new Date().toISOString()
+      };
+
+      // Add to pending recipes
+      const updatedPending = [...pendingRecipes, pendingRecipe];
+      setPendingRecipes(updatedPending);
+      localStorage.setItem('pending_recipes', JSON.stringify(updatedPending));
+
+      // Track that this recipe has been shared
+      const updatedUserShared = new Set([...userSharedRecipes, recipe.id]);
+      setUserSharedRecipes(updatedUserShared);
+      localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
+
+      return {
+        success: true,
+        shareId,
+        message: 'Recipe submitted for community review! Admin will approve shortly.'
+      };
+    }
   };
 
-  // ADMIN: Approve pending recipe
-  const approveRecipe = (recipeId, adminUser) => {
+  // ADMIN: Approve pending recipe (with Supabase)
+  const approveRecipe = async (recipeId, adminUser) => {
     if (!adminUser?.isAdmin) {
       return { success: false, message: 'Admin access required' };
     }
 
-    const recipe = pendingRecipes.find(r => r.id === recipeId || r.originalId === recipeId);
-    if (!recipe) {
-      return { success: false, message: 'Recipe not found' };
+    try {
+      // Find the recipe to approve
+      const recipe = pendingRecipes.find(r => r.id === recipeId || r.originalId === recipeId);
+      if (!recipe) {
+        return { success: false, message: 'Recipe not found' };
+      }
+
+      // Use Supabase for approval
+      const result = await approveRecipeInSupabase(recipe.id, adminUser);
+      return result;
+
+    } catch (error) {
+      console.error('Error approving recipe:', error);
+
+      // Fallback to localStorage
+      const recipe = pendingRecipes.find(r => r.id === recipeId || r.originalId === recipeId);
+      if (!recipe) {
+        return { success: false, message: 'Recipe not found' };
+      }
+
+      // Move from pending to approved shared recipes
+      const approvedRecipe = {
+        ...recipe,
+        status: 'approved',
+        approvedAt: new Date().toISOString(),
+        approvedBy: adminUser.username
+      };
+
+      // Add to shared recipes
+      const updatedShared = [...sharedRecipes, approvedRecipe];
+      setSharedRecipes(updatedShared);
+      localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author && !r.isDefault)));
+
+      // Remove from pending
+      const updatedPending = pendingRecipes.filter(r => r.id !== recipeId && r.originalId !== recipeId);
+      setPendingRecipes(updatedPending);
+      localStorage.setItem('pending_recipes', JSON.stringify(updatedPending));
+
+      return { success: true, message: 'Recipe approved and added to community!' };
     }
-
-    // Move from pending to approved shared recipes
-    const approvedRecipe = {
-      ...recipe,
-      status: 'approved',
-      approvedAt: new Date().toISOString(),
-      approvedBy: adminUser.username
-    };
-
-    // Add to shared recipes
-    const updatedShared = [...sharedRecipes, approvedRecipe];
-    setSharedRecipes(updatedShared);
-    localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author && !r.isDefault)));
-
-    // Remove from pending
-    const updatedPending = pendingRecipes.filter(r => r.id !== recipeId && r.originalId !== recipeId);
-    setPendingRecipes(updatedPending);
-    localStorage.setItem('pending_recipes', JSON.stringify(updatedPending));
-
-    return { success: true, message: 'Recipe approved and added to community!' };
   };
 
-  // ADMIN: Reject pending recipe
-  const rejectRecipe = (recipeId, adminUser, reason = '') => {
+  // ADMIN: Reject pending recipe (with Supabase)
+  const rejectRecipe = async (recipeId, adminUser, reason = '') => {
     if (!adminUser?.isAdmin) {
       return { success: false, message: 'Admin access required' };
     }
 
-    const recipe = pendingRecipes.find(r => r.id === recipeId || r.originalId === recipeId);
-    if (!recipe) {
-      return { success: false, message: 'Recipe not found' };
+    try {
+      // Find the recipe to reject
+      const recipe = pendingRecipes.find(r => r.id === recipeId || r.originalId === recipeId);
+      if (!recipe) {
+        return { success: false, message: 'Recipe not found' };
+      }
+
+      // Use Supabase for rejection
+      const result = await rejectRecipeInSupabase(recipe.id, adminUser, reason);
+
+      // Remove from user shared tracking
+      const updatedUserShared = new Set([...userSharedRecipes]);
+      updatedUserShared.delete(recipe.originalId);
+      setUserSharedRecipes(updatedUserShared);
+      localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
+
+      return result;
+
+    } catch (error) {
+      console.error('Error rejecting recipe:', error);
+
+      // Fallback to localStorage
+      const recipe = pendingRecipes.find(r => r.id === recipeId || r.originalId === recipeId);
+      if (!recipe) {
+        return { success: false, message: 'Recipe not found' };
+      }
+
+      // Remove from pending
+      const updatedPending = pendingRecipes.filter(r => r.id !== recipeId && r.originalId !== recipeId);
+      setPendingRecipes(updatedPending);
+      localStorage.setItem('pending_recipes', JSON.stringify(updatedPending));
+
+      // Remove from user shared tracking
+      const updatedUserShared = new Set([...userSharedRecipes]);
+      updatedUserShared.delete(recipe.originalId);
+      setUserSharedRecipes(updatedUserShared);
+      localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
+
+      return { success: true, message: `Recipe rejected${reason ? ': ' + reason : ''}` };
     }
-
-    // Remove from pending
-    const updatedPending = pendingRecipes.filter(r => r.id !== recipeId && r.originalId !== recipeId);
-    setPendingRecipes(updatedPending);
-    localStorage.setItem('pending_recipes', JSON.stringify(updatedPending));
-
-    // Remove from user shared tracking
-    const updatedUserShared = new Set([...userSharedRecipes]);
-    updatedUserShared.delete(recipe.originalId);
-    setUserSharedRecipes(updatedUserShared);
-    localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
-
-    return { success: true, message: `Recipe rejected${reason ? ': ' + reason : ''}` };
   };
 
-  // ADMIN: Remove approved shared recipe
-  const removeSharedRecipe = (recipeId, adminUser) => {
+  // ADMIN: Remove approved shared recipe (with Supabase)
+  const removeSharedRecipe = async (recipeId, adminUser) => {
     if (!adminUser?.isAdmin) {
       return { success: false, message: 'Admin access required' };
     }
 
-    const updatedShared = sharedRecipes.filter(r => r.id !== recipeId && r.originalId !== recipeId);
-    setSharedRecipes(updatedShared);
-    localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author && !r.isDefault)));
+    try {
+      // Use Supabase for removal
+      const result = await removeSharedRecipeFromSupabase(recipeId, adminUser);
+      return result;
 
-    return { success: true, message: 'Recipe removed from community' };
+    } catch (error) {
+      console.error('Error removing shared recipe:', error);
+
+      // Fallback to localStorage
+      const updatedShared = sharedRecipes.filter(r => r.id !== recipeId && r.originalId !== recipeId);
+      setSharedRecipes(updatedShared);
+      localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author && !r.isDefault)));
+
+      return { success: true, message: 'Recipe removed from community' };
+    }
   };
 
   const generateShareableLink = (recipe) => {
@@ -660,7 +982,7 @@ export const RecipeProvider = ({ children }) => {
       ingredients: recipe.ingredients,
       steps: recipe.steps,
       tags: recipe.tags,
-      url: recipe.url, // NEW: Include URL in shared data
+      url: recipe.url,
       author: recipe.author || 'Community Chef',
       sharedVia: 'email'
     };
@@ -672,6 +994,7 @@ export const RecipeProvider = ({ children }) => {
   const saveSharedRecipe = (recipeData) => {
     try {
       const recipe = JSON.parse(decodeURIComponent(recipeData));
+
       const allExistingRecipes = [...savedRecipes, ...recipes];
       const isDuplicate = allExistingRecipes.some(existingRecipe =>
         areRecipesIdentical(recipe, existingRecipe)
@@ -691,6 +1014,7 @@ export const RecipeProvider = ({ children }) => {
 
       const result = saveRecipe(newRecipe);
       return result;
+
     } catch (error) {
       return { success: false, message: 'Invalid recipe data' };
     }
@@ -698,6 +1022,7 @@ export const RecipeProvider = ({ children }) => {
 
   const emailShareRecipe = (recipe) => {
     const shareLink = generateShareableLink(recipe);
+
     const subject = `🍳 Check out this delicious recipe: ${recipe.title}`;
     const body = `Hi there! 👋
 
@@ -763,7 +1088,7 @@ Shared via Meal Plan App`;
     recipes,
     savedRecipes,
     sharedRecipes,
-    pendingRecipes, // NEW: For admin interface
+    pendingRecipes,
     loading,
     getAllUniqueRecipes,
     addRecipe,
@@ -778,10 +1103,13 @@ Shared via Meal Plan App`;
     hasSharedRecipe,
     cleanupDuplicates,
     completeReset,
-    // NEW: Admin functions
+    // Admin functions
     approveRecipe,
     rejectRecipe,
-    removeSharedRecipe
+    removeSharedRecipe,
+    // Supabase sync functions
+    loadCommunityRecipes,
+    loadPendingRecipes
   };
 
   return (
