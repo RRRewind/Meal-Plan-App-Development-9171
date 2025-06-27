@@ -8,22 +8,13 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const { 
-  FiSettings, FiUser, FiBell, FiEye, FiGlobe, FiSave, FiCamera, 
-  FiMail, FiLock, FiHeart, FiChef, FiMapPin, FiClock, FiShield,
-  FiEdit3, FiCheck, FiX
+const {
+  FiSettings, FiUser, FiBell, FiSave, FiMail, FiCheck
 } = FiIcons;
 
 const Settings = () => {
   const { user } = useAuth();
-  const { 
-    preferences, 
-    loading, 
-    updatePreferences, 
-    canChangeUsername,
-    getDaysUntilUsernameChange 
-  } = useSettings();
-
+  const { preferences, loading, updatePreferences } = useSettings();
   const [activeTab, setActiveTab] = useState('profile');
   const [formData, setFormData] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
@@ -38,13 +29,8 @@ const Settings = () => {
         email: preferences.email || '',
         bio: preferences.bio || '',
         avatarUrl: preferences.avatarUrl || '',
-        dietaryPreferences: preferences.dietaryPreferences || [],
-        cookingSkillLevel: preferences.cookingSkillLevel || 'beginner',
-        preferredCuisine: preferences.preferredCuisine || [],
         notificationsEnabled: preferences.notificationsEnabled ?? true,
         emailNotifications: preferences.emailNotifications ?? true,
-        themePreference: preferences.themePreference || 'light',
-        measurementSystem: preferences.measurementSystem || 'metric'
       });
       setHasChanges(false);
     }
@@ -59,36 +45,18 @@ const Settings = () => {
       formData.displayName !== preferences.displayName ||
       formData.bio !== preferences.bio ||
       formData.avatarUrl !== preferences.avatarUrl ||
-      JSON.stringify(formData.dietaryPreferences) !== JSON.stringify(preferences.dietaryPreferences) ||
-      formData.cookingSkillLevel !== preferences.cookingSkillLevel ||
-      JSON.stringify(formData.preferredCuisine) !== JSON.stringify(preferences.preferredCuisine) ||
       formData.notificationsEnabled !== preferences.notificationsEnabled ||
-      formData.emailNotifications !== preferences.emailNotifications ||
-      formData.themePreference !== preferences.themePreference ||
-      formData.measurementSystem !== preferences.measurementSystem;
+      formData.emailNotifications !== preferences.emailNotifications;
 
     setHasChanges(hasFormChanges);
   }, [formData, preferences]);
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleArrayChange = (field, value, checked) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: checked 
-        ? [...(prev[field] || []), value]
-        : (prev[field] || []).filter(item => item !== value)
-    }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
     setSaving(true);
-    
     try {
       const result = await updatePreferences(formData);
       if (result.success) {
@@ -104,28 +72,7 @@ const Settings = () => {
 
   const tabs = [
     { id: 'profile', name: 'Profile', icon: FiUser },
-    { id: 'preferences', name: 'Preferences', icon: FiHeart },
-    { id: 'notifications', name: 'Notifications', icon: FiBell },
-    { id: 'appearance', name: 'Appearance', icon: FiEye },
-    { id: 'privacy', name: 'Privacy', icon: FiShield }
-  ];
-
-  const dietaryOptions = [
-    'Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 
-    'Low-Carb', 'Keto', 'Paleo', 'Mediterranean', 'Halal', 'Kosher'
-  ];
-
-  const cuisineOptions = [
-    'Italian', 'Mexican', 'Asian', 'Indian', 'Mediterranean', 'French',
-    'Thai', 'Japanese', 'Chinese', 'American', 'Greek', 'Spanish',
-    'Middle Eastern', 'Korean', 'Vietnamese', 'German'
-  ];
-
-  const skillLevels = [
-    { value: 'beginner', label: 'Beginner', description: 'Just starting out' },
-    { value: 'intermediate', label: 'Intermediate', description: 'Comfortable with basics' },
-    { value: 'advanced', label: 'Advanced', description: 'Experienced cook' },
-    { value: 'expert', label: 'Expert', description: 'Professional level' }
+    { id: 'notifications', name: 'Notifications', icon: FiBell }
   ];
 
   if (!user) {
@@ -151,13 +98,13 @@ const Settings = () => {
             <div>
               <h1 className="text-4xl font-bold text-gray-900 flex items-center">
                 <SafeIcon icon={FiSettings} className="mr-4 text-primary-500" />
-                Settings & Preferences
+                Settings
               </h1>
               <p className="text-gray-600 mt-2 font-medium">
-                Customize your cooking experience
+                Manage your profile and preferences
               </p>
             </div>
-            
+
             {/* Save Button */}
             <AnimatePresence>
               {hasChanges && (
@@ -309,112 +256,6 @@ const Settings = () => {
                 </div>
               )}
 
-              {/* Preferences Tab */}
-              {activeTab === 'preferences' && (
-                <div className="space-y-8">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                      <SafeIcon icon={FiHeart} className="mr-3 text-primary-500" />
-                      Cooking Preferences
-                    </h2>
-                  </div>
-
-                  {/* Cooking Skill Level */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-4">
-                      Cooking Skill Level
-                    </label>
-                    <div className="grid md:grid-cols-2 gap-4">
-                      {skillLevels.map((level) => (
-                        <motion.label
-                          key={level.value}
-                          whileHover={{ scale: 1.02 }}
-                          className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                            formData.cookingSkillLevel === level.value
-                              ? 'border-primary-500 bg-primary-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="skillLevel"
-                            value={level.value}
-                            checked={formData.cookingSkillLevel === level.value}
-                            onChange={(e) => handleInputChange('cookingSkillLevel', e.target.value)}
-                            className="sr-only"
-                          />
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-semibold text-gray-900">{level.label}</div>
-                              <div className="text-sm text-gray-600">{level.description}</div>
-                            </div>
-                            {formData.cookingSkillLevel === level.value && (
-                              <SafeIcon icon={FiCheck} className="text-primary-500" />
-                            )}
-                          </div>
-                        </motion.label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Dietary Preferences */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-4">
-                      Dietary Preferences
-                    </label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {dietaryOptions.map((option) => (
-                        <motion.label
-                          key={option}
-                          whileHover={{ scale: 1.02 }}
-                          className={`p-3 border-2 rounded-xl cursor-pointer transition-all duration-200 text-center ${
-                            (formData.dietaryPreferences || []).includes(option)
-                              ? 'border-primary-500 bg-primary-50 text-primary-700'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={(formData.dietaryPreferences || []).includes(option)}
-                            onChange={(e) => handleArrayChange('dietaryPreferences', option, e.target.checked)}
-                            className="sr-only"
-                          />
-                          <span className="text-sm font-medium">{option}</span>
-                        </motion.label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Preferred Cuisine */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-4">
-                      Preferred Cuisine Types
-                    </label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {cuisineOptions.map((cuisine) => (
-                        <motion.label
-                          key={cuisine}
-                          whileHover={{ scale: 1.02 }}
-                          className={`p-3 border-2 rounded-xl cursor-pointer transition-all duration-200 text-center ${
-                            (formData.preferredCuisine || []).includes(cuisine)
-                              ? 'border-secondary-500 bg-secondary-50 text-secondary-700'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={(formData.preferredCuisine || []).includes(cuisine)}
-                            onChange={(e) => handleArrayChange('preferredCuisine', cuisine, e.target.checked)}
-                            className="sr-only"
-                          />
-                          <span className="text-sm font-medium">{cuisine}</span>
-                        </motion.label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {/* Notifications Tab */}
               {activeTab === 'notifications' && (
                 <div className="space-y-8">
@@ -485,173 +326,6 @@ const Settings = () => {
                         </motion.button>
                       </div>
                     </motion.div>
-                  </div>
-                </div>
-              )}
-
-              {/* Appearance Tab */}
-              {activeTab === 'appearance' && (
-                <div className="space-y-8">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                      <SafeIcon icon={FiEye} className="mr-3 text-primary-500" />
-                      Appearance & Display
-                    </h2>
-                  </div>
-
-                  {/* Theme Preference */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-4">
-                      Theme Preference
-                    </label>
-                    <div className="grid grid-cols-3 gap-4">
-                      {[
-                        { value: 'light', label: 'Light', description: 'Clean and bright' },
-                        { value: 'dark', label: 'Dark', description: 'Easy on the eyes' },
-                        { value: 'auto', label: 'Auto', description: 'Follow system' }
-                      ].map((theme) => (
-                        <motion.label
-                          key={theme.value}
-                          whileHover={{ scale: 1.02 }}
-                          className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 text-center ${
-                            formData.themePreference === theme.value
-                              ? 'border-primary-500 bg-primary-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="theme"
-                            value={theme.value}
-                            checked={formData.themePreference === theme.value}
-                            onChange={(e) => handleInputChange('themePreference', e.target.value)}
-                            className="sr-only"
-                          />
-                          <div className="font-semibold text-gray-900">{theme.label}</div>
-                          <div className="text-xs text-gray-600">{theme.description}</div>
-                        </motion.label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Measurement System */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-4">
-                      Measurement System
-                    </label>
-                    <div className="grid grid-cols-2 gap-4">
-                      {[
-                        { value: 'metric', label: 'Metric', description: 'Grams, liters, Celsius' },
-                        { value: 'imperial', label: 'Imperial', description: 'Ounces, cups, Fahrenheit' }
-                      ].map((system) => (
-                        <motion.label
-                          key={system.value}
-                          whileHover={{ scale: 1.02 }}
-                          className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
-                            formData.measurementSystem === system.value
-                              ? 'border-primary-500 bg-primary-50'
-                              : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name="measurement"
-                            value={system.value}
-                            checked={formData.measurementSystem === system.value}
-                            onChange={(e) => handleInputChange('measurementSystem', e.target.value)}
-                            className="sr-only"
-                          />
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-semibold text-gray-900">{system.label}</div>
-                              <div className="text-sm text-gray-600">{system.description}</div>
-                            </div>
-                            {formData.measurementSystem === system.value && (
-                              <SafeIcon icon={FiCheck} className="text-primary-500" />
-                            )}
-                          </div>
-                        </motion.label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Privacy Tab */}
-              {activeTab === 'privacy' && (
-                <div className="space-y-8">
-                  <div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
-                      <SafeIcon icon={FiShield} className="mr-3 text-primary-500" />
-                      Privacy & Security
-                    </h2>
-                  </div>
-
-                  <div className="space-y-6">
-                    {/* Username Change Info */}
-                    <div className="p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
-                      <h3 className="font-semibold text-gray-900 flex items-center mb-3">
-                        <SafeIcon icon={FiEdit3} className="mr-2 text-blue-500" />
-                        Username Change Policy
-                      </h3>
-                      <div className="space-y-2 text-sm text-gray-600">
-                        <p>• You can change your username once every 14 days</p>
-                        <p>• Username changes: {preferences?.usernameChangeCount || 0} time{(preferences?.usernameChangeCount || 0) !== 1 ? 's' : ''}</p>
-                        {preferences?.lastUsernameChange && (
-                          <p>• Last changed: {new Date(preferences.lastUsernameChange).toLocaleDateString()}</p>
-                        )}
-                        {getDaysUntilUsernameChange() > 0 && (
-                          <p className="text-orange-600 font-medium">
-                            • Next change available in: {getDaysUntilUsernameChange()} days
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Data Export */}
-                    <div className="p-6 bg-gradient-to-r from-green-50 to-blue-50 rounded-xl border border-green-200">
-                      <h3 className="font-semibold text-gray-900 flex items-center mb-3">
-                        <SafeIcon icon={FiGlobe} className="mr-2 text-green-500" />
-                        Data Management
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Export your recipe data, meal plans, and preferences
-                      </p>
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="bg-green-100 text-green-700 px-4 py-2 rounded-lg font-semibold hover:bg-green-200 transition-colors duration-200"
-                      >
-                        Export My Data
-                      </motion.button>
-                    </div>
-
-                    {/* Account Security */}
-                    <div className="p-6 bg-gradient-to-r from-red-50 to-orange-50 rounded-xl border border-red-200">
-                      <h3 className="font-semibold text-gray-900 flex items-center mb-3">
-                        <SafeIcon icon={FiLock} className="mr-2 text-red-500" />
-                        Account Security
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Manage your account security settings
-                      </p>
-                      <div className="space-y-3">
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="block bg-orange-100 text-orange-700 px-4 py-2 rounded-lg font-semibold hover:bg-orange-200 transition-colors duration-200"
-                        >
-                          Change Password
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="block bg-red-100 text-red-700 px-4 py-2 rounded-lg font-semibold hover:bg-red-200 transition-colors duration-200"
-                        >
-                          Delete Account
-                        </motion.button>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
