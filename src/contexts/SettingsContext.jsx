@@ -30,12 +30,36 @@ export const SettingsProvider = ({ children }) => {
     bio: ''
   };
 
-  // Load user preferences
+  // Load user preferences with better error handling
   const loadPreferences = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
+      console.log('Loading preferences for user:', user.id);
+
+      // Test Supabase connection first
+      const { data: testData, error: testError } = await supabase
+        .from('user_preferences_mp2024')
+        .select('count')
+        .limit(1);
+
+      if (testError) {
+        console.error('Supabase connection test failed:', testError);
+        // Fallback to local preferences
+        setPreferences({
+          ...defaultPreferences,
+          userId: user.id,
+          username: user.username || user.name || `user_${user.id.slice(0, 8)}`,
+          email: user.email,
+          displayName: user.name,
+          avatarUrl: user.avatar,
+          lastUsernameChange: null,
+          usernameChangeCount: 0
+        });
+        return;
+      }
+
       const { data, error } = await supabase
         .from('user_preferences_mp2024')
         .select('*')
@@ -43,10 +67,35 @@ export const SettingsProvider = ({ children }) => {
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('Error loading preferences:', error);
         throw error;
       }
 
       if (data) {
+        console.log('Loaded preferences:', data);
+        
+        // Parse JSON fields safely
+        let dietaryPreferences = [];
+        let preferredCuisine = [];
+        
+        try {
+          dietaryPreferences = typeof data.dietary_preferences === 'string' 
+            ? JSON.parse(data.dietary_preferences) 
+            : (data.dietary_preferences || []);
+        } catch (e) {
+          console.warn('Failed to parse dietary preferences:', e);
+          dietaryPreferences = [];
+        }
+
+        try {
+          preferredCuisine = typeof data.preferred_cuisine === 'string' 
+            ? JSON.parse(data.preferred_cuisine) 
+            : (data.preferred_cuisine || []);
+        } catch (e) {
+          console.warn('Failed to parse preferred cuisine:', e);
+          preferredCuisine = [];
+        }
+
         setPreferences({
           ...defaultPreferences,
           userId: data.user_id,
@@ -55,9 +104,9 @@ export const SettingsProvider = ({ children }) => {
           displayName: data.display_name,
           avatarUrl: data.avatar_url,
           bio: data.bio || '',
-          dietaryPreferences: data.dietary_preferences || [],
+          dietaryPreferences,
           cookingSkillLevel: data.cooking_skill_level || 'beginner',
-          preferredCuisine: data.preferred_cuisine || [],
+          preferredCuisine,
           notificationsEnabled: data.notifications_enabled ?? true,
           emailNotifications: data.email_notifications ?? true,
           themePreference: data.theme_preference || 'light',
@@ -67,11 +116,24 @@ export const SettingsProvider = ({ children }) => {
         });
       } else {
         // Create initial preferences record
+        console.log('No preferences found, creating initial record');
         await createInitialPreferences();
       }
     } catch (error) {
       console.error('Error loading preferences:', error);
-      toast.error('Failed to load preferences');
+      toast.error('Failed to load preferences - using defaults');
+      
+      // Fallback to default preferences
+      setPreferences({
+        ...defaultPreferences,
+        userId: user.id,
+        username: user.username || user.name || `user_${user.id.slice(0, 8)}`,
+        email: user.email,
+        displayName: user.name,
+        avatarUrl: user.avatar,
+        lastUsernameChange: null,
+        usernameChangeCount: 0
+      });
     } finally {
       setLoading(false);
     }
@@ -82,13 +144,23 @@ export const SettingsProvider = ({ children }) => {
     if (!user) return;
 
     try {
+      console.log('Creating initial preferences for user:', user.id);
+      
       const initialData = {
         user_id: user.id,
         username: user.username || user.name || `user_${user.id.slice(0, 8)}`,
         email: user.email,
         display_name: user.name,
         avatar_url: user.avatar,
-        ...defaultPreferences
+        bio: '',
+        dietary_preferences: JSON.stringify([]),
+        cooking_skill_level: 'beginner',
+        preferred_cuisine: JSON.stringify([]),
+        notifications_enabled: true,
+        email_notifications: true,
+        theme_preference: 'light',
+        measurement_system: 'metric',
+        username_change_count: 0
       };
 
       const { data, error } = await supabase
@@ -97,7 +169,12 @@ export const SettingsProvider = ({ children }) => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating initial preferences:', error);
+        throw error;
+      }
+
+      console.log('Created initial preferences:', data);
 
       setPreferences({
         ...defaultPreferences,
@@ -110,17 +187,28 @@ export const SettingsProvider = ({ children }) => {
         lastUsernameChange: data.last_username_change,
         usernameChangeCount: data.username_change_count || 0
       });
-
     } catch (error) {
       console.error('Error creating initial preferences:', error);
       toast.error('Failed to initialize preferences');
+      
+      // Fallback to local preferences
+      setPreferences({
+        ...defaultPreferences,
+        userId: user.id,
+        username: user.username || user.name || `user_${user.id.slice(0, 8)}`,
+        email: user.email,
+        displayName: user.name,
+        avatarUrl: user.avatar,
+        lastUsernameChange: null,
+        usernameChangeCount: 0
+      });
     }
   };
 
   // Get days until next username change
   const getDaysUntilUsernameChange = () => {
     if (!preferences?.lastUsernameChange) return 0;
-
+    
     const lastChange = new Date(preferences.lastUsernameChange);
     const nextChange = new Date(lastChange.getTime() + (14 * 24 * 60 * 60 * 1000)); // 14 days
     const now = new Date();
@@ -135,60 +223,49 @@ export const SettingsProvider = ({ children }) => {
   // Check if user can change username
   const canChangeUsername = async () => {
     if (!user || !preferences) return false;
-
+    
     try {
-      const { data, error } = await supabase
-        .rpc('can_change_username_mp2024', {
-          user_id_param: user.id
-        });
-
-      if (error) {
-        console.error('RPC Error:', error);
-        // Fallback to local calculation
-        return getDaysUntilUsernameChange() === 0;
-      }
-      
-      return data === true;
-
+      // Simple check - allow if no previous change or 14 days have passed
+      return getDaysUntilUsernameChange() === 0;
     } catch (error) {
       console.error('Error checking username change cooldown:', error);
-      // Fallback to local calculation
       return getDaysUntilUsernameChange() === 0;
     }
   };
 
-  // Update preferences with enhanced username handling
+  // Update preferences with enhanced error handling
   const updatePreferences = async (updates) => {
-    if (!user || !preferences) return { success: false };
+    if (!user || !preferences) {
+      console.error('Cannot update preferences: no user or preferences');
+      return { success: false, error: 'No user or preferences loaded' };
+    }
 
     setLoading(true);
 
     try {
+      console.log('Updating preferences:', updates);
+
       // Handle username change separately due to cooldown
       if (updates.username && updates.username !== preferences.username) {
         const canChange = await canChangeUsername();
         if (!canChange) {
           const daysLeft = getDaysUntilUsernameChange();
-          toast.error(`You can change your username again in ${daysLeft} days`);
+          const errorMsg = `You can change your username again in ${daysLeft} days`;
+          toast.error(errorMsg);
           setLoading(false);
-          return { success: false, error: 'Username change cooldown active' };
+          return { success: false, error: errorMsg };
         }
 
-        // Check if username is available
-        const { data: availabilityData, error: availabilityError } = await supabase
-          .rpc('check_username_available_mp2024', {
-            check_username: updates.username,
-            current_user_id: user.id
-          });
+        // Check if username is available (simple check)
+        const { data: existingUsers, error: checkError } = await supabase
+          .from('user_preferences_mp2024')
+          .select('username')
+          .ilike('username', updates.username)
+          .neq('user_id', user.id);
 
-        if (availabilityError) {
-          console.error('Username availability check error:', availabilityError);
-          toast.error('Failed to check username availability');
-          setLoading(false);
-          return { success: false, error: 'Unable to verify username availability' };
-        }
-
-        if (!availabilityData) {
+        if (checkError) {
+          console.error('Username availability check error:', checkError);
+        } else if (existingUsers && existingUsers.length > 0) {
           toast.error('Username is not available');
           setLoading(false);
           return { success: false, error: 'Username not available' };
@@ -207,9 +284,9 @@ export const SettingsProvider = ({ children }) => {
         display_name: updates.displayName || preferences.displayName,
         avatar_url: updates.avatarUrl || preferences.avatarUrl,
         bio: updates.bio !== undefined ? updates.bio : preferences.bio,
-        dietary_preferences: updates.dietaryPreferences || preferences.dietaryPreferences,
+        dietary_preferences: JSON.stringify(updates.dietaryPreferences || preferences.dietaryPreferences),
         cooking_skill_level: updates.cookingSkillLevel || preferences.cookingSkillLevel,
-        preferred_cuisine: updates.preferredCuisine || preferences.preferredCuisine,
+        preferred_cuisine: JSON.stringify(updates.preferredCuisine || preferences.preferredCuisine),
         notifications_enabled: updates.notificationsEnabled !== undefined ? updates.notificationsEnabled : preferences.notificationsEnabled,
         email_notifications: updates.emailNotifications !== undefined ? updates.emailNotifications : preferences.emailNotifications,
         theme_preference: updates.themePreference || preferences.themePreference,
@@ -223,13 +300,42 @@ export const SettingsProvider = ({ children }) => {
         supabaseData.username_change_count = updates.username_change_count;
       }
 
+      console.log('Sending to Supabase:', supabaseData);
+
       const { data, error } = await supabase
         .from('user_preferences_mp2024')
         .upsert(supabaseData)
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase update error:', error);
+        throw error;
+      }
+
+      console.log('Update successful:', data);
+
+      // Parse the returned data
+      let dietaryPreferences = [];
+      let preferredCuisine = [];
+      
+      try {
+        dietaryPreferences = typeof data.dietary_preferences === 'string' 
+          ? JSON.parse(data.dietary_preferences) 
+          : (data.dietary_preferences || []);
+      } catch (e) {
+        console.warn('Failed to parse returned dietary preferences:', e);
+        dietaryPreferences = updates.dietaryPreferences || preferences.dietaryPreferences;
+      }
+
+      try {
+        preferredCuisine = typeof data.preferred_cuisine === 'string' 
+          ? JSON.parse(data.preferred_cuisine) 
+          : (data.preferred_cuisine || []);
+      } catch (e) {
+        console.warn('Failed to parse returned preferred cuisine:', e);
+        preferredCuisine = updates.preferredCuisine || preferences.preferredCuisine;
+      }
 
       // Update local state
       const updatedPreferences = {
@@ -239,9 +345,9 @@ export const SettingsProvider = ({ children }) => {
         displayName: data.display_name,
         avatarUrl: data.avatar_url,
         bio: data.bio || '',
-        dietaryPreferences: data.dietary_preferences || [],
+        dietaryPreferences,
         cookingSkillLevel: data.cooking_skill_level || 'beginner',
-        preferredCuisine: data.preferred_cuisine || [],
+        preferredCuisine,
         notificationsEnabled: data.notifications_enabled ?? true,
         emailNotifications: data.email_notifications ?? true,
         themePreference: data.theme_preference || 'light',
