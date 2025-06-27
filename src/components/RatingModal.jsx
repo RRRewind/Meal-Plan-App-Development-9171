@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRating } from '../contexts/RatingContext';
 import SafeIcon from '../common/SafeIcon';
@@ -62,13 +63,14 @@ const RatingModal = ({ recipe, isOpen, onClose }) => {
 
   const existingRating = getUserRating(recipe.id);
 
-  return (
+  const ModalContent = () => (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+        style={{ zIndex: 99999 }}
         onClick={onClose}
       >
         <motion.div
@@ -196,6 +198,9 @@ const RatingModal = ({ recipe, isOpen, onClose }) => {
       </motion.div>
     </AnimatePresence>
   );
+
+  // Portal the modal to document.body
+  return typeof document !== 'undefined' ? createPortal(<ModalContent />, document.body) : null;
 };
 
 export default RatingModal;
