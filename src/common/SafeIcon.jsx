@@ -6,29 +6,12 @@ const SafeIcon = ({ icon, name, ...props }) => {
   let IconComponent;
   
   try {
-    // If icon is passed directly, use it
-    if (icon) {
-      IconComponent = icon;
-    }
-    // If name is passed, try to find it in FiIcons
-    else if (name && FiIcons[`Fi${name}`]) {
-      IconComponent = FiIcons[`Fi${name}`];
-    }
-    // Fallback to alert triangle
-    else {
-      IconComponent = FiAlertTriangle;
-    }
+    IconComponent = icon || (name && FiIcons[`Fi${name}`]);
   } catch (e) {
-    console.warn('SafeIcon error:', e);
-    IconComponent = FiAlertTriangle;
+    IconComponent = null;
   }
   
-  // Ensure we have a valid component
-  if (!IconComponent || typeof IconComponent !== 'function') {
-    IconComponent = FiAlertTriangle;
-  }
-  
-  return React.createElement(IconComponent, props);
+  return IconComponent ? React.createElement(IconComponent, props) : <FiAlertTriangle {...props} />;
 };
 
 export default SafeIcon;

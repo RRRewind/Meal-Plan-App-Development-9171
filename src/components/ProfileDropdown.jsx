@@ -8,9 +8,7 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const {
-  FiUser, FiBell, FiSave, FiLogOut, FiStar, FiMail, FiEdit3, FiCheck, FiX, FiChevronDown
-} = FiIcons;
+const { FiUser, FiSave, FiLogOut, FiStar, FiMail, FiEdit3, FiCheck, FiX, FiChevronDown } = FiIcons;
 
 const ProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,6 +17,7 @@ const ProfileDropdown = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 });
+
   const buttonRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -40,7 +39,7 @@ const ProfileDropdown = () => {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
-        dropdownRef.current && 
+        dropdownRef.current &&
         !dropdownRef.current.contains(event.target) &&
         buttonRef.current &&
         !buttonRef.current.contains(event.target)
@@ -83,9 +82,7 @@ const ProfileDropdown = () => {
         displayName: preferences.displayName || '',
         email: preferences.email || '',
         bio: preferences.bio || '',
-        avatarUrl: preferences.avatarUrl || '',
-        notificationsEnabled: preferences.notificationsEnabled ?? true,
-        emailNotifications: preferences.emailNotifications ?? true,
+        avatarUrl: preferences.avatarUrl || ''
       };
       setFormData(initialData);
       setHasChanges(false);
@@ -100,9 +97,7 @@ const ProfileDropdown = () => {
       username: formData.username !== (preferences.username || ''),
       displayName: formData.displayName !== (preferences.displayName || ''),
       bio: formData.bio !== (preferences.bio || ''),
-      avatarUrl: formData.avatarUrl !== (preferences.avatarUrl || ''),
-      notificationsEnabled: formData.notificationsEnabled !== (preferences.notificationsEnabled ?? true),
-      emailNotifications: formData.emailNotifications !== (preferences.emailNotifications ?? true),
+      avatarUrl: formData.avatarUrl !== (preferences.avatarUrl || '')
     };
 
     const hasAnyChanges = Object.values(changes).some(changed => changed);
@@ -141,8 +136,7 @@ const ProfileDropdown = () => {
   };
 
   const tabs = [
-    { id: 'profile', name: 'Profile', icon: FiUser },
-    { id: 'notifications', name: 'Notifications', icon: FiBell }
+    { id: 'profile', name: 'Profile', icon: FiUser }
   ];
 
   if (!user) return null;
@@ -284,7 +278,6 @@ const ProfileDropdown = () => {
                     />
                   </div>
 
-                  {/* Add some extra content to test scrolling */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-2">
                       Email (Read Only)
@@ -298,102 +291,6 @@ const ProfileDropdown = () => {
                     <p className="text-xs text-gray-500 mt-1">
                       Email cannot be changed
                     </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Notifications Tab */}
-              {activeTab === 'notifications' && (
-                <div className="space-y-4">
-                  <motion.div
-                    whileHover={{ scale: 1.01 }}
-                    className="p-3 bg-gradient-to-r from-primary-50 to-secondary-50 rounded-lg border border-primary-200"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium text-gray-900 text-sm">Push Notifications</h4>
-                        <p className="text-xs text-gray-600">Cooking reminders and updates</p>
-                      </div>
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleInputChange('notificationsEnabled', !formData.notificationsEnabled)}
-                        className={`w-10 h-5 rounded-full transition-colors duration-200 ${
-                          formData.notificationsEnabled ? 'bg-primary-500' : 'bg-gray-300'
-                        }`}
-                      >
-                        <motion.div
-                          animate={{ x: formData.notificationsEnabled ? 20 : 0 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                          className="w-5 h-5 bg-white rounded-full shadow-md"
-                        />
-                      </motion.button>
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    whileHover={{ scale: 1.01 }}
-                    className="p-3 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-200"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium text-gray-900 text-sm">Email Notifications</h4>
-                        <p className="text-xs text-gray-600">Weekly recipe recommendations</p>
-                      </div>
-                      <motion.button
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleInputChange('emailNotifications', !formData.emailNotifications)}
-                        className={`w-10 h-5 rounded-full transition-colors duration-200 ${
-                          formData.emailNotifications ? 'bg-blue-500' : 'bg-gray-300'
-                        }`}
-                      >
-                        <motion.div
-                          animate={{ x: formData.emailNotifications ? 20 : 0 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                          className="w-5 h-5 bg-white rounded-full shadow-md"
-                        />
-                      </motion.button>
-                    </div>
-                  </motion.div>
-
-                  {/* Add more notification options to test scrolling */}
-                  <div className="space-y-3 mt-6">
-                    <h5 className="font-semibold text-gray-700 text-sm">Notification Frequency</h5>
-                    <div className="space-y-2">
-                      <label className="flex items-center space-x-2">
-                        <input type="radio" name="frequency" className="text-primary-500" defaultChecked />
-                        <span className="text-sm text-gray-600">Real-time</span>
-                      </label>
-                      <label className="flex items-center space-x-2">
-                        <input type="radio" name="frequency" className="text-primary-500" />
-                        <span className="text-sm text-gray-600">Daily digest</span>
-                      </label>
-                      <label className="flex items-center space-x-2">
-                        <input type="radio" name="frequency" className="text-primary-500" />
-                        <span className="text-sm text-gray-600">Weekly summary</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3 mt-6">
-                    <h5 className="font-semibold text-gray-700 text-sm">Categories</h5>
-                    <div className="space-y-2">
-                      <label className="flex items-center space-x-2">
-                        <input type="checkbox" className="text-primary-500" defaultChecked />
-                        <span className="text-sm text-gray-600">Recipe recommendations</span>
-                      </label>
-                      <label className="flex items-center space-x-2">
-                        <input type="checkbox" className="text-primary-500" defaultChecked />
-                        <span className="text-sm text-gray-600">Cooking tips</span>
-                      </label>
-                      <label className="flex items-center space-x-2">
-                        <input type="checkbox" className="text-primary-500" />
-                        <span className="text-sm text-gray-600">Community updates</span>
-                      </label>
-                      <label className="flex items-center space-x-2">
-                        <input type="checkbox" className="text-primary-500" />
-                        <span className="text-sm text-gray-600">Achievement alerts</span>
-                      </label>
-                    </div>
                   </div>
                 </div>
               )}
@@ -461,9 +358,7 @@ const ProfileDropdown = () => {
         </span>
         <SafeIcon
           icon={FiChevronDown}
-          className={`text-gray-400 transition-transform duration-200 ${
-            isOpen ? 'rotate-180' : ''
-          }`}
+          className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
         />
       </motion.button>
 

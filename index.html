@@ -12,23 +12,19 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sen:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- Mobile optimization and debugging -->
+    <!-- Mobile optimization -->
     <style>
       /* Prevent iOS bounce scrolling */
       html, body {
         height: 100%;
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
-        margin: 0;
-        padding: 0;
       }
       
-      /* Ensure content is visible */
-      #root {
+      /* Fix viewport height on mobile */
+      .min-h-screen {
         min-height: 100vh;
         min-height: -webkit-fill-available;
-        width: 100%;
-        position: relative;
       }
       
       /* Loading screen */
@@ -43,7 +39,6 @@
         align-items: center;
         justify-content: center;
         z-index: 9999;
-        flex-direction: column;
       }
       
       .spinner {
@@ -53,88 +48,28 @@
         border-top: 4px solid #df4830;
         border-radius: 50%;
         animation: spin 1s linear infinite;
-        margin-bottom: 16px;
-      }
-      
-      .loading-text {
-        color: #6b7280;
-        font-family: system-ui, -apple-system, sans-serif;
-        font-weight: 500;
       }
       
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
-      
-      /* Fallback styles if CSS doesn't load */
-      .fallback-error {
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #f9fafb;
-        font-family: system-ui, -apple-system, sans-serif;
-        padding: 20px;
-        text-align: center;
-      }
     </style>
   </head>
   <body>
-    <!-- Loading Screen -->
     <div id="loading">
       <div class="spinner"></div>
-      <div class="loading-text">Loading Meal Plan...</div>
     </div>
-    
-    <!-- Main App Container -->
-    <div id="root">
-      <!-- Fallback content if JS fails to load -->
-      <noscript>
-        <div class="fallback-error">
-          <div>
-            <h1>JavaScript Required</h1>
-            <p>This app requires JavaScript to run. Please enable JavaScript in your browser.</p>
-          </div>
-        </div>
-      </noscript>
-    </div>
-    
+    <div id="root"></div>
     <script>
-      // Debug logging
-      console.log('HTML loaded, initializing...');
-      
-      // Track loading state
-      let loadingHidden = false;
-      
       // Hide loading screen when content loads
-      function hideLoading() {
-        if (loadingHidden) return;
-        loadingHidden = true;
-        
+      window.addEventListener('load', function() {
         const loading = document.getElementById('loading');
         if (loading) {
-          console.log('Hiding loading screen...');
           loading.style.opacity = '0';
-          loading.style.transition = 'opacity 0.3s ease';
-          setTimeout(() => {
-            loading.remove();
-            console.log('Loading screen removed');
-          }, 300);
+          setTimeout(() => loading.remove(), 300);
         }
-      }
-      
-      // Multiple ways to detect when app is ready
-      window.addEventListener('load', function() {
-        console.log('Window load event fired');
-        setTimeout(hideLoading, 500); // Give React a moment to render
       });
-      
-      // Fallback timeout
-      setTimeout(function() {
-        console.log('Fallback timeout - hiding loading screen');
-        hideLoading();
-      }, 5000);
       
       // Prevent zoom on double tap on iOS
       let lastTouchEnd = 0;
@@ -153,49 +88,6 @@
       }
       setViewportHeight();
       window.addEventListener('resize', setViewportHeight);
-      
-      // Global error handler
-      window.addEventListener('error', function(event) {
-        console.error('Global error:', event.error);
-        hideLoading();
-      });
-      
-      // Unhandled promise rejection handler
-      window.addEventListener('unhandledrejection', function(event) {
-        console.error('Unhandled promise rejection:', event.reason);
-      });
-      
-      // Check if React is loading
-      setTimeout(function() {
-        if (!window.React && !loadingHidden) {
-          console.error('React failed to load');
-          hideLoading();
-          document.getElementById('root').innerHTML = `
-            <div class="fallback-error">
-              <div>
-                <h1 style="color: #dc2626; margin-bottom: 16px;">Failed to Load</h1>
-                <p style="color: #6b7280; margin-bottom: 20px;">
-                  The app failed to load. Please check your internet connection and try refreshing.
-                </p>
-                <button 
-                  onclick="window.location.reload()" 
-                  style="
-                    background: #ef4444;
-                    color: white;
-                    border: none;
-                    padding: 12px 24px;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-weight: 600;
-                  "
-                >
-                  Refresh Page
-                </button>
-              </div>
-            </div>
-          `;
-        }
-      }, 3000);
     </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>

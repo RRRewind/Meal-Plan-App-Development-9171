@@ -28,7 +28,7 @@ export const CookingModeProvider = ({ children }) => {
           setIsActive(state.isActive);
           setCurrentRecipe(state.currentRecipe);
           setCurrentStep(state.currentStep || 0);
-          
+
           // Restore timer if it exists
           if (state.timer && state.timer.endTime) {
             const now = Date.now();
@@ -73,24 +73,20 @@ export const CookingModeProvider = ({ children }) => {
   // Timer countdown effect
   useEffect(() => {
     let interval;
+    
     if (isTimerRunning && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             setIsTimerRunning(false);
-            // Timer finished - could play sound or show notification
-            if (Notification.permission === 'granted') {
-              new Notification('🍳 Timer Finished!', {
-                body: 'Your cooking timer has completed.',
-                icon: '/vite.svg'
-              });
-            }
+            // Timer finished - no browser notification, just return 0
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
     }
+    
     return () => clearInterval(interval);
   }, [isTimerRunning, timeLeft]);
 
@@ -140,10 +136,7 @@ export const CookingModeProvider = ({ children }) => {
     // Update timer with remaining time
     if (timer && timeLeft > 0) {
       const newEndTime = Date.now() + (timeLeft * 1000);
-      setTimer(prev => ({
-        ...prev,
-        endTime: newEndTime
-      }));
+      setTimer(prev => ({ ...prev, endTime: newEndTime }));
     }
   };
 
@@ -152,10 +145,7 @@ export const CookingModeProvider = ({ children }) => {
       setIsTimerRunning(true);
       // Update end time based on current time left
       const newEndTime = Date.now() + (timeLeft * 1000);
-      setTimer(prev => ({
-        ...prev,
-        endTime: newEndTime
-      }));
+      setTimer(prev => ({ ...prev, endTime: newEndTime }));
     }
   };
 
