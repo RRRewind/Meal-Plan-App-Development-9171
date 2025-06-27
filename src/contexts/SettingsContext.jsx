@@ -18,11 +18,13 @@ export const SettingsProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const { user, updateUser } = useAuth();
 
-  // Default preferences - removed notification settings
+  // Default preferences
   const defaultPreferences = {
     dietaryPreferences: [],
     cookingSkillLevel: 'beginner',
     preferredCuisine: [],
+    notificationsEnabled: true,
+    emailNotifications: true,
     themePreference: 'light',
     measurementSystem: 'metric',
     bio: ''
@@ -72,6 +74,7 @@ export const SettingsProvider = ({ children }) => {
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
         console.error('Error loading preferences:', error);
+        
         // If table doesn't exist or other DB error, use local storage
         if (error.code === '42P01' || error.message.includes('relation') || error.message.includes('does not exist')) {
           console.log('Database table not found, using local preferences');
@@ -87,11 +90,13 @@ export const SettingsProvider = ({ children }) => {
           });
           return;
         }
+        
         throw error;
       }
 
       if (data) {
         console.log('Loaded preferences from DB:', data);
+        
         // Handle JSONB arrays properly - they come as actual arrays from PostgreSQL
         const dietaryPreferences = ensureArray(data.dietary_preferences);
         const preferredCuisine = ensureArray(data.preferred_cuisine);
@@ -107,6 +112,8 @@ export const SettingsProvider = ({ children }) => {
           dietaryPreferences,
           cookingSkillLevel: data.cooking_skill_level || 'beginner',
           preferredCuisine,
+          notificationsEnabled: data.notifications_enabled ?? true,
+          emailNotifications: data.email_notifications ?? true,
           themePreference: data.theme_preference || 'light',
           measurementSystem: data.measurement_system || 'metric',
           lastUsernameChange: data.last_username_change,
@@ -120,6 +127,7 @@ export const SettingsProvider = ({ children }) => {
     } catch (error) {
       console.error('Error loading preferences:', error);
       toast.error('Using local preferences - database unavailable');
+      
       // Fallback to default preferences
       setPreferences({
         ...defaultPreferences,
@@ -148,7 +156,7 @@ export const SettingsProvider = ({ children }) => {
 
     try {
       console.log('Creating initial preferences for user ID:', userId);
-
+      
       const initialData = {
         user_id: userId, // Now sending as string
         username: user.username || user.name || `user_${userId.slice(0, 8)}`,
@@ -159,6 +167,8 @@ export const SettingsProvider = ({ children }) => {
         dietary_preferences: [], // Send as actual array for JSONB
         cooking_skill_level: 'beginner',
         preferred_cuisine: [], // Send as actual array for JSONB
+        notifications_enabled: true,
+        email_notifications: true,
         theme_preference: 'light',
         measurement_system: 'metric',
         username_change_count: 0
@@ -174,12 +184,14 @@ export const SettingsProvider = ({ children }) => {
 
       if (error) {
         console.error('Error creating initial preferences:', error);
+        
         // If it's a duplicate key error, try to load existing record instead
         if (error.code === '23505') {
           console.log('Record already exists, loading existing preferences');
           await loadPreferences();
           return;
         }
+        
         throw error;
       }
 
@@ -196,6 +208,8 @@ export const SettingsProvider = ({ children }) => {
         dietaryPreferences: ensureArray(data.dietary_preferences),
         cookingSkillLevel: data.cooking_skill_level || 'beginner',
         preferredCuisine: ensureArray(data.preferred_cuisine),
+        notificationsEnabled: data.notifications_enabled ?? true,
+        emailNotifications: data.email_notifications ?? true,
         themePreference: data.theme_preference || 'light',
         measurementSystem: data.measurement_system || 'metric',
         lastUsernameChange: data.last_username_change,
@@ -204,6 +218,7 @@ export const SettingsProvider = ({ children }) => {
     } catch (error) {
       console.error('Error creating initial preferences:', error);
       toast.error('Failed to initialize preferences - using local storage');
+      
       // Fallback to local preferences
       setPreferences({
         ...defaultPreferences,
@@ -221,13 +236,13 @@ export const SettingsProvider = ({ children }) => {
   // Get days until next username change
   const getDaysUntilUsernameChange = () => {
     if (!preferences?.lastUsernameChange) return 0;
-
+    
     const lastChange = new Date(preferences.lastUsernameChange);
     const nextChange = new Date(lastChange.getTime() + (14 * 24 * 60 * 60 * 1000)); // 14 days
     const now = new Date();
-
+    
     if (now >= nextChange) return 0;
-
+    
     const diffTime = Math.abs(nextChange - now);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays;
@@ -236,7 +251,7 @@ export const SettingsProvider = ({ children }) => {
   // Check if user can change username
   const canChangeUsername = async () => {
     if (!user || !preferences) return false;
-
+    
     try {
       // Simple check - allow if no previous change or 14 days have passed
       return getDaysUntilUsernameChange() === 0;
@@ -311,6 +326,8 @@ export const SettingsProvider = ({ children }) => {
         dietary_preferences: ensureArray(updates.dietaryPreferences || preferences.dietaryPreferences), // Direct array for JSONB
         cooking_skill_level: updates.cookingSkillLevel || preferences.cookingSkillLevel,
         preferred_cuisine: ensureArray(updates.preferredCuisine || preferences.preferredCuisine), // Direct array for JSONB
+        notifications_enabled: updates.notificationsEnabled !== undefined ? updates.notificationsEnabled : preferences.notificationsEnabled,
+        email_notifications: updates.emailNotifications !== undefined ? updates.emailNotifications : preferences.emailNotifications,
         theme_preference: updates.themePreference || preferences.themePreference,
         measurement_system: updates.measurementSystem || preferences.measurementSystem,
         updated_at: new Date().toISOString()
@@ -342,6 +359,7 @@ export const SettingsProvider = ({ children }) => {
           .insert(supabaseData)
           .select()
           .single();
+        
         data = insertResult.data;
         error = insertResult.error;
       } else {
@@ -352,6 +370,7 @@ export const SettingsProvider = ({ children }) => {
 
       if (error) {
         console.error('Supabase operation error:', error);
+        
         // Handle duplicate key error by trying update again
         if (error.code === '23505') {
           console.log('Duplicate key error, trying update again');
@@ -361,13 +380,16 @@ export const SettingsProvider = ({ children }) => {
             .eq('user_id', userId)
             .select()
             .single();
+          
           data = retryResult.data;
           error = retryResult.error;
+          
           if (error) {
             throw error;
           }
         } else if (error.code === '42P01' || error.message.includes('relation') || error.message.includes('does not exist')) {
           console.log('Database table issue, saving locally');
+          
           // Update local state directly
           const updatedPreferences = {
             ...preferences,
@@ -375,8 +397,9 @@ export const SettingsProvider = ({ children }) => {
             dietaryPreferences: ensureArray(updates.dietaryPreferences || preferences.dietaryPreferences),
             preferredCuisine: ensureArray(updates.preferredCuisine || preferences.preferredCuisine)
           };
+          
           setPreferences(updatedPreferences);
-
+          
           // Update auth context if username/display name changed
           if (updates.username || updates.displayName) {
             updateUser({
@@ -385,7 +408,7 @@ export const SettingsProvider = ({ children }) => {
               avatar: updates.avatarUrl || preferences.avatarUrl
             });
           }
-
+          
           toast.success('Settings saved locally (database unavailable)');
           return { success: true, data: updatedPreferences };
         } else {
@@ -410,6 +433,8 @@ export const SettingsProvider = ({ children }) => {
         dietaryPreferences,
         cookingSkillLevel: data.cooking_skill_level || 'beginner',
         preferredCuisine,
+        notificationsEnabled: data.notifications_enabled ?? true,
+        emailNotifications: data.email_notifications ?? true,
         themePreference: data.theme_preference || 'light',
         measurementSystem: data.measurement_system || 'metric',
         lastUsernameChange: data.last_username_change,
@@ -435,9 +460,10 @@ export const SettingsProvider = ({ children }) => {
       }
 
       return { success: true, data: updatedPreferences };
+
     } catch (error) {
       console.error('Error updating preferences:', error);
-
+      
       // Provide more specific error messages
       if (error.message && error.message.includes('invalid input syntax for type uuid')) {
         toast.error('User ID format error - please refresh and try again');
@@ -447,6 +473,7 @@ export const SettingsProvider = ({ children }) => {
         toast.error('Settings conflict - please refresh and try again');
       } else if (error.message && (error.message.includes('relation') || error.message.includes('does not exist'))) {
         toast.error('Database unavailable - changes saved locally');
+        
         // Save locally as fallback
         const updatedPreferences = {
           ...preferences,
@@ -455,11 +482,12 @@ export const SettingsProvider = ({ children }) => {
           preferredCuisine: ensureArray(updates.preferredCuisine || preferences.preferredCuisine)
         };
         setPreferences(updatedPreferences);
+        
         return { success: true, data: updatedPreferences };
       } else {
         toast.error('Failed to update preferences - please try again');
       }
-
+      
       return { success: false, error: error.message };
     } finally {
       setLoading(false);

@@ -13,22 +13,22 @@ const CookingTimer = () => {
   const [customSeconds, setCustomSeconds] = useState('');
   const [isTimerComplete, setIsTimerComplete] = useState(false);
 
-  const {
-    isActive,
-    currentRecipe,
-    currentStep,
-    timeLeft,
-    isTimerRunning,
-    stopCookingMode,
-    nextStep,
-    prevStep,
-    startTimer,
-    pauseTimer,
-    resumeTimer,
-    resetTimer,
-    formatTime
+  const { 
+    isActive, 
+    currentRecipe, 
+    currentStep, 
+    timeLeft, 
+    isTimerRunning, 
+    stopCookingMode, 
+    nextStep, 
+    prevStep, 
+    startTimer, 
+    pauseTimer, 
+    resumeTimer, 
+    resetTimer, 
+    formatTime 
   } = useCookingMode();
-
+  
   const { addXP, incrementRecipesCooked } = useGamification();
 
   // Monitor timer completion for completion state
@@ -306,7 +306,7 @@ const CookingTimer = () => {
                 <SafeIcon icon={FiX} className="text-sm" />
               </motion.button>
             </div>
-
+            
             {/* Mini Progress Bar */}
             <div className="mt-3">
               <div className="w-full bg-white/20 rounded-full h-1.5">
@@ -349,6 +349,7 @@ const CookingTimer = () => {
                   </div>
                 </div>
               </div>
+              
               <div className="flex items-center space-x-2">
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -359,14 +360,15 @@ const CookingTimer = () => {
                 >
                   <SafeIcon icon={FiMinus} className="text-xl" />
                 </motion.button>
+                
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={handleClose}
                   disabled={timeLeft > 0 && isTimerRunning}
                   className={`p-2 rounded-lg transition-colors duration-200 ${
-                    timeLeft > 0 && isTimerRunning 
-                      ? 'text-white/40 cursor-not-allowed' 
+                    timeLeft > 0 && isTimerRunning
+                      ? 'text-white/40 cursor-not-allowed'
                       : 'text-white/80 hover:text-white hover:bg-white/20'
                   }`}
                   title={timeLeft > 0 && isTimerRunning ? "Stop timer to close" : "Close cooking mode"}
@@ -375,7 +377,7 @@ const CookingTimer = () => {
                 </motion.button>
               </div>
             </div>
-
+            
             {/* Progress Bar */}
             <div className="mt-3">
               <div className="w-full bg-white/20 rounded-full h-2">

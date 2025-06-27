@@ -33,7 +33,6 @@ export const CookingModeProvider = ({ children }) => {
           if (state.timer && state.timer.endTime) {
             const now = Date.now();
             const timeRemaining = Math.max(0, Math.floor((state.timer.endTime - now) / 1000));
-            
             if (timeRemaining > 0) {
               setTimeLeft(timeRemaining);
               setIsTimerRunning(state.isTimerRunning);
@@ -73,20 +72,19 @@ export const CookingModeProvider = ({ children }) => {
   // Timer countdown effect
   useEffect(() => {
     let interval;
-    
     if (isTimerRunning && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
             setIsTimerRunning(false);
-            // Timer finished - no browser notification, just return 0
+            // Timer finished - no browser notification
             return 0;
           }
           return prev - 1;
         });
       }, 1000);
     }
-    
+
     return () => clearInterval(interval);
   }, [isTimerRunning, timeLeft]);
 
@@ -121,7 +119,6 @@ export const CookingModeProvider = ({ children }) => {
   const startTimer = (minutes) => {
     const duration = minutes * 60;
     const endTime = Date.now() + (duration * 1000);
-    
     setTimeLeft(duration);
     setIsTimerRunning(true);
     setTimer({
@@ -136,7 +133,10 @@ export const CookingModeProvider = ({ children }) => {
     // Update timer with remaining time
     if (timer && timeLeft > 0) {
       const newEndTime = Date.now() + (timeLeft * 1000);
-      setTimer(prev => ({ ...prev, endTime: newEndTime }));
+      setTimer(prev => ({
+        ...prev,
+        endTime: newEndTime
+      }));
     }
   };
 
@@ -145,7 +145,10 @@ export const CookingModeProvider = ({ children }) => {
       setIsTimerRunning(true);
       // Update end time based on current time left
       const newEndTime = Date.now() + (timeLeft * 1000);
-      setTimer(prev => ({ ...prev, endTime: newEndTime }));
+      setTimer(prev => ({
+        ...prev,
+        endTime: newEndTime
+      }));
     }
   };
 

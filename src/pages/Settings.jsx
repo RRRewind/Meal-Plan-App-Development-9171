@@ -8,7 +8,9 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const { FiSettings, FiUser, FiSave } = FiIcons;
+const {
+  FiSettings, FiUser, FiBell, FiSave, FiMail, FiCheck
+} = FiIcons;
 
 const Settings = () => {
   const { user } = useAuth();
@@ -26,7 +28,9 @@ const Settings = () => {
         displayName: preferences.displayName || '',
         email: preferences.email || '',
         bio: preferences.bio || '',
-        avatarUrl: preferences.avatarUrl || ''
+        avatarUrl: preferences.avatarUrl || '',
+        notificationsEnabled: preferences.notificationsEnabled ?? true,
+        emailNotifications: preferences.emailNotifications ?? true,
       });
       setHasChanges(false);
     }
@@ -40,7 +44,9 @@ const Settings = () => {
       formData.username !== preferences.username ||
       formData.displayName !== preferences.displayName ||
       formData.bio !== preferences.bio ||
-      formData.avatarUrl !== preferences.avatarUrl;
+      formData.avatarUrl !== preferences.avatarUrl ||
+      formData.notificationsEnabled !== preferences.notificationsEnabled ||
+      formData.emailNotifications !== preferences.emailNotifications;
 
     setHasChanges(hasFormChanges);
   }, [formData, preferences]);
@@ -65,7 +71,8 @@ const Settings = () => {
   };
 
   const tabs = [
-    { id: 'profile', name: 'Profile', icon: FiUser }
+    { id: 'profile', name: 'Profile', icon: FiUser },
+    { id: 'notifications', name: 'Notifications', icon: FiBell }
   ];
 
   if (!user) {
@@ -245,6 +252,80 @@ const Settings = () => {
                     <p className="text-xs text-gray-500 mt-1">
                       {(formData.bio || '').length}/500 characters
                     </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Notifications Tab */}
+              {activeTab === 'notifications' && (
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                      <SafeIcon icon={FiBell} className="mr-3 text-primary-500" />
+                      Notification Settings
+                    </h2>
+                  </div>
+
+                  <div className="space-y-6">
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      className="p-6 bg-gradient-to-r from-primary-50 to-secondary-50 rounded-xl border border-primary-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold text-gray-900 flex items-center">
+                            <SafeIcon icon={FiBell} className="mr-2 text-primary-500" />
+                            Push Notifications
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Receive notifications about cooking reminders, new recipes, and updates
+                          </p>
+                        </div>
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleInputChange('notificationsEnabled', !formData.notificationsEnabled)}
+                          className={`w-12 h-6 rounded-full transition-colors duration-200 ${
+                            formData.notificationsEnabled ? 'bg-primary-500' : 'bg-gray-300'
+                          }`}
+                        >
+                          <motion.div
+                            animate={{ x: formData.notificationsEnabled ? 24 : 0 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                            className="w-6 h-6 bg-white rounded-full shadow-md"
+                          />
+                        </motion.button>
+                      </div>
+                    </motion.div>
+
+                    <motion.div
+                      whileHover={{ scale: 1.01 }}
+                      className="p-6 bg-gradient-to-r from-blue-50 to-green-50 rounded-xl border border-blue-200"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold text-gray-900 flex items-center">
+                            <SafeIcon icon={FiMail} className="mr-2 text-blue-500" />
+                            Email Notifications
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Receive weekly recipe recommendations and cooking tips via email
+                          </p>
+                        </div>
+                        <motion.button
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleInputChange('emailNotifications', !formData.emailNotifications)}
+                          className={`w-12 h-6 rounded-full transition-colors duration-200 ${
+                            formData.emailNotifications ? 'bg-blue-500' : 'bg-gray-300'
+                          }`}
+                        >
+                          <motion.div
+                            animate={{ x: formData.emailNotifications ? 24 : 0 }}
+                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                            className="w-6 h-6 bg-white rounded-full shadow-md"
+                          />
+                        </motion.button>
+                      </div>
+                    </motion.div>
                   </div>
                 </div>
               )}
