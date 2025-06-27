@@ -73,7 +73,7 @@ const CookingTimer = () => {
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="fixed top-4 right-4 z-50"
+          className="fixed bottom-4 right-4 z-50"
         >
           <motion.div
             whileHover={{ scale: 1.05 }}
@@ -163,15 +163,16 @@ const CookingTimer = () => {
   const isLastStep = currentStep === currentRecipe.steps.length - 1;
   const progress = ((currentStep + 1) / currentRecipe.steps.length) * 100;
 
-  // ENHANCED: Different minimized states based on timer status
+  // ENHANCED: Different minimized states based on timer status - NOW IN BOTTOM RIGHT
   if (isMinimized) {
     // If timer is active, show countdown-focused widget
     if (timeLeft > 0) {
       return (
         <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="fixed top-4 right-4 z-50"
+          initial={{ scale: 0, opacity: 0, y: 100 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0, opacity: 0, y: 100 }}
+          className="fixed bottom-4 right-4 z-50"
         >
           <motion.div
             whileHover={{ scale: 1.05 }}
@@ -231,9 +232,10 @@ const CookingTimer = () => {
       // If no timer, show regular minimized cooking mode widget
       return (
         <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="fixed top-4 right-4 z-50"
+          initial={{ scale: 0, opacity: 0, y: 100 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0, opacity: 0, y: 100 }}
+          className="fixed bottom-4 right-4 z-50"
         >
           <motion.div
             whileHover={{ scale: 1.05 }}
