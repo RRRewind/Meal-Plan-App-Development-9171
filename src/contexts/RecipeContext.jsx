@@ -15,6 +15,7 @@ export const RecipeProvider = ({ children }) => {
   const [recipes, setRecipes] = useState([]);
   const [savedRecipes, setSavedRecipes] = useState([]);
   const [sharedRecipes, setSharedRecipes] = useState([]);
+  const [userSharedRecipes, setUserSharedRecipes] = useState(new Set());
 
   useEffect(() => {
     // Load initial data
@@ -46,7 +47,8 @@ export const RecipeProvider = ({ children }) => {
         ],
         tags: ['Italian', 'Pasta', 'Quick'],
         author: 'Chef Mario',
-        shared: true
+        shared: true,
+        shareId: 'carbonara-classic'
       },
       {
         id: '2',
@@ -75,16 +77,19 @@ export const RecipeProvider = ({ children }) => {
         ],
         tags: ['Healthy', 'Vegetarian', 'Bowl'],
         author: 'Wellness Chef',
-        shared: true
+        shared: true,
+        shareId: 'buddha-bowl-healthy'
       }
     ];
 
     const savedRecipesData = JSON.parse(localStorage.getItem('saved_recipes') || '[]');
     const sharedRecipesData = JSON.parse(localStorage.getItem('shared_recipes') || '[]');
+    const userSharedData = new Set(JSON.parse(localStorage.getItem('user_shared_recipes') || '[]'));
 
     setRecipes(defaultRecipes);
     setSavedRecipes(savedRecipesData);
     setSharedRecipes([...defaultRecipes, ...sharedRecipesData]);
+    setUserSharedRecipes(userSharedData);
   }, []);
 
   const addRecipe = (recipe) => {
@@ -110,21 +115,107 @@ export const RecipeProvider = ({ children }) => {
   };
 
   const shareRecipe = (recipe) => {
+    // Check if user has already shared this recipe
+    if (userSharedRecipes.has(recipe.id)) {
+      return { success: false, message: 'You have already shared this recipe to the community' };
+    }
+
+    const shareId = `${recipe.title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
     const sharedRecipe = {
       ...recipe,
       shared: true,
-      sharedAt: new Date().toISOString()
+      sharedAt: new Date().toISOString(),
+      shareId
     };
     
     const updatedShared = [...sharedRecipes, sharedRecipe];
-    setSharedRecipes(updatedShared);
-    localStorage.setItem('shared_recipes', JSON.stringify(updatedShared));
+    const updatedUserShared = new Set([...userSharedRecipes, recipe.id]);
     
-    return sharedRecipe;
+    setSharedRecipes(updatedShared);
+    setUserSharedRecipes(updatedUserShared);
+    
+    localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author)));
+    localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
+    
+    return { success: true, shareId, message: 'Recipe shared successfully!' };
+  };
+
+  const generateShareableLink = (recipe) => {
+    if (!userSharedRecipes.has(recipe.id)) {
+      const result = shareRecipe(recipe);
+      if (!result.success) return null;
+      recipe.shareId = result.shareId;
+    }
+    
+    const baseUrl = window.location.origin;
+    const shareData = {
+      id: recipe.id,
+      title: recipe.title,
+      description: recipe.description,
+      image: recipe.image,
+      cookTime: recipe.cookTime,
+      servings: recipe.servings,
+      difficulty: recipe.difficulty,
+      ingredients: recipe.ingredients,
+      steps: recipe.steps,
+      tags: recipe.tags,
+      author: recipe.author || 'Community Chef'
+    };
+    
+    const encodedData = encodeURIComponent(JSON.stringify(shareData));
+    return `${baseUrl}/?recipe=${encodedData}`;
+  };
+
+  const saveSharedRecipe = (recipeData) => {
+    try {
+      const recipe = JSON.parse(decodeURIComponent(recipeData));
+      const existingRecipe = savedRecipes.find(r => r.title === recipe.title);
+      
+      if (existingRecipe) {
+        return { success: false, message: 'Recipe already in your collection' };
+      }
+      
+      const newRecipe = {
+        ...recipe,
+        id: uuidv4(),
+        savedFromShare: true,
+        savedAt: new Date().toISOString()
+      };
+      
+      saveRecipe(newRecipe);
+      return { success: true, message: 'Recipe saved to your collection!' };
+    } catch (error) {
+      return { success: false, message: 'Invalid recipe data' };
+    }
+  };
+
+  const emailShareRecipe = (recipe) => {
+    const shareLink = generateShareableLink(recipe);
+    const subject = `Check out this recipe: ${recipe.title}`;
+    const body = `Hi! I found this amazing recipe and thought you'd love it:
+
+${recipe.title}
+${recipe.description}
+
+Cook Time: ${recipe.cookTime} minutes
+Servings: ${recipe.servings}
+
+Click here to view and save the recipe: ${shareLink}
+
+Happy cooking! 🍳`;
+
+    const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoLink;
+    
+    return shareLink;
   };
 
   const isRecipeSaved = (recipeId) => {
     return savedRecipes.some(r => r.id === recipeId);
+  };
+
+  const hasSharedRecipe = (recipeId) => {
+    return userSharedRecipes.has(recipeId);
   };
 
   const value = {
@@ -135,7 +226,10 @@ export const RecipeProvider = ({ children }) => {
     saveRecipe,
     unsaveRecipe,
     shareRecipe,
-    isRecipeSaved
+    emailShareRecipe,
+    saveSharedRecipe,
+    isRecipeSaved,
+    hasSharedRecipe
   };
 
   return (

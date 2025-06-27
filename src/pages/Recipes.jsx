@@ -9,7 +9,7 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const { FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiStar } = FiIcons;
+const { FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiStar, FiMail, FiCheck } = FiIcons;
 
 const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -27,7 +27,17 @@ const Recipes = () => {
     image: ''
   });
 
-  const { recipes, sharedRecipes, savedRecipes, saveRecipe, unsaveRecipe, isRecipeSaved, shareRecipe } = useRecipes();
+  const { 
+    recipes, 
+    sharedRecipes, 
+    savedRecipes, 
+    saveRecipe, 
+    unsaveRecipe, 
+    isRecipeSaved, 
+    shareRecipe, 
+    emailShareRecipe, 
+    hasSharedRecipe 
+  } = useRecipes();
   const { startCookingMode } = useCookingMode();
   const { addXP } = useGamification();
   const { user } = useAuth();
@@ -63,9 +73,23 @@ const Recipes = () => {
   };
 
   const handleShareRecipe = (recipe) => {
-    shareRecipe(recipe);
-    addXP(15, 'Recipe shared');
-    toast.success('Recipe shared with community!');
+    const result = shareRecipe(recipe);
+    if (result.success) {
+      addXP(15, 'Recipe shared');
+      toast.success(result.message);
+    } else {
+      toast.error(result.message);
+    }
+  };
+
+  const handleEmailShareRecipe = (recipe) => {
+    try {
+      emailShareRecipe(recipe);
+      addXP(10, 'Recipe shared via email');
+      toast.success('Email client opened! Recipe link included.');
+    } catch (error) {
+      toast.error('Failed to open email client');
+    }
   };
 
   const handleAddIngredient = () => {
@@ -84,7 +108,6 @@ const Recipes = () => {
 
   const handleSubmitRecipe = (e) => {
     e.preventDefault();
-    // Add recipe logic here
     toast.success('Recipe added successfully!');
     addXP(20, 'Recipe created');
     setShowAddModal(false);
@@ -111,19 +134,19 @@ const Recipes = () => {
           className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8"
         >
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
               Recipe Collection
             </h1>
-            <p className="text-gray-600">
-              Discover, save, and share amazing recipes
+            <p className="text-gray-600 font-medium">
+              Discover, save, and share amazing recipes with intelligent management
             </p>
           </div>
           
           <motion.button
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.05, y: -2 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowAddModal(true)}
-            className="mt-4 sm:mt-0 bg-gradient-to-r from-primary-500 to-primary-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-primary-600 hover:to-primary-700 transition-all duration-200 flex items-center space-x-2"
+            className="mt-4 sm:mt-0 btn-gradient text-white px-6 py-3 rounded-xl font-semibold shadow-lg flex items-center space-x-2"
           >
             <SafeIcon icon={FiPlus} />
             <span>Add Recipe</span>
@@ -135,37 +158,39 @@ const Recipes = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-8"
+          className="glass rounded-2xl p-6 shadow-lg mb-8"
         >
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Search */}
             <div className="flex-1 relative">
-              <SafeIcon icon={FiSearch} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <SafeIcon icon={FiSearch} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search recipes, ingredients, or tags..."
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full pl-12 pr-4 py-4 input-modern rounded-xl text-lg font-medium"
               />
             </div>
 
             {/* Filters */}
-            <div className="flex space-x-2">
+            <div className="flex space-x-3">
               {filters.map((filter) => (
                 <motion.button
                   key={filter.id}
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.02, y: -1 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setSelectedFilter(filter.id)}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 ${
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center space-x-2 ${
                     selectedFilter === filter.id
-                      ? 'bg-primary-100 text-primary-700 border border-primary-200'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? 'bg-primary-500 text-white shadow-lg'
+                      : 'bg-white/80 text-gray-600 hover:bg-white'
                   }`}
                 >
                   <span>{filter.name}</span>
-                  <span className="text-xs bg-white px-2 py-0.5 rounded-full">
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    selectedFilter === filter.id ? 'bg-white/20' : 'bg-gray-100'
+                  }`}>
                     {filter.count}
                   </span>
                 </motion.button>
@@ -179,7 +204,7 @@ const Recipes = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+          className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
         >
           {filteredRecipes.map((recipe, index) => (
             <motion.div
@@ -187,8 +212,8 @@ const Recipes = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              whileHover={{ y: -5 }}
-              className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg transition-all duration-300"
+              whileHover={{ y: -8 }}
+              className="glass rounded-2xl overflow-hidden shadow-lg card-hover glow-effect"
             >
               {/* Recipe Image */}
               <div className="aspect-video bg-gradient-to-br from-primary-100 to-secondary-100 relative overflow-hidden">
@@ -210,30 +235,45 @@ const Recipes = () => {
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => handleSaveRecipe(recipe)}
-                    className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 ${
+                    className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
                       isRecipeSaved(recipe.id)
                         ? 'bg-red-500 text-white'
-                        : 'bg-white/80 text-gray-600 hover:bg-white hover:text-red-500'
+                        : 'bg-white/90 text-gray-600 hover:bg-white hover:text-red-500'
                     }`}
                   >
                     <SafeIcon icon={FiHeart} className="text-sm" />
                   </motion.button>
                   
                   {user && (
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => handleShareRecipe(recipe)}
-                      className="p-2 bg-white/80 text-gray-600 hover:bg-white hover:text-primary-500 rounded-full backdrop-blur-sm transition-colors duration-200"
-                    >
-                      <SafeIcon icon={FiShare2} className="text-sm" />
-                    </motion.button>
+                    <>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => handleEmailShareRecipe(recipe)}
+                        className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-blue-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
+                      >
+                        <SafeIcon icon={FiMail} className="text-sm" />
+                      </motion.button>
+                      
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => handleShareRecipe(recipe)}
+                        className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
+                          hasSharedRecipe(recipe.id)
+                            ? 'bg-green-500 text-white'
+                            : 'bg-white/90 text-gray-600 hover:bg-white hover:text-primary-500'
+                        }`}
+                      >
+                        <SafeIcon icon={hasSharedRecipe(recipe.id) ? FiCheck : FiShare2} className="text-sm" />
+                      </motion.button>
+                    </>
                   )}
                 </div>
 
                 {/* Difficulty Badge */}
                 <div className="absolute bottom-3 left-3">
-                  <span className="bg-white/90 backdrop-blur-sm text-gray-700 px-2 py-1 rounded-full text-xs font-medium">
+                  <span className="bg-white/90 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
                     {recipe.difficulty}
                   </span>
                 </div>
@@ -241,16 +281,16 @@ const Recipes = () => {
 
               {/* Recipe Content */}
               <div className="p-6">
-                <h3 className="font-bold text-lg text-gray-900 mb-2">
+                <h3 className="font-bold text-xl text-gray-900 mb-2">
                   {recipe.title}
                 </h3>
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">
                   {recipe.description}
                 </p>
 
                 {/* Recipe Stats */}
                 <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-4 text-sm text-gray-500">
+                  <div className="flex items-center space-x-4 text-sm text-gray-500 font-medium">
                     <div className="flex items-center">
                       <SafeIcon icon={FiClock} className="mr-1" />
                       {recipe.cookTime}m
@@ -262,7 +302,7 @@ const Recipes = () => {
                   </div>
                   
                   {recipe.shared && (
-                    <span className="text-xs bg-secondary-100 text-secondary-700 px-2 py-1 rounded-full">
+                    <span className="text-xs bg-secondary-100 text-secondary-700 px-3 py-1 rounded-full font-semibold">
                       Community
                     </span>
                   )}
@@ -270,11 +310,11 @@ const Recipes = () => {
 
                 {/* Tags */}
                 {recipe.tags && recipe.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-4">
+                  <div className="flex flex-wrap gap-2 mb-4">
                     {recipe.tags.slice(0, 3).map((tag, tagIndex) => (
                       <span
                         key={tagIndex}
-                        className="text-xs bg-primary-50 text-primary-600 px-2 py-1 rounded-full"
+                        className="text-xs bg-primary-50 text-primary-600 px-3 py-1 rounded-full font-semibold"
                       >
                         {tag}
                       </span>
@@ -284,10 +324,10 @@ const Recipes = () => {
 
                 {/* Cook Button */}
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => startCookingMode(recipe)}
-                  className="w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-primary-600 hover:to-primary-700 transition-all duration-200 flex items-center justify-center space-x-2"
+                  className="w-full btn-gradient text-white py-3 px-4 rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
                 >
                   <SafeIcon icon={FiPlay} />
                   <span>Start Cooking</span>
@@ -301,13 +341,13 @@ const Recipes = () => {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="text-center py-12"
+            className="text-center py-16"
           >
             <SafeIcon icon={FiSearch} className="text-6xl text-gray-300 mb-4 mx-auto" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">
               No recipes found
             </h3>
-            <p className="text-gray-600">
+            <p className="text-gray-600 font-medium">
               Try adjusting your search or filters
             </p>
           </motion.div>
@@ -320,104 +360,104 @@ const Recipes = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
               onClick={() => setShowAddModal(false)}
             >
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                className="glass rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-3xl font-bold text-gray-900">
                     Add New Recipe
                   </h2>
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     onClick={() => setShowAddModal(false)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl"
                   >
-                    <SafeIcon icon={FiX} className="text-xl" />
+                    <SafeIcon icon={FiX} className="text-2xl" />
                   </motion.button>
                 </div>
 
                 <form onSubmit={handleSubmitRecipe} className="space-y-6">
                   {/* Basic Info */}
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Recipe Title
                       </label>
                       <input
                         type="text"
                         value={newRecipe.title}
                         onChange={(e) => setNewRecipe(prev => ({ ...prev, title: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="w-full px-4 py-3 input-modern rounded-xl font-medium"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Image URL
                       </label>
                       <input
                         type="url"
                         value={newRecipe.image}
                         onChange={(e) => setNewRecipe(prev => ({ ...prev, image: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="w-full px-4 py-3 input-modern rounded-xl font-medium"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Description
                     </label>
                     <textarea
                       value={newRecipe.description}
                       onChange={(e) => setNewRecipe(prev => ({ ...prev, description: e.target.value }))}
                       rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      className="w-full px-4 py-3 input-modern rounded-xl font-medium"
                       required
                     />
                   </div>
 
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Cook Time (minutes)
                       </label>
                       <input
                         type="number"
                         value={newRecipe.cookTime}
                         onChange={(e) => setNewRecipe(prev => ({ ...prev, cookTime: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="w-full px-4 py-3 input-modern rounded-xl font-medium"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Servings
                       </label>
                       <input
                         type="number"
                         value={newRecipe.servings}
                         onChange={(e) => setNewRecipe(prev => ({ ...prev, servings: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="w-full px-4 py-3 input-modern rounded-xl font-medium"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Difficulty
                       </label>
                       <select
                         value={newRecipe.difficulty}
                         onChange={(e) => setNewRecipe(prev => ({ ...prev, difficulty: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        className="w-full px-4 py-3 input-modern rounded-xl font-medium"
                       >
                         <option value="Easy">Easy</option>
                         <option value="Medium">Medium</option>
@@ -428,8 +468,8 @@ const Recipes = () => {
 
                   {/* Ingredients */}
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="block text-sm font-medium text-gray-700">
+                    <div className="flex items-center justify-between mb-4">
+                      <label className="block text-sm font-semibold text-gray-700">
                         Ingredients
                       </label>
                       <motion.button
@@ -437,15 +477,15 @@ const Recipes = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={handleAddIngredient}
-                        className="text-primary-600 hover:text-primary-700 font-medium text-sm flex items-center space-x-1"
+                        className="text-primary-600 hover:text-primary-700 font-semibold text-sm flex items-center space-x-1"
                       >
                         <SafeIcon icon={FiPlus} />
                         <span>Add Ingredient</span>
                       </motion.button>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {newRecipe.ingredients.map((ingredient, index) => (
-                        <div key={index} className="grid grid-cols-2 gap-2">
+                        <div key={index} className="grid grid-cols-2 gap-3">
                           <input
                             type="text"
                             placeholder="Ingredient name"
@@ -455,18 +495,18 @@ const Recipes = () => {
                               updated[index].name = e.target.value;
                               setNewRecipe(prev => ({ ...prev, ingredients: updated }));
                             }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            className="px-4 py-3 input-modern rounded-xl font-medium"
                           />
                           <input
                             type="text"
-                            placeholder="Amount"
+                            placeholder="Amount (e.g., 2 cups, 500g)"
                             value={ingredient.amount}
                             onChange={(e) => {
                               const updated = [...newRecipe.ingredients];
                               updated[index].amount = e.target.value;
                               setNewRecipe(prev => ({ ...prev, ingredients: updated }));
                             }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            className="px-4 py-3 input-modern rounded-xl font-medium"
                           />
                         </div>
                       ))}
@@ -475,8 +515,8 @@ const Recipes = () => {
 
                   {/* Steps */}
                   <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <label className="block text-sm font-medium text-gray-700">
+                    <div className="flex items-center justify-between mb-4">
+                      <label className="block text-sm font-semibold text-gray-700">
                         Cooking Steps
                       </label>
                       <motion.button
@@ -484,16 +524,16 @@ const Recipes = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={handleAddStep}
-                        className="text-primary-600 hover:text-primary-700 font-medium text-sm flex items-center space-x-1"
+                        className="text-primary-600 hover:text-primary-700 font-semibold text-sm flex items-center space-x-1"
                       >
                         <SafeIcon icon={FiPlus} />
                         <span>Add Step</span>
                       </motion.button>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {newRecipe.steps.map((step, index) => (
-                        <div key={index} className="flex items-start space-x-3">
-                          <span className="flex-shrink-0 w-6 h-6 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-sm font-medium mt-1">
+                        <div key={index} className="flex items-start space-x-4">
+                          <span className="flex-shrink-0 w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-sm font-bold mt-2">
                             {index + 1}
                           </span>
                           <textarea
@@ -505,7 +545,7 @@ const Recipes = () => {
                               setNewRecipe(prev => ({ ...prev, steps: updated }));
                             }}
                             rows={2}
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                            className="flex-1 px-4 py-3 input-modern rounded-xl font-medium"
                           />
                         </div>
                       ))}
@@ -513,21 +553,21 @@ const Recipes = () => {
                   </div>
 
                   {/* Submit Button */}
-                  <div className="flex space-x-3 pt-4">
+                  <div className="flex space-x-4 pt-6">
                     <motion.button
                       type="button"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setShowAddModal(false)}
-                      className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors duration-200"
+                      className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200"
                     >
                       Cancel
                     </motion.button>
                     <motion.button
                       type="submit"
-                      whileHover={{ scale: 1.02 }}
+                      whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
-                      className="flex-1 px-4 py-3 bg-gradient-to-r from-primary-500 to-primary-600 text-white rounded-lg font-medium hover:from-primary-600 hover:to-primary-700 transition-all duration-200"
+                      className="flex-1 px-6 py-4 btn-gradient text-white rounded-xl font-bold shadow-lg"
                     >
                       Add Recipe
                     </motion.button>
