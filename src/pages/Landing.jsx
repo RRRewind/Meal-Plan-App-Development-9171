@@ -29,18 +29,14 @@ const Landing = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Animated phrases that will cycle through
+  // Animated phrases that will cycle through - UPDATED: Removed 4 phrases
   const animatedPhrases = [
     "Level Up",
-    "Master Cooking",
     "Build Skills", 
     "Earn XP",
-    "Unlock Badges",
     "Cook Smart",
     "Plan Better",
-    "Save Time",
-    "Get Organized",
-    "Become Chef"
+    "Save Time"
   ];
 
   // Cycle through phrases every 2.5 seconds
