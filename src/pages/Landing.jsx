@@ -3,91 +3,30 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRecipes } from '../contexts/RecipeContext';
-import { useSettings } from '../contexts/SettingsContext';
-import UsernameInput from '../components/UsernameInput';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const { FiChef, FiCalendar, FiShoppingCart, FiClock, FiUsers, FiStar, FiArrowRight, FiMail, FiLock, FiUser, FiHeart, FiRefreshCw, FiZap } = FiIcons;
+const { FiChef, FiCalendar, FiShoppingCart, FiClock, FiUsers, FiStar, FiArrowRight, FiMail, FiLock, FiHeart, FiZap } = FiIcons;
 
 const Landing = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [showVerification, setShowVerification] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: ''
   });
   const [loading, setLoading] = useState(false);
-  const [sharedRecipeData, setSharedRecipeData] = useState(null);
-  const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
 
-  const { login, register, user, pendingVerification, verifyEmail, resendVerificationCode, skipEmailVerification } = useAuth();
-  const { saveSharedRecipe } = useRecipes();
+  const { login, register, user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  // Animated phrases that will cycle through
-  const animatedPhrases = [
-    "Level Up",
-    "Build Skills", 
-    "Earn XP",
-    "Cook Smart",
-    "Plan Better",
-    "Save Time"
-  ];
-
-  // Cycle through phrases every 2.5 seconds
+  // Redirect if already logged in
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentPhraseIndex((prev) => (prev + 1) % animatedPhrases.length);
-    }, 2500);
-    return () => clearInterval(interval);
-  }, [animatedPhrases.length]);
-
-  useEffect(() => {
-    // Check for shared recipe in URL
-    const urlParams = new URLSearchParams(location.search);
-    const sharedRecipe = urlParams.get('recipe');
-    if (sharedRecipe) {
-      try {
-        const recipeData = JSON.parse(decodeURIComponent(sharedRecipe));
-        setSharedRecipeData(recipeData);
-        if (user) {
-          // User is already logged in, save immediately
-          handleSaveSharedRecipe(sharedRecipe);
-        }
-      } catch (error) {
-        toast.error('Invalid recipe link');
-        navigate('/', { replace: true });
-      }
-    }
-  }, [location.search, user]);
-
-  useEffect(() => {
-    if (user && !sharedRecipeData) {
+    if (user) {
       navigate('/dashboard');
     }
-  }, [user, navigate, sharedRecipeData]);
-
-  useEffect(() => {
-    if (pendingVerification && !showVerification) {
-      setShowVerification(true);
-    }
-  }, [pendingVerification]);
-
-  const handleSaveSharedRecipe = (recipeData) => {
-    const result = saveSharedRecipe(recipeData);
-    if (result.success) {
-      toast.success(`🎉 ${result.message}`);
-      setTimeout(() => navigate('/recipes'), 1500);
-    } else {
-      toast.error(result.message);
-      setTimeout(() => navigate('/dashboard'), 1500);
-    }
-  };
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -102,559 +41,243 @@ const Landing = () => {
       }
 
       if (result.success) {
-        if (result.requiresVerification) {
-          setShowVerification(true);
-          // Show the verification code in the input for demo purposes
-          if (result.verificationCode) {
-            setVerificationCode(result.verificationCode);
-          }
-        } else {
-          // Check for shared recipe after login
-          const urlParams = new URLSearchParams(location.search);
-          const sharedRecipe = urlParams.get('recipe');
-          if (sharedRecipe) {
-            setTimeout(() => {
-              handleSaveSharedRecipe(sharedRecipe);
-            }, 500);
-          } else {
-            navigate('/dashboard');
-          }
-        }
+        navigate('/dashboard');
       } else {
         toast.error(result.error || 'Authentication failed');
       }
+    } catch (error) {
+      console.error('Auth error:', error);
+      toast.error('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleVerification = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const result = await verifyEmail(verificationCode);
-      if (result.success) {
-        // Check for shared recipe after verification
-        const urlParams = new URLSearchParams(location.search);
-        const sharedRecipe = urlParams.get('recipe');
-        if (sharedRecipe) {
-          setTimeout(() => {
-            handleSaveSharedRecipe(sharedRecipe);
-          }, 500);
-        } else {
-          navigate('/dashboard');
-        }
-      } else {
-        toast.error(result.error || 'Verification failed');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendCode = async () => {
-    const result = await resendVerificationCode();
-    if (result.success) {
-      toast.success('📧 New verification code sent!');
-    }
-  };
-
-  const handleSkipVerification = async () => {
-    const result = skipEmailVerification();
-    if (result.success) {
-      // Check for shared recipe after verification
-      const urlParams = new URLSearchParams(location.search);
-      const sharedRecipe = urlParams.get('recipe');
-      if (sharedRecipe) {
-        setTimeout(() => {
-          handleSaveSharedRecipe(sharedRecipe);
-        }, 500);
-      } else {
-        navigate('/dashboard');
-      }
-    }
-  };
-
-  // Handle Get Started Free button click with smooth scroll
-  const handleGetStartedFree = () => {
-    // Switch to signup mode
-    setIsLogin(false);
-    // Smooth scroll to the auth form
-    const authForm = document.querySelector('.auth-form-container');
-    if (authForm) {
-      authForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-    // Show a helpful toast
-    toast.success('🚀 Ready to start your culinary journey!', { duration: 2000 });
   };
 
   const features = [
     {
       icon: FiChef,
       title: 'Recipe Collection',
-      description: 'Discover and save thousands of delicious recipes with intelligent ingredient management'
+      description: 'Discover and save delicious recipes'
     },
     {
       icon: FiCalendar,
       title: 'Smart Planning',
-      description: 'Plan your meals for the week with our intelligent scheduler and auto-cleanup'
+      description: 'Plan your meals for the week'
     },
     {
       icon: FiShoppingCart,
-      title: 'Smart Shopping Lists',
-      description: 'Auto-generated lists with intelligent ingredient combining and totaling'
+      title: 'Shopping Lists',
+      description: 'Auto-generated ingredient lists'
     },
     {
       icon: FiClock,
       title: 'Cooking Mode',
-      description: 'Step-by-step cooking with floating timers that follow you everywhere'
-    },
-    {
-      icon: FiMail,
-      title: 'Recipe Sharing',
-      description: 'Share recipes via email and save them instantly to your collection'
+      description: 'Step-by-step cooking guidance'
     },
     {
       icon: FiStar,
       title: 'Gamification',
-      description: 'Earn XP, unlock achievements, and level up your culinary skills'
+      description: 'Earn XP and unlock achievements'
+    },
+    {
+      icon: FiHeart,
+      title: 'Recipe Sharing',
+      description: 'Share recipes with friends'
     }
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-orange-50/20 mesh-bg">
-      {/* Floating Elements - Disabled on mobile for performance */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none hidden md:block">
-        <div className="absolute top-20 left-10 w-20 h-20 bg-gradient-to-r from-primary-200/20 to-secondary-200/20 rounded-full opacity-20 animate-float"></div>
-        <div className="absolute top-40 right-20 w-16 h-16 bg-gradient-to-r from-accent-200/20 to-primary-200/20 rounded-full opacity-20 animate-float" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute bottom-40 left-20 w-24 h-24 bg-gradient-to-r from-secondary-200/20 to-accent-200/20 rounded-full opacity-20 animate-float" style={{ animationDelay: '4s' }}></div>
-      </div>
-
-      {/* Shared Recipe Banner */}
-      {sharedRecipeData && (
-        <motion.div
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-primary-500/95 to-secondary-500/95 text-white p-4 shadow-lg"
-        >
-          <div className="max-w-4xl mx-auto text-center">
-            <h3 className="font-bold text-lg mb-1">
-              🍳 Someone shared a delicious recipe with you!
-            </h3>
-            <p className="text-primary-100">
-              "{sharedRecipeData.title}" - {user ? 'Saving to your collection...' : 'Sign in to save it instantly!'}
-            </p>
-          </div>
-        </motion.div>
-      )}
-
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 md:pt-20 pb-8 md:pb-16">
-          <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
+          <div className="grid lg:grid-cols-2 gap-8 items-center">
             {/* Left Side - Content */}
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-              className="space-y-6 md:space-y-8"
-            >
-              <div className="space-y-4 md:space-y-6">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="inline-flex items-center px-4 md:px-6 py-2 md:py-3 glass rounded-full text-primary-700 font-semibold text-sm md:text-lg glow-effect"
-                >
-                  <SafeIcon icon={FiStar} className="mr-2 text-lg md:text-xl" />
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="inline-flex items-center px-4 py-2 bg-white/80 rounded-full text-primary-700 font-semibold text-sm border border-primary-200">
+                  <SafeIcon icon={FiStar} className="mr-2 text-lg" />
                   Smart Meal Planning Made Easy
-                </motion.div>
-
-                {/* Mobile-optimized title */}
-                <div className="space-y-1">
-                  <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight">
-                    Plan, Cook &
-                  </h1>
-                  
-                  {/* Animated Title - Mobile optimized */}
-                  <div className="w-full min-h-[80px] sm:min-h-[100px] md:min-h-[140px] lg:min-h-[180px] relative">
-                    <AnimatePresence mode="wait">
-                      <motion.h1
-                        key={currentPhraseIndex}
-                        initial={{ y: 50, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: -50, opacity: 0 }}
-                        transition={{ duration: 0.6, ease: "easeInOut" }}
-                        className="absolute top-0 left-0 w-full text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black leading-none"
-                        style={{
-                          background: 'linear-gradient(135deg, #ff4757 0%, #ff6b35 25%, #ffa726 50%, #ffcc02 75%, #ff6b9d 100%)',
-                          WebkitBackgroundClip: 'text',
-                          WebkitTextFillColor: 'transparent',
-                          backgroundClip: 'text',
-                          backgroundSize: '200% 200%',
-                          animation: 'gradientShift 3s ease infinite'
-                        }}
-                      >
-                        {animatedPhrases[currentPhraseIndex]}
-                      </motion.h1>
-                    </AnimatePresence>
-                  </div>
                 </div>
 
-                <p className="text-lg md:text-xl text-gray-600 leading-relaxed font-medium">
-                  Transform your cooking experience with AI-powered meal planning, intelligent ingredient management, and a gamified culinary journey.
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
+                  Plan, Cook & Level Up
+                </h1>
+
+                <p className="text-lg text-gray-600 leading-relaxed">
+                  Transform your cooking experience with intelligent meal planning, smart ingredient management, and gamified culinary adventures.
                 </p>
               </div>
 
-              {/* Stats - Mobile responsive grid */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -5 }}
-                  className="flex items-center space-x-2 md:space-x-3 glass px-3 md:px-6 py-3 md:py-4 rounded-xl card-hover"
-                >
-                  <SafeIcon icon={FiUsers} className="text-primary-500 text-lg md:text-xl" />
+              {/* Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2 bg-white/80 px-4 py-3 rounded-xl border border-gray-200">
+                  <SafeIcon icon={FiUsers} className="text-primary-500 text-lg" />
                   <div>
-                    <div className="font-bold text-gray-900 text-sm md:text-base">10K+</div>
-                    <div className="text-xs md:text-sm text-gray-600 font-medium">Active Cooks</div>
+                    <div className="font-bold text-gray-900">10K+</div>
+                    <div className="text-xs text-gray-600">Active Users</div>
                   </div>
-                </motion.div>
+                </div>
 
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -5 }}
-                  className="flex items-center space-x-2 md:space-x-3 glass px-3 md:px-6 py-3 md:py-4 rounded-xl card-hover"
-                >
-                  <SafeIcon icon={FiChef} className="text-secondary-500 text-lg md:text-xl" />
+                <div className="flex items-center space-x-2 bg-white/80 px-4 py-3 rounded-xl border border-gray-200">
+                  <SafeIcon icon={FiChef} className="text-secondary-500 text-lg" />
                   <div>
-                    <div className="font-bold text-gray-900 text-sm md:text-base">5K+</div>
-                    <div className="text-xs md:text-sm text-gray-600 font-medium">Recipes</div>
+                    <div className="font-bold text-gray-900">5K+</div>
+                    <div className="text-xs text-gray-600">Recipes</div>
                   </div>
-                </motion.div>
+                </div>
 
-                <motion.div
-                  whileHover={{ scale: 1.05, y: -5 }}
-                  className="flex items-center space-x-2 md:space-x-3 glass px-3 md:px-6 py-3 md:py-4 rounded-xl card-hover col-span-2 md:col-span-1"
-                >
-                  <SafeIcon icon={FiHeart} className="text-accent-500 text-lg md:text-xl" />
+                <div className="flex items-center space-x-2 bg-white/80 px-4 py-3 rounded-xl border border-gray-200 col-span-2 md:col-span-1">
+                  <SafeIcon icon={FiHeart} className="text-accent-500 text-lg" />
                   <div>
-                    <div className="font-bold text-gray-900 text-sm md:text-base">50K+</div>
-                    <div className="text-xs md:text-sm text-gray-600 font-medium">Meals Planned</div>
+                    <div className="font-bold text-gray-900">50K+</div>
+                    <div className="text-xs text-gray-600">Meals Planned</div>
                   </div>
-                </motion.div>
+                </div>
               </div>
-            </motion.div>
+            </div>
 
             {/* Right Side - Auth Form */}
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="glass rounded-3xl p-6 md:p-8 shadow-2xl glow-effect auth-form-container"
-            >
-              <AnimatePresence mode="wait">
-                {showVerification ? (
-                  <motion.div
-                    key="verification"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                  >
-                    <div className="text-center mb-6 md:mb-8">
-                      <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-primary-500/90 to-secondary-500/90 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <SafeIcon icon={FiMail} className="text-white text-lg md:text-2xl" />
-                      </div>
-                      <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
-                        Verify Your Email
-                      </h2>
-                      
-                      <div className="bg-blue-50/80 border border-blue-200/50 rounded-xl p-4 mb-4">
-                        <p className="text-blue-800 font-semibold text-sm mb-2">
-                          🚀 Demo Mode Active
-                        </p>
-                        <p className="text-blue-700 text-sm">
-                          Since this is a demo, your verification code is shown above in the notification. In a real app, this would be sent to your email.
-                        </p>
-                      </div>
-                      
-                      <p className="text-gray-600 font-medium mb-2">
-                        Enter the 6-digit code or use the skip option below
-                      </p>
-                      <p className="text-primary-600 font-bold text-sm md:text-base">
-                        {pendingVerification?.email}
-                      </p>
-                    </div>
+            <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-200">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  {isLogin ? 'Welcome Back!' : 'Join Meal Plan'}
+                </h2>
+                <p className="text-gray-600">
+                  {isLogin ? 'Sign in to continue your culinary journey' : 'Start your cooking adventure today'}
+                </p>
+              </div>
 
-                    <form onSubmit={handleVerification} className="space-y-4 md:space-y-6">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">
-                          Verification Code
-                        </label>
-                        <input
-                          type="text"
-                          value={verificationCode}
-                          onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                          className="w-full px-4 py-3 md:py-4 input-modern rounded-xl text-xl md:text-2xl font-bold text-center tracking-widest placeholder-gray-400"
-                          placeholder="000000"
-                          maxLength={6}
-                          required
-                        />
-                      </div>
-
-                      <motion.button
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        type="submit"
-                        disabled={loading || verificationCode.length !== 6}
-                        className="w-full btn-gradient text-white py-3 md:py-4 px-6 rounded-xl font-bold text-lg disabled:opacity-50 flex items-center justify-center space-x-3 shadow-lg"
-                      >
-                        {loading ? (
-                          <div className="animate-spin rounded-full h-6 w-6 border-3 border-white border-t-transparent" />
-                        ) : (
-                          <>
-                            <span>Verify Email</span>
-                            <SafeIcon icon={FiArrowRight} className="text-lg" />
-                          </>
-                        )}
-                      </motion.button>
-
-                      {/* Demo Skip Option */}
-                      <motion.button
-                        type="button"
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={handleSkipVerification}
-                        className="w-full bg-gradient-to-r from-secondary-500/90 to-secondary-600/90 text-white py-3 md:py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center space-x-3 shadow-lg"
-                      >
-                        <SafeIcon icon={FiZap} className="text-lg" />
-                        <span>Skip Verification (Demo)</span>
-                      </motion.button>
-
-                      <div className="text-center">
-                        <button
-                          type="button"
-                          onClick={handleResendCode}
-                          className="text-primary-600 hover:text-primary-700 font-semibold text-sm transition-colors flex items-center space-x-2 mx-auto"
-                        >
-                          <SafeIcon icon={FiRefreshCw} />
-                          <span>Resend Code</span>
-                        </button>
-                      </div>
-                    </form>
-
-                    <div className="mt-6 text-center">
-                      <button
-                        onClick={() => {
-                          setShowVerification(false);
-                          setVerificationCode('');
-                        }}
-                        className="text-gray-600 hover:text-gray-700 font-semibold text-sm transition-colors"
-                      >
-                        ← Back to login
-                      </button>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="auth"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                  >
-                    <div className="text-center mb-6 md:mb-8">
-                      <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
-                        {sharedRecipeData
-                          ? (isLogin ? 'Sign in to save recipe!' : 'Join to save recipe!')
-                          : (isLogin ? 'Welcome Back!' : 'Join Meal Plan')
-                        }
-                      </h2>
-                      <p className="text-gray-600 font-medium text-sm md:text-base">
-                        {sharedRecipeData
-                          ? `Save "${sharedRecipeData.title}" to your collection`
-                          : (isLogin ? 'Sign in to continue your culinary journey' : 'Start your cooking adventure today')
-                        }
-                      </p>
-                    </div>
-
-                    <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
-                      {!isLogin && (
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-3">
-                            Username
-                          </label>
-                          <UsernameInput
-                            value={formData.username}
-                            onChange={(value) => setFormData(prev => ({ ...prev, username: value }))}
-                            showAvailability={true}
-                            className="text-base md:text-lg"
-                          />
-                        </div>
-                      )}
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">
-                          Email Address
-                        </label>
-                        <div className="relative">
-                          <SafeIcon icon={FiMail} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
-                          <input
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                            className="w-full pl-12 pr-4 py-3 md:py-4 input-modern rounded-xl text-base md:text-lg font-medium placeholder-gray-400"
-                            placeholder="Enter your email"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">
-                          Password
-                        </label>
-                        <div className="relative">
-                          <SafeIcon icon={FiLock} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
-                          <input
-                            type="password"
-                            value={formData.password}
-                            onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                            className="w-full pl-12 pr-4 py-3 md:py-4 input-modern rounded-xl text-base md:text-lg font-medium placeholder-gray-400"
-                            placeholder="Enter your password"
-                            required
-                          />
-                        </div>
-                      </div>
-
-                      {/* Demo Mode Info */}
-                      {!isLogin && (
-                        <div className="bg-gradient-to-r from-blue-50/60 to-secondary-50/60 p-4 rounded-xl border border-blue-200/50">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <SafeIcon icon={FiZap} className="text-blue-600" />
-                            <span className="text-sm font-semibold text-blue-800">Demo Mode</span>
-                          </div>
-                          <p className="text-xs text-blue-600">
-                            Email verification code will be shown on screen since this is a demo app
-                          </p>
-                        </div>
-                      )}
-
-                      <motion.button
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        type="submit"
-                        disabled={loading}
-                        className="w-full btn-gradient text-white py-3 md:py-4 px-6 rounded-xl font-bold text-base md:text-lg disabled:opacity-50 flex items-center justify-center space-x-3 shadow-lg"
-                      >
-                        {loading ? (
-                          <div className="animate-spin rounded-full h-6 w-6 border-3 border-white border-t-transparent" />
-                        ) : (
-                          <>
-                            <span>
-                              {sharedRecipeData
-                                ? (isLogin ? 'Sign In & Save Recipe' : 'Create Account & Save Recipe')
-                                : (isLogin ? 'Sign In' : 'Create Account')
-                              }
-                            </span>
-                            <SafeIcon icon={FiArrowRight} className="text-lg" />
-                          </>
-                        )}
-                      </motion.button>
-                    </form>
-
-                    <div className="mt-6 md:mt-8 text-center">
-                      <button
-                        onClick={() => setIsLogin(!isLogin)}
-                        className="text-primary-600 hover:text-primary-700 font-semibold text-base md:text-lg transition-colors"
-                      >
-                        {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-                      </button>
-                    </div>
-                  </motion.div>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {!isLogin && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Username
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.username}
+                      onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors"
+                      placeholder="Enter username"
+                      required={!isLogin}
+                    />
+                  </div>
                 )}
-              </AnimatePresence>
-            </motion.div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <SafeIcon icon={FiMail} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                      className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors"
+                      placeholder="Enter your email"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <SafeIcon icon={FiLock} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                      className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors"
+                      placeholder="Enter your password"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-primary-500 to-secondary-500 text-white py-3 px-6 rounded-xl font-bold text-lg disabled:opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                      <span>Please wait...</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center space-x-2">
+                      <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                      <SafeIcon icon={FiArrowRight} />
+                    </div>
+                  )}
+                </button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="text-primary-600 hover:text-primary-700 font-semibold transition-colors"
+                >
+                  {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-16 md:py-24 bg-white/30 backdrop-blur-sm">
+      <section className="py-16 bg-white/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-12 md:mb-20"
-          >
-            <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-4 md:mb-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
               Everything You Need to Master Cooking
             </h2>
-            <p className="text-lg md:text-xl text-gray-600 max-w-4xl mx-auto font-medium leading-relaxed">
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
               From intelligent meal planning to smart ingredient management, we've got all the tools to make your culinary journey extraordinary.
             </p>
-          </motion.div>
+          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                whileHover={{ y: -10 }}
-                className="glass p-6 md:p-8 rounded-2xl card-hover glow-effect"
-              >
-                <div className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-primary-500/90 to-primary-600/90 rounded-2xl flex items-center justify-center mb-4 md:mb-6 shadow-lg">
-                  <SafeIcon icon={feature.icon} className="text-white text-xl md:text-2xl" />
+              <div key={index} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center mb-4">
+                  <SafeIcon icon={feature.icon} className="text-white text-xl" />
                 </div>
-                <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-3 md:mb-4">
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
                   {feature.title}
                 </h3>
-                <p className="text-gray-600 font-medium leading-relaxed text-sm md:text-base">
+                <p className="text-gray-600">
                   {feature.description}
                 </p>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 md:py-24 bg-gradient-to-r from-primary-500/95 via-primary-600/95 to-secondary-500/95 relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/5"></div>
-        <div className="relative max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="space-y-6 md:space-y-8"
+      <section className="py-16 bg-gradient-to-r from-primary-500 to-secondary-500 text-white">
+        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">
+            Ready to Level Up Your Cooking?
+          </h2>
+          <p className="text-lg text-primary-100 mb-8">
+            Join thousands of home cooks who are already mastering their kitchens.
+          </p>
+          <button
+            onClick={() => setIsLogin(false)}
+            className="bg-white text-primary-600 px-8 py-4 rounded-xl font-bold text-lg hover:bg-gray-50 transition-colors shadow-lg"
           >
-            <h2 className="text-3xl md:text-5xl font-bold text-white leading-tight">
-              Ready to Level Up Your Cooking?
-            </h2>
-            <p className="text-lg md:text-xl text-primary-100 font-medium leading-relaxed">
-              Join thousands of home cooks who are already mastering their kitchens with intelligent meal planning and smart recipe management.
-            </p>
-            <motion.button
-              whileHover={{ scale: 1.05, y: -5 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleGetStartedFree}
-              className="bg-white text-primary-600 px-8 md:px-10 py-4 md:py-5 rounded-xl font-bold text-lg md:text-xl hover:bg-gray-50 transition-all duration-200 inline-flex items-center space-x-3 shadow-2xl"
-            >
-              <span>Get Started Free</span>
-              <SafeIcon icon={FiArrowRight} className="text-xl" />
-            </motion.button>
-          </motion.div>
+            Get Started Free
+          </button>
         </div>
       </section>
-
-      {/* Add CSS for gradient animation */}
-      <style jsx>{`
-        @keyframes gradientShift {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-      `}</style>
     </div>
   );
 };
