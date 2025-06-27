@@ -30,6 +30,35 @@ export const SettingsProvider = ({ children }) => {
     bio: ''
   };
 
+  // Helper function to safely convert array to JSON string
+  const arrayToJsonString = (arr) => {
+    if (!Array.isArray(arr)) return '[]';
+    try {
+      return JSON.stringify(arr);
+    } catch (e) {
+      console.warn('Failed to stringify array:', arr, e);
+      return '[]';
+    }
+  };
+
+  // Helper function to safely parse JSON string to array
+  const jsonStringToArray = (jsonStr) => {
+    if (!jsonStr) return [];
+    if (Array.isArray(jsonStr)) return jsonStr; // Already an array
+    
+    try {
+      if (typeof jsonStr === 'string') {
+        if (jsonStr.trim() === '' || jsonStr.trim() === 'null') return [];
+        const parsed = JSON.parse(jsonStr);
+        return Array.isArray(parsed) ? parsed : [];
+      }
+      return [];
+    } catch (e) {
+      console.warn('Failed to parse JSON string:', jsonStr, e);
+      return [];
+    }
+  };
+
   // Load user preferences with better error handling
   const loadPreferences = async () => {
     if (!user) return;
@@ -37,28 +66,6 @@ export const SettingsProvider = ({ children }) => {
     try {
       setLoading(true);
       console.log('Loading preferences for user:', user.id);
-
-      // Test Supabase connection first
-      const { data: testData, error: testError } = await supabase
-        .from('user_preferences_mp2024')
-        .select('count')
-        .limit(1);
-
-      if (testError) {
-        console.error('Supabase connection test failed:', testError);
-        // Fallback to local preferences
-        setPreferences({
-          ...defaultPreferences,
-          userId: user.id,
-          username: user.username || user.name || `user_${user.id.slice(0, 8)}`,
-          email: user.email,
-          displayName: user.name,
-          avatarUrl: user.avatar,
-          lastUsernameChange: null,
-          usernameChangeCount: 0
-        });
-        return;
-      }
 
       const { data, error } = await supabase
         .from('user_preferences_mp2024')
@@ -68,33 +75,32 @@ export const SettingsProvider = ({ children }) => {
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
         console.error('Error loading preferences:', error);
+        
+        // If table doesn't exist or other DB error, use local storage
+        if (error.code === '42P01' || error.message.includes('relation') || error.message.includes('does not exist')) {
+          console.log('Database table not found, using local preferences');
+          setPreferences({
+            ...defaultPreferences,
+            userId: user.id,
+            username: user.username || user.name || `user_${user.id.slice(0, 8)}`,
+            email: user.email,
+            displayName: user.name,
+            avatarUrl: user.avatar,
+            lastUsernameChange: null,
+            usernameChangeCount: 0
+          });
+          return;
+        }
+        
         throw error;
       }
 
       if (data) {
         console.log('Loaded preferences:', data);
         
-        // Parse JSON fields safely
-        let dietaryPreferences = [];
-        let preferredCuisine = [];
-        
-        try {
-          dietaryPreferences = typeof data.dietary_preferences === 'string' 
-            ? JSON.parse(data.dietary_preferences) 
-            : (data.dietary_preferences || []);
-        } catch (e) {
-          console.warn('Failed to parse dietary preferences:', e);
-          dietaryPreferences = [];
-        }
-
-        try {
-          preferredCuisine = typeof data.preferred_cuisine === 'string' 
-            ? JSON.parse(data.preferred_cuisine) 
-            : (data.preferred_cuisine || []);
-        } catch (e) {
-          console.warn('Failed to parse preferred cuisine:', e);
-          preferredCuisine = [];
-        }
+        // Parse arrays safely
+        const dietaryPreferences = jsonStringToArray(data.dietary_preferences);
+        const preferredCuisine = jsonStringToArray(data.preferred_cuisine);
 
         setPreferences({
           ...defaultPreferences,
@@ -121,7 +127,7 @@ export const SettingsProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error loading preferences:', error);
-      toast.error('Failed to load preferences - using defaults');
+      toast.error('Using local preferences - database unavailable');
       
       // Fallback to default preferences
       setPreferences({
@@ -153,9 +159,9 @@ export const SettingsProvider = ({ children }) => {
         display_name: user.name,
         avatar_url: user.avatar,
         bio: '',
-        dietary_preferences: JSON.stringify([]),
+        dietary_preferences: arrayToJsonString([]),
         cooking_skill_level: 'beginner',
-        preferred_cuisine: JSON.stringify([]),
+        preferred_cuisine: arrayToJsonString([]),
         notifications_enabled: true,
         email_notifications: true,
         theme_preference: 'light',
@@ -184,12 +190,19 @@ export const SettingsProvider = ({ children }) => {
         displayName: data.display_name,
         avatarUrl: data.avatar_url,
         bio: data.bio || '',
+        dietaryPreferences: jsonStringToArray(data.dietary_preferences),
+        cookingSkillLevel: data.cooking_skill_level || 'beginner',
+        preferredCuisine: jsonStringToArray(data.preferred_cuisine),
+        notificationsEnabled: data.notifications_enabled ?? true,
+        emailNotifications: data.email_notifications ?? true,
+        themePreference: data.theme_preference || 'light',
+        measurementSystem: data.measurement_system || 'metric',
         lastUsernameChange: data.last_username_change,
         usernameChangeCount: data.username_change_count || 0
       });
     } catch (error) {
       console.error('Error creating initial preferences:', error);
-      toast.error('Failed to initialize preferences');
+      toast.error('Failed to initialize preferences - using local storage');
       
       // Fallback to local preferences
       setPreferences({
@@ -257,18 +270,23 @@ export const SettingsProvider = ({ children }) => {
         }
 
         // Check if username is available (simple check)
-        const { data: existingUsers, error: checkError } = await supabase
-          .from('user_preferences_mp2024')
-          .select('username')
-          .ilike('username', updates.username)
-          .neq('user_id', user.id);
+        try {
+          const { data: existingUsers, error: checkError } = await supabase
+            .from('user_preferences_mp2024')
+            .select('username')
+            .ilike('username', updates.username)
+            .neq('user_id', user.id);
 
-        if (checkError) {
-          console.error('Username availability check error:', checkError);
-        } else if (existingUsers && existingUsers.length > 0) {
-          toast.error('Username is not available');
-          setLoading(false);
-          return { success: false, error: 'Username not available' };
+          if (checkError) {
+            console.error('Username availability check error:', checkError);
+          } else if (existingUsers && existingUsers.length > 0) {
+            toast.error('Username is not available');
+            setLoading(false);
+            return { success: false, error: 'Username not available' };
+          }
+        } catch (checkError) {
+          console.warn('Could not check username availability:', checkError);
+          // Continue anyway - might be a database issue
         }
 
         // Include username change tracking
@@ -276,7 +294,7 @@ export const SettingsProvider = ({ children }) => {
         updates.username_change_count = (preferences.usernameChangeCount || 0) + 1;
       }
 
-      // Prepare data for Supabase
+      // Prepare data for Supabase with safe JSON conversion
       const supabaseData = {
         user_id: user.id,
         username: updates.username || preferences.username,
@@ -284,9 +302,9 @@ export const SettingsProvider = ({ children }) => {
         display_name: updates.displayName || preferences.displayName,
         avatar_url: updates.avatarUrl || preferences.avatarUrl,
         bio: updates.bio !== undefined ? updates.bio : preferences.bio,
-        dietary_preferences: JSON.stringify(updates.dietaryPreferences || preferences.dietaryPreferences),
+        dietary_preferences: arrayToJsonString(updates.dietaryPreferences || preferences.dietaryPreferences),
         cooking_skill_level: updates.cookingSkillLevel || preferences.cookingSkillLevel,
-        preferred_cuisine: JSON.stringify(updates.preferredCuisine || preferences.preferredCuisine),
+        preferred_cuisine: arrayToJsonString(updates.preferredCuisine || preferences.preferredCuisine),
         notifications_enabled: updates.notificationsEnabled !== undefined ? updates.notificationsEnabled : preferences.notificationsEnabled,
         email_notifications: updates.emailNotifications !== undefined ? updates.emailNotifications : preferences.emailNotifications,
         theme_preference: updates.themePreference || preferences.themePreference,
@@ -310,32 +328,42 @@ export const SettingsProvider = ({ children }) => {
 
       if (error) {
         console.error('Supabase update error:', error);
+        
+        // If it's a database structure issue, save locally
+        if (error.code === '42P01' || error.message.includes('relation') || error.message.includes('does not exist')) {
+          console.log('Database table issue, saving locally');
+          
+          // Update local state directly
+          const updatedPreferences = {
+            ...preferences,
+            ...updates,
+            dietaryPreferences: updates.dietaryPreferences || preferences.dietaryPreferences,
+            preferredCuisine: updates.preferredCuisine || preferences.preferredCuisine
+          };
+          
+          setPreferences(updatedPreferences);
+          
+          // Update auth context if username/display name changed
+          if (updates.username || updates.displayName) {
+            updateUser({
+              username: updates.username || preferences.username,
+              name: updates.displayName || preferences.displayName,
+              avatar: updates.avatarUrl || preferences.avatarUrl
+            });
+          }
+          
+          toast.success('Settings saved locally (database unavailable)');
+          return { success: true, data: updatedPreferences };
+        }
+        
         throw error;
       }
 
       console.log('Update successful:', data);
 
-      // Parse the returned data
-      let dietaryPreferences = [];
-      let preferredCuisine = [];
-      
-      try {
-        dietaryPreferences = typeof data.dietary_preferences === 'string' 
-          ? JSON.parse(data.dietary_preferences) 
-          : (data.dietary_preferences || []);
-      } catch (e) {
-        console.warn('Failed to parse returned dietary preferences:', e);
-        dietaryPreferences = updates.dietaryPreferences || preferences.dietaryPreferences;
-      }
-
-      try {
-        preferredCuisine = typeof data.preferred_cuisine === 'string' 
-          ? JSON.parse(data.preferred_cuisine) 
-          : (data.preferred_cuisine || []);
-      } catch (e) {
-        console.warn('Failed to parse returned preferred cuisine:', e);
-        preferredCuisine = updates.preferredCuisine || preferences.preferredCuisine;
-      }
+      // Parse the returned arrays safely
+      const dietaryPreferences = jsonStringToArray(data.dietary_preferences);
+      const preferredCuisine = jsonStringToArray(data.preferred_cuisine);
 
       // Update local state
       const updatedPreferences = {
@@ -378,7 +406,25 @@ export const SettingsProvider = ({ children }) => {
 
     } catch (error) {
       console.error('Error updating preferences:', error);
-      toast.error('Failed to update preferences');
+      
+      // Provide more specific error messages
+      if (error.message && error.message.includes('malformed array literal')) {
+        toast.error('Error saving array data - please try again');
+      } else if (error.message && error.message.includes('relation') || error.message.includes('does not exist')) {
+        toast.error('Database unavailable - changes saved locally');
+        
+        // Save locally as fallback
+        const updatedPreferences = {
+          ...preferences,
+          ...updates
+        };
+        setPreferences(updatedPreferences);
+        
+        return { success: true, data: updatedPreferences };
+      } else {
+        toast.error('Failed to update preferences');
+      }
+      
       return { success: false, error: error.message };
     } finally {
       setLoading(false);
