@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import Scheduler from './pages/Scheduler';
 import Recipes from './pages/Recipes';
 import ShoppingList from './pages/ShoppingList';
+import AdminPanel from './pages/AdminPanel';
 import CookingTimer from './components/CookingTimer';
 
 function App() {
@@ -28,9 +29,10 @@ function App() {
                     <Route path="/scheduler" element={<Scheduler />} />
                     <Route path="/recipes" element={<Recipes />} />
                     <Route path="/shopping-list" element={<ShoppingList />} />
+                    <Route path="/admin" element={<AdminPanel />} />
                   </Routes>
                   <CookingTimer />
-                  <Toaster 
+                  <Toaster
                     position="top-right"
                     toastOptions={{
                       duration: 3000,

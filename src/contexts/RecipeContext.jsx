@@ -15,6 +15,7 @@ export const RecipeProvider = ({ children }) => {
   const [recipes, setRecipes] = useState([]);
   const [savedRecipes, setSavedRecipes] = useState([]);
   const [sharedRecipes, setSharedRecipes] = useState([]);
+  const [pendingRecipes, setPendingRecipes] = useState([]);
   const [userSharedRecipes, setUserSharedRecipes] = useState(new Set());
 
   // Enhanced duplicate detection - more thorough comparison
@@ -140,12 +141,14 @@ export const RecipeProvider = ({ children }) => {
     // Clear all localStorage
     localStorage.removeItem('saved_recipes');
     localStorage.removeItem('shared_recipes');
+    localStorage.removeItem('pending_recipes');
     localStorage.removeItem('user_shared_recipes');
     
     // Reset all state to empty arrays
     setRecipes([]);
     setSavedRecipes([]);
     setSharedRecipes([]);
+    setPendingRecipes([]);
     setUserSharedRecipes(new Set());
     
     return {
@@ -234,6 +237,10 @@ export const RecipeProvider = ({ children }) => {
     const sharedRecipesData = JSON.parse(localStorage.getItem('shared_recipes') || '[]');
     setSharedRecipes(sharedRecipesData);
 
+    // Load pending recipes from localStorage
+    const pendingRecipesData = JSON.parse(localStorage.getItem('pending_recipes') || '[]');
+    setPendingRecipes(pendingRecipesData);
+
     // Load user shared recipes set
     const userSharedData = JSON.parse(localStorage.getItem('user_shared_recipes') || '[]');
     setUserSharedRecipes(new Set(userSharedData));
@@ -314,36 +321,115 @@ export const RecipeProvider = ({ children }) => {
     localStorage.setItem('saved_recipes', JSON.stringify(updatedSaved));
   };
 
-  // FIXED: Share recipe without creating duplicates
-  const shareRecipe = (recipe) => {
+  // NEW: Share recipe to community (goes to admin approval first)
+  const shareRecipe = (recipe, currentUser) => {
     if (userSharedRecipes.has(recipe.id)) {
       return { success: false, message: 'You have already shared this recipe to the community' };
     }
 
-    // Create shared recipe with reference to original
+    if (!currentUser) {
+      return { success: false, message: 'You must be logged in to share recipes' };
+    }
+
+    // Create pending recipe for admin approval
     const shareId = `${recipe.title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
-    const sharedRecipe = {
+    const pendingRecipe = {
       ...recipe,
-      originalId: recipe.id, // Keep reference to original
+      originalId: recipe.id,
       shared: true,
       sharedAt: new Date().toISOString(),
       shareId,
-      sharedBy: 'user' // Mark as user-shared
+      sharedBy: currentUser.username || currentUser.name,
+      sharedByUserId: currentUser.id,
+      status: 'pending', // pending, approved, rejected
+      submittedAt: new Date().toISOString()
     };
     
-    // Add to shared recipes collection
-    const updatedShared = [...sharedRecipes, sharedRecipe];
-    setSharedRecipes(updatedShared);
+    // Add to pending recipes
+    const updatedPending = [...pendingRecipes, pendingRecipe];
+    setPendingRecipes(updatedPending);
+    localStorage.setItem('pending_recipes', JSON.stringify(updatedPending));
     
-    // Track that this recipe has been shared
+    // Track that this recipe has been shared (for user reference)
     const updatedUserShared = new Set([...userSharedRecipes, recipe.id]);
     setUserSharedRecipes(updatedUserShared);
-    
-    // Save to localStorage
-    localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author && !r.isDefault)));
     localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
     
-    return { success: true, shareId, message: 'Recipe shared to community successfully!' };
+    return { 
+      success: true, 
+      shareId, 
+      message: 'Recipe submitted for community review! Admin will approve shortly.' 
+    };
+  };
+
+  // ADMIN: Approve pending recipe
+  const approveRecipe = (recipeId, adminUser) => {
+    if (!adminUser?.isAdmin) {
+      return { success: false, message: 'Admin access required' };
+    }
+
+    const recipe = pendingRecipes.find(r => r.id === recipeId || r.originalId === recipeId);
+    if (!recipe) {
+      return { success: false, message: 'Recipe not found' };
+    }
+
+    // Move from pending to approved shared recipes
+    const approvedRecipe = {
+      ...recipe,
+      status: 'approved',
+      approvedAt: new Date().toISOString(),
+      approvedBy: adminUser.username
+    };
+
+    // Add to shared recipes
+    const updatedShared = [...sharedRecipes, approvedRecipe];
+    setSharedRecipes(updatedShared);
+    localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author && !r.isDefault)));
+
+    // Remove from pending
+    const updatedPending = pendingRecipes.filter(r => r.id !== recipeId && r.originalId !== recipeId);
+    setPendingRecipes(updatedPending);
+    localStorage.setItem('pending_recipes', JSON.stringify(updatedPending));
+
+    return { success: true, message: 'Recipe approved and added to community!' };
+  };
+
+  // ADMIN: Reject pending recipe
+  const rejectRecipe = (recipeId, adminUser, reason = '') => {
+    if (!adminUser?.isAdmin) {
+      return { success: false, message: 'Admin access required' };
+    }
+
+    const recipe = pendingRecipes.find(r => r.id === recipeId || r.originalId === recipeId);
+    if (!recipe) {
+      return { success: false, message: 'Recipe not found' };
+    }
+
+    // Remove from pending
+    const updatedPending = pendingRecipes.filter(r => r.id !== recipeId && r.originalId !== recipeId);
+    setPendingRecipes(updatedPending);
+    localStorage.setItem('pending_recipes', JSON.stringify(updatedPending));
+
+    // Remove from user shared tracking
+    const updatedUserShared = new Set([...userSharedRecipes]);
+    updatedUserShared.delete(recipe.originalId);
+    setUserSharedRecipes(updatedUserShared);
+    localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
+
+    return { success: true, message: `Recipe rejected${reason ? ': ' + reason : ''}` };
+  };
+
+  // ADMIN: Remove approved shared recipe
+  const removeSharedRecipe = (recipeId, adminUser) => {
+    if (!adminUser?.isAdmin) {
+      return { success: false, message: 'Admin access required' };
+    }
+
+    const updatedShared = sharedRecipes.filter(r => r.id !== recipeId && r.originalId !== recipeId);
+    setSharedRecipes(updatedShared);
+    localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author && !r.isDefault)));
+
+    return { success: true, message: 'Recipe removed from community' };
   };
 
   const generateShareableLink = (recipe) => {
@@ -468,7 +554,8 @@ Shared via Meal Plan App`;
     recipes,
     savedRecipes,
     sharedRecipes,
-    getAllUniqueRecipes, // NEW: Use this for "All Recipes" view
+    pendingRecipes, // NEW: For admin interface
+    getAllUniqueRecipes,
     addRecipe,
     deleteRecipe,
     canDeleteRecipe,
@@ -480,7 +567,11 @@ Shared via Meal Plan App`;
     isRecipeSaved,
     hasSharedRecipe,
     cleanupDuplicates,
-    completeReset
+    completeReset,
+    // NEW: Admin functions
+    approveRecipe,
+    rejectRecipe,
+    removeSharedRecipe
   };
 
   return (

@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 
-const { FiHome, FiCalendar, FiBook, FiShoppingCart, FiUser, FiLogOut, FiStar, FiTrendingUp } = FiIcons;
+const { FiHome, FiCalendar, FiBook, FiShoppingCart, FiUser, FiLogOut, FiStar, FiTrendingUp, FiShield } = FiIcons;
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -18,6 +18,15 @@ const Layout = ({ children }) => {
     { name: 'Recipes', href: '/recipes', icon: FiBook },
     { name: 'Shopping List', href: '/shopping-list', icon: FiShoppingCart },
   ];
+
+  // Add admin panel for admin users
+  if (user?.isAdmin) {
+    navigation.push({
+      name: 'Admin Panel',
+      href: '/admin',
+      icon: FiShield
+    });
+  }
 
   const handleLogout = () => {
     logout();
@@ -36,6 +45,12 @@ const Layout = ({ children }) => {
                 <SafeIcon icon={FiBook} className="text-white text-sm" />
               </div>
               <span className="text-xl font-bold text-gray-900">Meal Plan</span>
+              {user?.isAdmin && (
+                <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs font-bold flex items-center space-x-1">
+                  <SafeIcon icon={FiShield} className="text-xs" />
+                  <span>ADMIN</span>
+                </span>
+              )}
             </div>
 
             {/* Navigation */}
@@ -50,7 +65,9 @@ const Layout = ({ children }) => {
                     onClick={() => navigate(item.href)}
                     className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 ${
                       isActive
-                        ? 'bg-primary-100 text-primary-700'
+                        ? item.name === 'Admin Panel'
+                          ? 'bg-purple-100 text-purple-700'
+                          : 'bg-primary-100 text-primary-700'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                     }`}
                   >
@@ -72,7 +89,7 @@ const Layout = ({ children }) => {
                       Level {user.level}
                     </span>
                     <div className="w-12 bg-gray-200 rounded-full h-1.5">
-                      <div 
+                      <div
                         className="bg-gradient-to-r from-primary-500 to-secondary-500 h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${(user.xp % 100)}%` }}
                       />
@@ -88,6 +105,9 @@ const Layout = ({ children }) => {
                     />
                     <span className="hidden sm:block text-sm font-medium text-gray-700">
                       {user.name}
+                      {user.isAdmin && (
+                        <span className="ml-1 text-purple-600">👑</span>
+                      )}
                     </span>
                   </div>
 
@@ -108,7 +128,7 @@ const Layout = ({ children }) => {
 
       {/* Mobile Navigation */}
       <div className="md:hidden bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50">
-        <div className="grid grid-cols-4 gap-1 p-2">
+        <div className={`grid ${user?.isAdmin ? 'grid-cols-5' : 'grid-cols-4'} gap-1 p-2`}>
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -118,12 +138,16 @@ const Layout = ({ children }) => {
                 onClick={() => navigate(item.href)}
                 className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all duration-200 ${
                   isActive
-                    ? 'bg-primary-100 text-primary-700'
+                    ? item.name === 'Admin Panel'
+                      ? 'bg-purple-100 text-purple-700'
+                      : 'bg-primary-100 text-primary-700'
                     : 'text-gray-600'
                 }`}
               >
                 <SafeIcon icon={item.icon} className="text-lg mb-1" />
-                <span className="text-xs font-medium">{item.name}</span>
+                <span className="text-xs font-medium">
+                  {item.name === 'Admin Panel' ? 'Admin' : item.name}
+                </span>
               </motion.button>
             );
           })}
