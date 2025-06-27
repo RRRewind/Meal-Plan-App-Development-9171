@@ -97,16 +97,32 @@ export default {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
         'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
         'mesh-gradient': `
-          radial-gradient(at 40% 20%, hsla(9,75%,54%,1) 0px, transparent 50%),
-          radial-gradient(at 80% 0%, hsla(38,75%,61%,1) 0px, transparent 50%),
-          radial-gradient(at 0% 50%, hsla(9,75%,54%,1) 0px, transparent 50%),
-          radial-gradient(at 80% 50%, hsla(38,75%,61%,1) 0px, transparent 50%),
-          radial-gradient(at 0% 100%, hsla(9,75%,54%,1) 0px, transparent 50%),
-          radial-gradient(at 80% 100%, hsla(38,75%,61%,1) 0px, transparent 50%),
-          radial-gradient(at 0% 0%, hsla(9,75%,54%,1) 0px, transparent 50%)
+          radial-gradient(at 40% 20%, hsla(9, 75%, 54%, 1) 0px, transparent 50%),
+          radial-gradient(at 80% 0%, hsla(38, 75%, 61%, 1) 0px, transparent 50%),
+          radial-gradient(at 0% 50%, hsla(9, 75%, 54%, 1) 0px, transparent 50%),
+          radial-gradient(at 80% 50%, hsla(38, 75%, 61%, 1) 0px, transparent 50%),
+          radial-gradient(at 0% 100%, hsla(9, 75%, 54%, 1) 0px, transparent 50%),
+          radial-gradient(at 80% 100%, hsla(38, 75%, 61%, 1) 0px, transparent 50%),
+          radial-gradient(at 0% 0%, hsla(9, 75%, 54%, 1) 0px, transparent 50%)
         `,
+      },
+      // Mobile-specific utilities
+      spacing: {
+        'safe-top': 'env(safe-area-inset-top)',
+        'safe-bottom': 'env(safe-area-inset-bottom)',
+        'safe-left': 'env(safe-area-inset-left)',
+        'safe-right': 'env(safe-area-inset-right)',
       }
     },
+    // Mobile-first breakpoints
+    screens: {
+      'xs': '475px',
+      'sm': '640px',
+      'md': '768px',
+      'lg': '1024px',
+      'xl': '1280px',
+      '2xl': '1536px',
+    }
   },
   plugins: [],
 }

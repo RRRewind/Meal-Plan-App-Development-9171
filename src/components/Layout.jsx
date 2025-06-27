@@ -26,9 +26,9 @@ const Layout = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50/20 to-orange-50/10">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50/20 to-orange-50/10 mobile-safe">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-gray-200/50">
+      <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-gray-200/50 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
@@ -39,7 +39,7 @@ const Layout = ({ children }) => {
               <span className="text-xl font-bold text-gray-900">Meal Plan</span>
             </div>
 
-            {/* Navigation */}
+            {/* Navigation - Hidden on mobile */}
             <nav className="hidden md:flex space-x-1">
               {navigation.map((item) => {
                 const isActive = location.pathname === item.href;
@@ -68,7 +68,7 @@ const Layout = ({ children }) => {
             <div className="flex items-center space-x-4">
               {user && (
                 <div className="flex items-center space-x-3">
-                  {/* Level & XP */}
+                  {/* Level & XP - Hidden on small screens */}
                   <div className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-primary-100/60 to-secondary-100/60 px-3 py-1 rounded-full">
                     <SafeIcon icon={FiStar} className="text-primary-600 text-sm" />
                     <span className="text-sm font-medium text-gray-700">
@@ -91,8 +91,8 @@ const Layout = ({ children }) => {
         </div>
       </header>
 
-      {/* Mobile Navigation */}
-      <div className="md:hidden bg-white/90 backdrop-blur-sm border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50">
+      {/* Mobile Navigation - Fixed at bottom */}
+      <div className="md:hidden bg-white/95 backdrop-blur-sm border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50 safe-area-bottom">
         <div className={`grid ${user?.isAdmin ? 'grid-cols-5' : 'grid-cols-4'} gap-1 p-2`}>
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
@@ -101,7 +101,7 @@ const Layout = ({ children }) => {
                 key={item.name}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => navigate(item.href)}
-                className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all duration-200 ${
+                className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all duration-200 min-h-[60px] ${
                   isActive
                     ? item.name === 'Admin Panel'
                       ? 'bg-purple-100/60 text-purple-700'
@@ -109,9 +109,11 @@ const Layout = ({ children }) => {
                     : 'text-gray-600'
                 }`}
               >
-                <SafeIcon icon={item.icon} className="text-lg mb-1" />
-                <span className="text-xs font-medium">
-                  {item.name === 'Admin Panel' ? 'Admin' : item.name === 'Shopping List' ? 'Shopping' : item.name}
+                <SafeIcon icon={item.icon} className="text-xl mb-1" />
+                <span className="text-xs font-medium leading-tight text-center">
+                  {item.name === 'Admin Panel' ? 'Admin' : 
+                   item.name === 'Shopping List' ? 'Shopping' : 
+                   item.name}
                 </span>
               </motion.button>
             );
@@ -120,7 +122,9 @@ const Layout = ({ children }) => {
       </div>
 
       {/* Main Content */}
-      <main className="pb-20 md:pb-0">{children}</main>
+      <main className="pb-20 md:pb-0">
+        {children}
+      </main>
     </div>
   );
 };

@@ -12,10 +12,7 @@ import RatingModal from '../components/RatingModal';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const {
-  FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiStar, FiMail, FiCheck,
-  FiRefreshCw, FiTrash2, FiAlertTriangle, FiZap, FiBookOpen, FiChef, FiTrendingUp
-} = FiIcons;
+const { FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiStar, FiMail, FiCheck, FiRefreshCw, FiTrash2, FiAlertTriangle, FiZap, FiBookOpen, FiChef, FiTrendingUp, FiExternalLink, FiLink } = FiIcons;
 
 const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,15 +34,11 @@ const Recipes = () => {
     ingredients: [{ name: '', amount: '' }],
     steps: [''],
     tags: [],
-    image: ''
+    image: '',
+    url: '' // NEW: Added URL field
   });
 
-  const {
-    recipes, sharedRecipes, savedRecipes, getAllUniqueRecipes, saveRecipe, unsaveRecipe,
-    deleteRecipe, canDeleteRecipe, isRecipeSaved, shareRecipe, emailShareRecipe,
-    hasSharedRecipe, addRecipe, cleanupDuplicates
-  } = useRecipes();
-
+  const { recipes, sharedRecipes, savedRecipes, getAllUniqueRecipes, saveRecipe, unsaveRecipe, deleteRecipe, canDeleteRecipe, isRecipeSaved, shareRecipe, emailShareRecipe, hasSharedRecipe, addRecipe, cleanupDuplicates } = useRecipes();
   const { startCookingMode } = useCookingMode();
   const { addXP } = useGamification();
   const { user } = useAuth();
@@ -222,7 +215,6 @@ const Recipes = () => {
   const handleCleanupDuplicates = () => {
     const result = cleanupDuplicates();
     setCleanupResult(result);
-    
     if (result.success) {
       toast.success(`🧹 ${result.message}`);
       addXP(20, 'Cleaned up duplicates');
@@ -262,7 +254,8 @@ const Recipes = () => {
         ingredients: [{ name: '', amount: '' }],
         steps: [''],
         tags: [],
-        image: ''
+        image: '',
+        url: '' // Reset URL field
       });
     } else {
       toast.error(result.message);
@@ -274,6 +267,16 @@ const Recipes = () => {
     if (!user) return false;
     // Users can only delete their own created recipes or recipes they shared
     return recipe.isUserCreated || recipe.sharedByUserId === user.id;
+  };
+
+  // NEW: Handle recipe URL click
+  const handleRecipeUrlClick = (url) => {
+    if (url) {
+      // Ensure URL has protocol
+      const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
+      window.open(formattedUrl, '_blank', 'noopener,noreferrer');
+      addXP(2, 'Recipe details viewed');
+    }
   };
 
   return (
@@ -295,6 +298,7 @@ const Recipes = () => {
               {selectedFilter === 'my-recipes' && 'Recipes you\'ve created'}
             </p>
           </div>
+
           <div className="flex items-center space-x-3 mt-4 sm:mt-0">
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
@@ -305,6 +309,7 @@ const Recipes = () => {
               <SafeIcon icon={FiZap} />
               <span>Smart Cleanup</span>
             </motion.button>
+
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -359,11 +364,9 @@ const Recipes = () => {
                   }`}
                 >
                   <span>{filter.name}</span>
-                  <span
-                    className={`text-xs px-2 py-1 rounded-full ${
-                      selectedFilter === filter.id ? 'bg-white/20' : 'bg-gray-100'
-                    }`}
-                  >
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    selectedFilter === filter.id ? 'bg-white/20' : 'bg-gray-100'
+                  }`}>
                     {filter.count}
                   </span>
                 </motion.button>
@@ -381,7 +384,8 @@ const Recipes = () => {
                     <option key={option.id} value={option.id}>
                       {option.name}
                     </option>
-                  ))}
+                  ))
+                }
               </select>
 
               {/* Sort indicator for community recipes */}
@@ -422,6 +426,7 @@ const Recipes = () => {
                 <SafeIcon icon={FiPlus} className="text-xl" />
                 <span>Add Your First Recipe</span>
               </motion.button>
+
               <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
                 <div className="glass p-6 rounded-xl">
                   <SafeIcon icon={FiBookOpen} className="text-2xl text-primary-500 mb-3" />
@@ -473,7 +478,7 @@ const Recipes = () => {
                   No recipes found
                 </h3>
                 <p className="text-gray-600 font-medium mb-4">
-                  {searchTerm
+                  {searchTerm 
                     ? `No recipes match "${searchTerm}" in ${filters.find(f => f.id === selectedFilter)?.name}`
                     : `No recipes in ${filters.find(f => f.id === selectedFilter)?.name} yet`
                   }
@@ -513,7 +518,11 @@ const Recipes = () => {
                       {/* Recipe Image */}
                       <div className="aspect-video bg-gradient-to-br from-primary-100 to-secondary-100 relative overflow-hidden">
                         {recipe.image ? (
-                          <img src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" />
+                          <img
+                            src={recipe.image}
+                            alt={recipe.title}
+                            className="w-full h-full object-cover"
+                          />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <SafeIcon icon={FiStar} className="text-4xl text-primary-400" />
@@ -557,6 +566,7 @@ const Recipes = () => {
                               >
                                 <SafeIcon icon={FiMail} className="text-sm" />
                               </motion.button>
+
                               <motion.button
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
@@ -569,6 +579,7 @@ const Recipes = () => {
                               >
                                 <SafeIcon icon={hasSharedRecipe(recipe.id) ? FiCheck : FiShare2} className="text-sm" />
                               </motion.button>
+
                               {canUserDeleteRecipe(recipe) && (
                                 <motion.button
                                   whileHover={{ scale: 1.1 }}
@@ -603,9 +614,24 @@ const Recipes = () => {
 
                       {/* Recipe Content */}
                       <div className="p-6">
-                        <h3 className="font-bold text-xl text-gray-900 mb-2">
-                          {recipe.title}
-                        </h3>
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="font-bold text-xl text-gray-900 flex-1">
+                            {recipe.title}
+                          </h3>
+                          {/* NEW: Recipe URL Button */}
+                          {recipe.url && (
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => handleRecipeUrlClick(recipe.url)}
+                              className="ml-2 p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                              title="View recipe details"
+                            >
+                              <SafeIcon icon={FiExternalLink} className="text-sm" />
+                            </motion.button>
+                          )}
+                        </div>
+                        
                         <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">
                           {recipe.description}
                         </p>
@@ -811,7 +837,7 @@ const Recipes = () => {
           )}
         </AnimatePresence>
 
-        {/* Add Recipe Modal - NOW WITH SOLID BACKGROUND */}
+        {/* Add Recipe Modal - NOW WITH URL FIELD */}
         <AnimatePresence>
           {showAddModal && (
             <motion.div
@@ -856,6 +882,7 @@ const Recipes = () => {
                         required
                       />
                     </div>
+
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Image URL
@@ -867,6 +894,24 @@ const Recipes = () => {
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
                       />
                     </div>
+                  </div>
+
+                  {/* NEW: Recipe URL Field */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                      <SafeIcon icon={FiLink} className="mr-2 text-primary-500" />
+                      Recipe URL (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={newRecipe.url}
+                      onChange={(e) => setNewRecipe(prev => ({ ...prev, url: e.target.value }))}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
+                      placeholder="https://example.com/full-recipe"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Link to the full recipe page, video, or detailed instructions
+                    </p>
                   </div>
 
                   <div>
@@ -895,6 +940,7 @@ const Recipes = () => {
                         required
                       />
                     </div>
+
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Servings
@@ -907,6 +953,7 @@ const Recipes = () => {
                         required
                       />
                     </div>
+
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Difficulty

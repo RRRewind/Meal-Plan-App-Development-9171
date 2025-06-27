@@ -21,7 +21,6 @@ export const RecipeProvider = ({ children }) => {
   const [pendingRecipes, setPendingRecipes] = useState([]);
   const [userSharedRecipes, setUserSharedRecipes] = useState(new Set());
   const [loading, setLoading] = useState(false);
-
   const { user } = useAuth();
 
   // Helper function to get safe user ID as string
@@ -61,8 +60,8 @@ export const RecipeProvider = ({ children }) => {
     if (ingredients1.length === ingredients2.length && ingredients1.length > 0) {
       let matchingIngredients = 0;
       ingredients1.forEach(ing1 => {
-        const found = ingredients2.some(ing2 =>
-          normalize(ing1.name) === normalize(ing2.name) &&
+        const found = ingredients2.some(ing2 => 
+          normalize(ing1.name) === normalize(ing2.name) && 
           normalize(ing1.amount) === normalize(ing2.amount)
         );
         if (found) matchingIngredients++;
@@ -143,7 +142,11 @@ export const RecipeProvider = ({ children }) => {
       }
     }
 
-    return { unique, duplicates, removed: duplicates.length };
+    return {
+      unique,
+      duplicates,
+      removed: duplicates.length
+    };
   };
 
   // Load user's recipes from Supabase
@@ -155,7 +158,6 @@ export const RecipeProvider = ({ children }) => {
 
     try {
       setLoading(true);
-      
       const { data, error } = await supabase
         .from('user_recipes_mp2024')
         .select('*')
@@ -176,6 +178,7 @@ export const RecipeProvider = ({ children }) => {
         steps: recipe.steps || [],
         tags: recipe.tags || [],
         image: recipe.image_url,
+        url: recipe.recipe_url, // NEW: Map URL field
         isUserCreated: true,
         createdAt: recipe.created_at,
         shared: recipe.is_shared
@@ -183,11 +186,9 @@ export const RecipeProvider = ({ children }) => {
 
       setRecipes(transformedRecipes);
       console.log(`Loaded ${transformedRecipes.length} recipes from Supabase`);
-      
     } catch (error) {
       console.error('Error loading user recipes:', error);
       toast.error('Failed to load recipes from database');
-      
       // Fallback to localStorage
       const localRecipes = JSON.parse(localStorage.getItem('user_recipes') || '[]');
       setRecipes(localRecipes);
@@ -219,6 +220,7 @@ export const RecipeProvider = ({ children }) => {
         steps: recipe.steps || [],
         tags: recipe.tags || [],
         image_url: recipe.image || null,
+        recipe_url: recipe.url || null, // NEW: Save URL field
         is_shared: recipe.shared || false
       };
 
@@ -242,6 +244,7 @@ export const RecipeProvider = ({ children }) => {
         steps: data.steps || [],
         tags: data.tags || [],
         image: data.image_url,
+        url: data.recipe_url, // NEW: Transform URL field
         isUserCreated: true,
         createdAt: data.created_at,
         shared: data.is_shared
@@ -374,7 +377,7 @@ export const RecipeProvider = ({ children }) => {
       success: totalRemoved > 0,
       totalRemoved,
       report: cleanupReport,
-      message: totalRemoved > 0 
+      message: totalRemoved > 0
         ? `Cleaned up ${totalRemoved} duplicate recipes across all collections!`
         : 'No duplicates found - your recipe collection is perfectly organized!'
     };
@@ -432,19 +435,16 @@ export const RecipeProvider = ({ children }) => {
 
     try {
       setLoading(true);
-      
       // Save to Supabase
       const savedRecipe = await saveRecipeToSupabase(recipe);
-      
+
       // Update local state
       setRecipes(prev => [savedRecipe, ...prev]);
-      
+
       toast.success('✅ Recipe added successfully!');
       return { success: true, recipe: savedRecipe };
-      
     } catch (error) {
       console.error('Error adding recipe:', error);
-      
       // Fallback to localStorage
       const newRecipe = {
         ...recipe,
@@ -452,14 +452,14 @@ export const RecipeProvider = ({ children }) => {
         createdAt: new Date().toISOString(),
         isUserCreated: true
       };
-      
+
       setRecipes(prev => [newRecipe, ...prev]);
-      
+
       // Also save to localStorage as backup
       const localRecipes = JSON.parse(localStorage.getItem('user_recipes') || '[]');
       localRecipes.unshift(newRecipe);
       localStorage.setItem('user_recipes', JSON.stringify(localRecipes));
-      
+
       toast.success('✅ Recipe added successfully (saved locally)!');
       return { success: true, recipe: newRecipe };
     } finally {
@@ -474,13 +474,12 @@ export const RecipeProvider = ({ children }) => {
 
     try {
       setLoading(true);
-      
       // Try to delete from Supabase first
       await deleteRecipeFromSupabase(recipeId);
-      
+
       // Update local state
       setRecipes(prev => prev.filter(r => r.id !== recipeId));
-      
+
       // Remove from saved recipes
       const updatedSaved = savedRecipes.filter(r => r.id !== recipeId && r.originalSharedId !== recipeId);
       setSavedRecipes(updatedSaved);
@@ -498,13 +497,10 @@ export const RecipeProvider = ({ children }) => {
       localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
 
       return { success: true, message: 'Recipe deleted successfully!' };
-      
     } catch (error) {
       console.error('Error deleting recipe:', error);
-      
       // Fallback to local deletion
       setRecipes(prev => prev.filter(r => r.id !== recipeId));
-      
       return { success: true, message: 'Recipe deleted successfully!' };
     } finally {
       setLoading(false);
@@ -664,6 +660,7 @@ export const RecipeProvider = ({ children }) => {
       ingredients: recipe.ingredients,
       steps: recipe.steps,
       tags: recipe.tags,
+      url: recipe.url, // NEW: Include URL in shared data
       author: recipe.author || 'Community Chef',
       sharedVia: 'email'
     };
@@ -707,7 +704,6 @@ export const RecipeProvider = ({ children }) => {
 I found this amazing recipe and thought you'd love it:
 
 🍽️ **${recipe.title}**
-
 ${recipe.description}
 
 ⏱️ Cook Time: ${recipe.cookTime} minutes
@@ -717,7 +713,7 @@ ${recipe.description}
 **Here's what makes it special:**
 ${recipe.tags ? recipe.tags.map(tag => `• ${tag}`).join('\n') : '• Delicious and easy to make'}
 
-**Click here to view the full recipe and automatically save it to your collection:**
+${recipe.url ? `**Full Recipe Details:**\n${recipe.url}\n\n` : ''}**Click here to view the full recipe and automatically save it to your collection:**
 ${shareLink}
 
 When you click the link:
