@@ -10,10 +10,7 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const {
-  FiCalendar, FiPlus, FiX, FiClock, FiUsers, FiPlay, FiChevronLeft, FiChevronRight,
-  FiCoffee, FiSun, FiMoon, FiCookie
-} = FiIcons;
+const { FiCalendar, FiPlus, FiX, FiClock, FiUsers, FiPlay, FiChevronLeft, FiChevronRight, FiCoffee, FiSun, FiMoon, FiCookie } = FiIcons;
 
 const Scheduler = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -27,43 +24,48 @@ const Scheduler = () => {
   const { addXP } = useGamification();
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeek, i));
+
   const mealTypes = [
-    { 
-      id: 'breakfast', 
-      name: 'Breakfast', 
-      icon: FiCoffee, 
-      bgColor: 'bg-[#df4830]',
-      lightBg: 'from-[#df4830]/10 to-[#df4830]/20',
-      borderColor: 'border-[#df4830]/30',
-      textColor: 'text-[#df4830]'
+    {
+      id: 'breakfast',
+      name: 'Breakfast',
+      icon: '🍳', // Using emoji instead of icon
+      bgColor: 'bg-gradient-to-br from-primary-100/60 to-secondary-100/60',
+      lightBg: 'from-primary-50/60 to-secondary-50/60',
+      borderColor: 'border-primary-300/50',
+      textColor: 'text-primary-700',
+      hoverBg: 'hover:bg-primary-50/50'
     },
-    { 
-      id: 'lunch', 
-      name: 'Lunch', 
-      icon: FiSun, 
-      bgColor: 'bg-[#eeb046]',
-      lightBg: 'from-[#eeb046]/10 to-[#eeb046]/20',
-      borderColor: 'border-[#eeb046]/30',
-      textColor: 'text-[#eeb046]'
+    {
+      id: 'lunch',
+      name: 'Lunch',
+      icon: '🥗', // Using emoji instead of icon
+      bgColor: 'bg-gradient-to-br from-secondary-100/60 to-accent-100/60',
+      lightBg: 'from-secondary-50/60 to-accent-50/60',
+      borderColor: 'border-secondary-300/50',
+      textColor: 'text-secondary-700',
+      hoverBg: 'hover:bg-secondary-50/50'
     },
-    { 
-      id: 'dinner', 
-      name: 'Dinner', 
-      icon: FiMoon, 
-      bgColor: 'bg-[#df4830]',
-      lightBg: 'from-[#df4830]/10 to-[#df4830]/20',
-      borderColor: 'border-[#df4830]/30',
-      textColor: 'text-[#df4830]'
+    {
+      id: 'dinner',
+      name: 'Dinner',
+      icon: '🍽️', // Using emoji instead of icon
+      bgColor: 'bg-gradient-to-br from-purple-100/60 to-blue-100/60',
+      lightBg: 'from-purple-50/60 to-blue-50/60',
+      borderColor: 'border-purple-300/50',
+      textColor: 'text-purple-700',
+      hoverBg: 'hover:bg-purple-50/50'
     },
-    { 
-      id: 'snacks', 
-      name: 'Snacks', 
-      icon: FiCookie, 
-      bgColor: 'bg-[#eeb046]',
-      lightBg: 'from-[#eeb046]/10 to-[#eeb046]/20',
-      borderColor: 'border-[#eeb046]/30',
-      textColor: 'text-[#eeb046]',
-      limit: 5 
+    {
+      id: 'snacks',
+      name: 'Snacks',
+      icon: '🍪', // Using emoji instead of icon
+      bgColor: 'bg-gradient-to-br from-amber-100/60 to-orange-100/60',
+      lightBg: 'from-amber-50/60 to-orange-50/60',
+      borderColor: 'border-amber-300/50',
+      textColor: 'text-amber-700',
+      hoverBg: 'hover:bg-amber-50/50',
+      limit: 5
     }
   ];
 
@@ -74,7 +76,7 @@ const Scheduler = () => {
     if (selectedDate && selectedMealType) {
       const dayMeals = getMealsForDay(selectedDate);
       const mealTypeConfig = mealTypes.find(mt => mt.id === selectedMealType);
-      
+
       // Check meal limits
       if (selectedMealType === 'snacks') {
         const currentSnacks = dayMeals.snacks || [];
@@ -192,9 +194,7 @@ const Scheduler = () => {
                 <p className="font-semibold text-gray-900">
                   {format(day, 'EEE')}
                 </p>
-                <p className={`text-sm ${
-                  isToday(day) ? 'text-[#df4830] font-bold' : 'text-gray-600'
-                }`}>
+                <p className={`text-sm ${isToday(day) ? 'text-primary-600 font-bold' : 'text-gray-600'}`}>
                   {format(day, 'MMM d')}
                 </p>
               </div>
@@ -208,8 +208,8 @@ const Scheduler = () => {
                 {/* Meal Type Label */}
                 <div className="p-4 border-r border-gray-200 bg-gray-50 flex items-center">
                   <div className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 ${mealType.bgColor} rounded-lg flex items-center justify-center shadow-sm`}>
-                      <SafeIcon icon={mealType.icon} className="text-white text-sm" />
+                    <div className={`w-10 h-10 ${mealType.bgColor} rounded-lg flex items-center justify-center shadow-sm border border-gray-200/50`}>
+                      <span className="text-lg">{mealType.icon}</span>
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900 text-sm">
@@ -227,9 +227,9 @@ const Scheduler = () => {
                   const dayMeals = getMealsForDay(day);
                   const meals = getMealDisplay(dayMeals, mealType.id);
                   const isPastDay = isBefore(day, today);
-                  const canAddMore = mealType.id === 'snacks' ? 
-                    meals.length < (mealType.limit || 1) : 
-                    meals.length === 0;
+                  const canAddMore = mealType.id === 'snacks' 
+                    ? meals.length < (mealType.limit || 1) 
+                    : meals.length === 0;
 
                   return (
                     <div
@@ -269,7 +269,7 @@ const Scheduler = () => {
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
                                     onClick={() => startCookingMode(meal)}
-                                    className="p-1 text-[#eeb046] hover:text-[#df4830] hover:bg-[#eeb046]/10 rounded"
+                                    className="p-1 text-green-600 hover:text-green-700 hover:bg-green-100 rounded"
                                   >
                                     <SafeIcon icon={FiPlay} className="text-xs" />
                                   </motion.button>
@@ -293,7 +293,7 @@ const Scheduler = () => {
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                             onClick={() => openRecipeModal(day, mealType.id)}
-                            className={`w-full h-12 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 hover:${mealType.borderColor.replace('/30', '/50')} hover:${mealType.textColor} transition-colors duration-200`}
+                            className={`w-full h-12 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 ${mealType.hoverBg} hover:${mealType.borderColor.replace('/50', '/70')} hover:${mealType.textColor} transition-colors duration-200`}
                           >
                             <SafeIcon icon={FiPlus} className="text-sm" />
                           </motion.button>
@@ -337,9 +337,7 @@ const Scheduler = () => {
                       Choose a Recipe
                     </h2>
                     <p className="text-gray-600">
-                      {selectedDate && format(selectedDate, 'EEEE, MMMM d')} • {
-                        mealTypes.find(mt => mt.id === selectedMealType)?.name
-                      }
+                      {selectedDate && format(selectedDate, 'EEEE, MMMM d')} • {mealTypes.find(mt => mt.id === selectedMealType)?.name}
                     </p>
                   </div>
                   <motion.button
@@ -360,7 +358,7 @@ const Scheduler = () => {
                       className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer"
                       onClick={() => handleAddMeal(recipe)}
                     >
-                      <div className="aspect-video bg-gradient-to-br from-[#df4830]/10 to-[#eeb046]/10 relative overflow-hidden">
+                      <div className="aspect-video bg-gradient-to-br from-primary-50/60 to-secondary-50/60 relative overflow-hidden">
                         {recipe.image ? (
                           <img
                             src={recipe.image}
@@ -369,7 +367,7 @@ const Scheduler = () => {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <SafeIcon icon={FiCalendar} className="text-4xl text-[#df4830]/40" />
+                            <SafeIcon icon={FiCalendar} className="text-4xl text-primary-400" />
                           </div>
                         )}
                       </div>
@@ -391,7 +389,7 @@ const Scheduler = () => {
                               {recipe.servings}
                             </div>
                           </div>
-                          <span className="text-xs bg-[#df4830]/10 text-[#df4830] px-2 py-1 rounded-full">
+                          <span className="text-xs bg-primary-50 text-primary-600 px-2 py-1 rounded-full">
                             {recipe.difficulty}
                           </span>
                         </div>
