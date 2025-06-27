@@ -5,7 +5,7 @@ import { useGamification } from '../contexts/GamificationContext';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 
-const { FiClock, FiPlay, FiPause, FiSquare, FiChevronLeft, FiChevronRight, FiX, FiCheck, FiMinus, FiPlus, FiBell } = FiIcons;
+const { FiClock, FiPlay, FiPause, FiSquare, FiChevronLeft, FiChevronRight, FiX, FiCheck, FiMinus, FiPlus, FiBell, FiMaximize2 } = FiIcons;
 
 const CookingTimer = () => {
   const [isMinimized, setIsMinimized] = useState(false);
@@ -65,6 +65,7 @@ const CookingTimer = () => {
     }
   };
 
+  // ENHANCED: Show different floating widgets based on cooking mode state
   if (!isActive || !currentRecipe) {
     // Show persistent timer indicator if there's an active timer but cooking mode is closed
     if (timeLeft > 0) {
@@ -152,75 +153,133 @@ const CookingTimer = () => {
     setIsMinimized(false);
   };
 
+  const handleClose = () => {
+    // Only allow closing if no timer is running
+    if (timeLeft === 0 || !isTimerRunning) {
+      stopCookingMode();
+    }
+  };
+
   const isLastStep = currentStep === currentRecipe.steps.length - 1;
   const progress = ((currentStep + 1) / currentRecipe.steps.length) * 100;
 
-  // Minimized floating timer
+  // ENHANCED: Different minimized states based on timer status
   if (isMinimized) {
-    return (
-      <motion.div
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="fixed top-4 right-4 z-50"
-      >
+    // If timer is active, show countdown-focused widget
+    if (timeLeft > 0) {
+      return (
         <motion.div
-          whileHover={{ scale: 1.05 }}
-          className="bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl p-4 text-white shadow-2xl cursor-pointer"
-          onClick={handleExpand}
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="fixed top-4 right-4 z-50"
         >
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <SafeIcon icon={FiClock} className="text-white text-lg" />
-            </div>
-            <div>
-              <div className="font-bold text-lg">
-                {timeLeft > 0 ? formatTime(timeLeft) : 'No Timer'}
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-4 text-white shadow-2xl"
+          >
+            {/* Main Timer Display */}
+            <div className="text-center mb-3">
+              <div className="text-3xl font-bold mb-1">
+                {formatTime(timeLeft)}
               </div>
-              <div className="text-primary-100 text-sm">
+              <div className="text-orange-100 text-sm font-medium">
+                Active Timer
+              </div>
+            </div>
+
+            {/* Timer Controls */}
+            <div className="flex items-center justify-center space-x-2 mb-3">
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => isTimerRunning ? pauseTimer() : resumeTimer()}
+                className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
+              >
+                <SafeIcon icon={isTimerRunning ? FiPause : FiPlay} className="text-sm" />
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={resetTimer}
+                className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
+              >
+                <SafeIcon icon={FiSquare} className="text-sm" />
+              </motion.button>
+            </div>
+
+            {/* Expand/Close Controls */}
+            <div className="flex items-center justify-between border-t border-white/20 pt-3">
+              <div className="text-xs text-orange-100">
                 Step {currentStep + 1}/{currentRecipe.steps.length}
               </div>
-            </div>
-            {timeLeft > 0 && (
               <div className="flex items-center space-x-2">
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    isTimerRunning ? pauseTimer() : resumeTimer();
-                  }}
-                  className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
+                  onClick={handleExpand}
+                  className="p-1.5 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
+                  title="Expand cooking mode"
                 >
-                  <SafeIcon icon={isTimerRunning ? FiPause : FiPlay} className="text-sm" />
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    resetTimer();
-                  }}
-                  className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
-                >
-                  <SafeIcon icon={FiSquare} className="text-sm" />
+                  <SafeIcon icon={FiMaximize2} className="text-xs" />
                 </motion.button>
               </div>
-            )}
-          </div>
-
-          {/* Mini Progress Bar */}
-          <div className="mt-3">
-            <div className="w-full bg-white/20 rounded-full h-1.5">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                className="bg-white rounded-full h-1.5"
-              />
             </div>
-          </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
-    );
+      );
+    } else {
+      // If no timer, show regular minimized cooking mode widget
+      return (
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="fixed top-4 right-4 z-50"
+        >
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl p-4 text-white shadow-2xl cursor-pointer"
+            onClick={handleExpand}
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                <SafeIcon icon={FiClock} className="text-white text-lg" />
+              </div>
+              <div>
+                <div className="font-bold text-lg">
+                  No Timer
+                </div>
+                <div className="text-primary-100 text-sm">
+                  Step {currentStep + 1}/{currentRecipe.steps.length}
+                </div>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClose();
+                }}
+                className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
+                title="Close cooking mode"
+              >
+                <SafeIcon icon={FiX} className="text-sm" />
+              </motion.button>
+            </div>
+
+            {/* Mini Progress Bar */}
+            <div className="mt-3">
+              <div className="w-full bg-white/20 rounded-full h-1.5">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  className="bg-white rounded-full h-1.5"
+                />
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      );
+    }
   }
 
   return (
@@ -298,9 +357,14 @@ const CookingTimer = () => {
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  onClick={stopCookingMode}
-                  className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition-colors duration-200"
-                  title="Close cooking mode"
+                  onClick={handleClose}
+                  disabled={timeLeft > 0 && isTimerRunning}
+                  className={`p-2 rounded-lg transition-colors duration-200 ${
+                    timeLeft > 0 && isTimerRunning 
+                      ? 'text-white/40 cursor-not-allowed' 
+                      : 'text-white/80 hover:text-white hover:bg-white/20'
+                  }`}
+                  title={timeLeft > 0 && isTimerRunning ? "Stop timer to close" : "Close cooking mode"}
                 >
                   <SafeIcon icon={FiX} className="text-xl" />
                 </motion.button>
