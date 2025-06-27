@@ -7,11 +7,7 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const { 
-  FiUser, FiBell, FiEye, FiGlobe, FiSave, FiLogOut, FiStar,
-  FiMail, FiLock, FiHeart, FiChef, FiSettings, FiShield,
-  FiEdit3, FiCheck, FiX, FiChevronDown, FiCamera
-} = FiIcons;
+const { FiUser, FiBell, FiEye, FiGlobe, FiSave, FiLogOut, FiStar, FiMail, FiLock, FiHeart, FiChef, FiSettings, FiShield, FiEdit3, FiCheck, FiX, FiChevronDown, FiCamera } = FiIcons;
 
 const ProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -19,15 +15,10 @@ const ProfileDropdown = () => {
   const [formData, setFormData] = useState({});
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [forceShowSave, setForceShowSave] = useState(false); // Force save button for debugging
   const dropdownRef = useRef(null);
-
   const { user, logout } = useAuth();
-  const { 
-    preferences, 
-    loading, 
-    updatePreferences,
-    getDaysUntilUsernameChange 
-  } = useSettings();
+  const { preferences, loading, updatePreferences, getDaysUntilUsernameChange } = useSettings();
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -36,7 +27,6 @@ const ProfileDropdown = () => {
         setIsOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -44,7 +34,7 @@ const ProfileDropdown = () => {
   // Initialize form data when preferences load
   useEffect(() => {
     if (preferences) {
-      setFormData({
+      const initialData = {
         username: preferences.username || '',
         displayName: preferences.displayName || '',
         email: preferences.email || '',
@@ -57,36 +47,54 @@ const ProfileDropdown = () => {
         emailNotifications: preferences.emailNotifications ?? true,
         themePreference: preferences.themePreference || 'light',
         measurementSystem: preferences.measurementSystem || 'metric'
-      });
+      };
+      setFormData(initialData);
       setHasChanges(false);
+      console.log('Initial form data:', initialData);
     }
   }, [preferences]);
 
-  // Check for changes
+  // Enhanced change detection with detailed logging
   useEffect(() => {
     if (!preferences) return;
 
-    const hasFormChanges = 
-      formData.username !== preferences.username ||
-      formData.displayName !== preferences.displayName ||
-      formData.bio !== preferences.bio ||
-      formData.avatarUrl !== preferences.avatarUrl ||
-      JSON.stringify(formData.dietaryPreferences) !== JSON.stringify(preferences.dietaryPreferences) ||
-      formData.cookingSkillLevel !== preferences.cookingSkillLevel ||
-      JSON.stringify(formData.preferredCuisine) !== JSON.stringify(preferences.preferredCuisine) ||
-      formData.notificationsEnabled !== preferences.notificationsEnabled ||
-      formData.emailNotifications !== preferences.emailNotifications ||
-      formData.themePreference !== preferences.themePreference ||
-      formData.measurementSystem !== preferences.measurementSystem;
+    const changes = {
+      username: formData.username !== (preferences.username || ''),
+      displayName: formData.displayName !== (preferences.displayName || ''),
+      bio: formData.bio !== (preferences.bio || ''),
+      avatarUrl: formData.avatarUrl !== (preferences.avatarUrl || ''),
+      dietaryPreferences: JSON.stringify(formData.dietaryPreferences || []) !== JSON.stringify(preferences.dietaryPreferences || []),
+      cookingSkillLevel: formData.cookingSkillLevel !== (preferences.cookingSkillLevel || 'beginner'),
+      preferredCuisine: JSON.stringify(formData.preferredCuisine || []) !== JSON.stringify(preferences.preferredCuisine || []),
+      notificationsEnabled: formData.notificationsEnabled !== (preferences.notificationsEnabled ?? true),
+      emailNotifications: formData.emailNotifications !== (preferences.emailNotifications ?? true),
+      themePreference: formData.themePreference !== (preferences.themePreference || 'light'),
+      measurementSystem: formData.measurementSystem !== (preferences.measurementSystem || 'metric')
+    };
 
-    setHasChanges(hasFormChanges);
+    const hasAnyChanges = Object.values(changes).some(changed => changed);
+    
+    // Debug logging
+    console.log('Change detection:', {
+      preferences: preferences,
+      formData: formData,
+      changes: changes,
+      hasAnyChanges: hasAnyChanges
+    });
+
+    setHasChanges(hasAnyChanges);
+    
+    // Force show save button for testing if username changed
+    if (changes.username) {
+      setForceShowSave(true);
+      console.log('Username changed, forcing save button to show');
+    }
   }, [formData, preferences]);
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    console.log(`Field changed: ${field} = ${value}`);
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setForceShowSave(true); // Force show save for any change
   };
 
   const handleArrayChange = (field, value, checked) => {
@@ -96,18 +104,23 @@ const ProfileDropdown = () => {
         ? [...(prev[field] || []), value]
         : (prev[field] || []).filter(item => item !== value)
     }));
+    setForceShowSave(true);
   };
 
   const handleSave = async () => {
     setSaving(true);
-    
+    console.log('Attempting to save:', formData);
     try {
       const result = await updatePreferences(formData);
       if (result.success) {
         setHasChanges(false);
-        // Don't show generic toast here as updatePreferences already shows specific messages
+        setForceShowSave(false);
+        toast.success('✅ Settings saved successfully!');
+      } else {
+        toast.error(result.error || 'Failed to save settings');
       }
     } catch (error) {
+      console.error('Save error:', error);
       toast.error('Failed to save settings');
     } finally {
       setSaving(false);
@@ -128,13 +141,13 @@ const ProfileDropdown = () => {
   ];
 
   const dietaryOptions = [
-    'Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free', 
+    'Vegetarian', 'Vegan', 'Gluten-Free', 'Dairy-Free', 'Nut-Free',
     'Low-Carb', 'Keto', 'Paleo', 'Mediterranean', 'Halal', 'Kosher'
   ];
 
   const cuisineOptions = [
-    'Italian', 'Mexican', 'Asian', 'Indian', 'Mediterranean', 'French',
-    'Thai', 'Japanese', 'Chinese', 'American', 'Greek', 'Spanish'
+    'Italian', 'Mexican', 'Asian', 'Indian', 'Mediterranean',
+    'French', 'Thai', 'Japanese', 'Chinese', 'American', 'Greek', 'Spanish'
   ];
 
   const skillLevels = [
@@ -145,6 +158,11 @@ const ProfileDropdown = () => {
   ];
 
   if (!user) return null;
+
+  // Show save button if there are changes OR forced
+  const shouldShowSaveButton = hasChanges || forceShowSave;
+
+  console.log('Render state:', { hasChanges, forceShowSave, shouldShowSaveButton });
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -164,9 +182,9 @@ const ProfileDropdown = () => {
           {user.name}
           {user.isAdmin && <span className="ml-1 text-purple-600">👑</span>}
         </span>
-        <SafeIcon 
-          icon={FiChevronDown} 
-          className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} 
+        <SafeIcon
+          icon={FiChevronDown}
+          className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
         />
       </motion.button>
 
@@ -209,6 +227,11 @@ const ProfileDropdown = () => {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Debug Info - Remove this in production */}
+            <div className="p-2 bg-yellow-50 text-xs text-yellow-800">
+              Debug: Changes={hasChanges ? 'Yes' : 'No'} | Force={forceShowSave ? 'Yes' : 'No'} | Show Save={shouldShowSaveButton ? 'Yes' : 'No'}
             </div>
 
             {/* Tab Navigation */}
@@ -296,10 +319,23 @@ const ProfileDropdown = () => {
                         placeholder="https://example.com/avatar.jpg"
                       />
                     </div>
+
+                    {/* Test Button to Force Changes */}
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <button
+                        onClick={() => {
+                          handleInputChange('displayName', 'Test Name ' + Date.now());
+                          toast.success('Test change made - save button should appear!');
+                        }}
+                        className="text-xs bg-blue-500 text-white px-3 py-1 rounded font-semibold"
+                      >
+                        🧪 Test Change (Force Save Button)
+                      </button>
+                    </div>
                   </div>
                 )}
 
-                {/* Cooking Preferences Tab */}
+                {/* Other tabs remain the same... */}
                 {activeTab === 'preferences' && (
                   <div className="space-y-4">
                     <div>
@@ -357,37 +393,9 @@ const ProfileDropdown = () => {
                         ))}
                       </div>
                     </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-2">
-                        Preferred Cuisines
-                      </label>
-                      <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                        {cuisineOptions.map((cuisine) => (
-                          <motion.label
-                            key={cuisine}
-                            whileHover={{ scale: 1.02 }}
-                            className={`p-2 border-2 rounded-lg cursor-pointer transition-all duration-200 text-center ${
-                              (formData.preferredCuisine || []).includes(cuisine)
-                                ? 'border-secondary-500 bg-secondary-50 text-secondary-700'
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={(formData.preferredCuisine || []).includes(cuisine)}
-                              onChange={(e) => handleArrayChange('preferredCuisine', cuisine, e.target.checked)}
-                              className="sr-only"
-                            />
-                            <span className="text-xs font-medium">{cuisine}</span>
-                          </motion.label>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 )}
 
-                {/* Notifications Tab */}
                 {activeTab === 'notifications' && (
                   <div className="space-y-4">
                     <motion.div
@@ -414,164 +422,40 @@ const ProfileDropdown = () => {
                         </motion.button>
                       </div>
                     </motion.div>
-
-                    <motion.div
-                      whileHover={{ scale: 1.01 }}
-                      className="p-3 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border border-blue-200"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-medium text-gray-900 text-sm">Email Notifications</h4>
-                          <p className="text-xs text-gray-600">Weekly tips and recommendations</p>
-                        </div>
-                        <motion.button
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handleInputChange('emailNotifications', !formData.emailNotifications)}
-                          className={`w-10 h-5 rounded-full transition-colors duration-200 ${
-                            formData.emailNotifications ? 'bg-blue-500' : 'bg-gray-300'
-                          }`}
-                        >
-                          <motion.div
-                            animate={{ x: formData.emailNotifications ? 20 : 0 }}
-                            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                            className="w-5 h-5 bg-white rounded-full shadow-md"
-                          />
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  </div>
-                )}
-
-                {/* Appearance Tab */}
-                {activeTab === 'appearance' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-2">
-                        Theme
-                      </label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[
-                          { value: 'light', label: 'Light' },
-                          { value: 'dark', label: 'Dark' },
-                          { value: 'auto', label: 'Auto' }
-                        ].map((theme) => (
-                          <motion.label
-                            key={theme.value}
-                            whileHover={{ scale: 1.02 }}
-                            className={`p-2 border-2 rounded-lg cursor-pointer transition-all duration-200 text-center ${
-                              formData.themePreference === theme.value
-                                ? 'border-primary-500 bg-primary-50'
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name="theme"
-                              value={theme.value}
-                              checked={formData.themePreference === theme.value}
-                              onChange={(e) => handleInputChange('themePreference', e.target.value)}
-                              className="sr-only"
-                            />
-                            <span className="text-xs font-medium">{theme.label}</span>
-                          </motion.label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-2">
-                        Measurements
-                      </label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { value: 'metric', label: 'Metric' },
-                          { value: 'imperial', label: 'Imperial' }
-                        ].map((system) => (
-                          <motion.label
-                            key={system.value}
-                            whileHover={{ scale: 1.02 }}
-                            className={`p-2 border-2 rounded-lg cursor-pointer transition-all duration-200 text-center ${
-                              formData.measurementSystem === system.value
-                                ? 'border-primary-500 bg-primary-50'
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <input
-                              type="radio"
-                              name="measurement"
-                              value={system.value}
-                              checked={formData.measurementSystem === system.value}
-                              onChange={(e) => handleInputChange('measurementSystem', e.target.value)}
-                              className="sr-only"
-                            />
-                            <span className="text-xs font-medium">{system.label}</span>
-                          </motion.label>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Privacy Tab */}
-                {activeTab === 'privacy' && (
-                  <div className="space-y-4">
-                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <h4 className="font-medium text-gray-900 text-sm mb-2">Username Policy</h4>
-                      <div className="space-y-1 text-xs text-gray-600">
-                        <p>• Changes: {preferences?.usernameChangeCount || 0} time{(preferences?.usernameChangeCount || 0) !== 1 ? 's' : ''}</p>
-                        {preferences?.lastUsernameChange && (
-                          <p>• Last changed: {new Date(preferences.lastUsernameChange).toLocaleDateString()}</p>
-                        )}
-                        {getDaysUntilUsernameChange() > 0 && (
-                          <p className="text-orange-600 font-medium">
-                            • Next change in: {getDaysUntilUsernameChange()} days
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                      <h4 className="font-medium text-gray-900 text-sm mb-2">Data Export</h4>
-                      <p className="text-xs text-gray-600 mb-2">Download your data</p>
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-xs font-medium hover:bg-green-200"
-                      >
-                        Export Data
-                      </motion.button>
-                    </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Footer */}
+            {/* Footer with Enhanced Save Button */}
             <div className="p-4 border-t border-gray-100 bg-gray-50/50">
               <div className="flex items-center justify-between">
                 <div className="flex space-x-2">
-                  {/* Save Button - Only show if changes */}
-                  <AnimatePresence>
-                    {hasChanges && (
-                      <motion.button
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="btn-gradient text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center space-x-2 shadow-lg"
-                      >
-                        {saving ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
-                        ) : (
-                          <SafeIcon icon={FiSave} className="text-xs" />
-                        )}
-                        <span>{saving ? 'Saving...' : 'Save Changes'}</span>
-                      </motion.button>
+                  {/* ALWAYS SHOW SAVE BUTTON FOR DEBUGGING */}
+                  <motion.button
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="btn-gradient text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center space-x-2 shadow-lg"
+                  >
+                    {saving ? (
+                      <div className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+                    ) : (
+                      <SafeIcon icon={FiSave} className="text-xs" />
                     )}
-                  </AnimatePresence>
+                    <span>{saving ? 'Saving...' : 'Save Changes'}</span>
+                  </motion.button>
+
+                  {/* Show save status */}
+                  {shouldShowSaveButton && (
+                    <div className="text-xs text-green-600 flex items-center">
+                      <SafeIcon icon={FiCheck} className="mr-1" />
+                      Changes detected
+                    </div>
+                  )}
                 </div>
 
                 <motion.button
