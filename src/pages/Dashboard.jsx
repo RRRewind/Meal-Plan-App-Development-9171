@@ -11,9 +11,7 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { format, addDays } from 'date-fns';
 
-const {
-  FiChef, FiCalendar, FiTrendingUp, FiStar, FiClock, FiPlay, FiAward, FiTarget, FiShoppingCart, FiBook
-} = FiIcons;
+const { FiChef, FiCalendar, FiTrendingUp, FiStar, FiClock, FiPlay, FiAward, FiTarget, FiShoppingCart, FiBook, FiCookie } = FiIcons;
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -67,6 +65,17 @@ const Dashboard = () => {
 
   const handleViewShoppingList = () => {
     navigate('/shopping-list');
+  };
+
+  // Helper function to get meal icon
+  const getMealIcon = (mealType) => {
+    switch (mealType) {
+      case 'breakfast': return '🍳';
+      case 'lunch': return '🥗';
+      case 'dinner': return '🍽️';
+      case 'snacks': return '🍪';
+      default: return '🍴';
+    }
   };
 
   return (
@@ -150,18 +159,14 @@ const Dashboard = () => {
               </div>
 
               <div className="space-y-4">
+                {/* Main Meals */}
                 {['breakfast', 'lunch', 'dinner'].map((mealType) => {
                   const meal = todayMeals[mealType];
                   return (
-                    <div
-                      key={mealType}
-                      className="flex items-center justify-between p-4 bg-gray-50/50 rounded-lg"
-                    >
+                    <div key={mealType} className="flex items-center justify-between p-4 bg-gray-50/50 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-gradient-to-br from-primary-100/60 to-secondary-100/60 rounded-lg flex items-center justify-center">
-                          <span className="text-sm font-semibold text-primary-700 capitalize">
-                            {mealType[0].toUpperCase()}
-                          </span>
+                          <span className="text-lg">{getMealIcon(mealType)}</span>
                         </div>
                         <div>
                           <p className="font-medium text-gray-900 capitalize">
@@ -189,19 +194,58 @@ const Dashboard = () => {
                   );
                 })}
 
-                {/* Show snacks if any */}
+                {/* Snacks Section */}
                 {todayMeals.snacks && todayMeals.snacks.length > 0 && (
-                  <div className="flex items-center justify-between p-4 bg-amber-50/60 rounded-lg border border-amber-200/50">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-amber-100/60 to-orange-100/60 rounded-lg flex items-center justify-center">
-                        <span className="text-sm font-semibold text-amber-700">S</span>
+                  <div className="p-4 bg-gradient-to-r from-amber-50/60 to-orange-50/60 rounded-lg border border-amber-200/50">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-gradient-to-br from-amber-100/60 to-orange-100/60 rounded-lg flex items-center justify-center">
+                          <SafeIcon icon={FiCookie} className="text-lg text-amber-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">Snacks</p>
+                          <p className="text-sm text-gray-600">
+                            {todayMeals.snacks.length} snack{todayMeals.snacks.length !== 1 ? 's' : ''} planned
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900">Snacks</p>
-                        <p className="text-sm text-gray-600">
-                          {todayMeals.snacks.length} snack{todayMeals.snacks.length !== 1 ? 's' : ''} planned
-                        </p>
-                      </div>
+                    </div>
+                    
+                    {/* Snack List */}
+                    <div className="space-y-2">
+                      {todayMeals.snacks.map((snack, index) => (
+                        <motion.div
+                          key={index}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="flex items-center justify-between p-3 bg-white/60 rounded-lg border border-amber-200/30"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <span className="w-6 h-6 bg-amber-500/20 text-amber-700 rounded-full flex items-center justify-center text-xs font-bold">
+                              {index + 1}
+                            </span>
+                            <div>
+                              <p className="font-medium text-gray-900 text-sm">{snack.title}</p>
+                              <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                <SafeIcon icon={FiClock} className="text-xs" />
+                                <span>{snack.cookTime}m</span>
+                                <span>•</span>
+                                <span>{snack.difficulty}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => startCookingMode(snack)}
+                            className="bg-amber-500/90 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-amber-600/90 transition-colors duration-200 flex items-center space-x-1 text-sm"
+                          >
+                            <SafeIcon icon={FiPlay} className="text-xs" />
+                            <span>Cook</span>
+                          </motion.button>
+                        </motion.div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -222,6 +266,7 @@ const Dashboard = () => {
                     }
                     return dayMeals[key] ? count + 1 : count;
                   }, 0);
+
                   const isToday = index === 0;
 
                   return (
