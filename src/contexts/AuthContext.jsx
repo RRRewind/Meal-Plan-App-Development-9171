@@ -31,14 +31,14 @@ export const AuthProvider = ({ children }) => {
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
-  const simulateEmailSend = async (email, code, name) => {
+  const simulateEmailSend = async (email, code, username) => {
     // Since we can't actually send emails in a browser environment,
     // we'll display the code directly to the user
     console.log(`📧 Simulated email to ${email}`);
     console.log(`Verification Code: ${code}`);
-    
+
     // Show the code to the user since we can't email it
-    toast.success(`Demo Mode: Your verification code is ${code}`, { 
+    toast.success(`Demo Mode: Your verification code is ${code}`, {
       duration: 10000,
       style: {
         background: '#10b981',
@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }) => {
         fontWeight: 'bold'
       }
     });
-    
+
     return true;
   };
 
@@ -73,7 +73,7 @@ export const AuthProvider = ({ children }) => {
           isAdmin: true,
           emailVerified: true
         };
-        
+
         localStorage.setItem('mealplan_user', JSON.stringify(adminUser));
         setUser(adminUser);
         toast.success('🛡️ Admin access granted!');
@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }) => {
       // Check if user exists and is verified
       const savedUsers = JSON.parse(localStorage.getItem('mealplan_users') || '[]');
       const existingUser = savedUsers.find(u => u.email === email);
-      
+
       if (!existingUser) {
         return { success: false, error: 'Account not found' };
       }
@@ -101,6 +101,7 @@ export const AuthProvider = ({ children }) => {
       setUser(existingUser);
       toast.success('Welcome back!');
       return { success: true };
+
     } catch (error) {
       toast.error('Login failed');
       return { success: false, error: error.message };
@@ -109,7 +110,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (name, email, password) => {
+  const register = async (username, email, password) => {
     try {
       setLoading(true);
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -117,29 +118,25 @@ export const AuthProvider = ({ children }) => {
       // Check if user already exists
       const savedUsers = JSON.parse(localStorage.getItem('mealplan_users') || '[]');
       const existingUser = savedUsers.find(u => u.email === email);
-      
+
       if (existingUser) {
         return { success: false, error: 'Account already exists' };
       }
 
-      // Generate username from name (make it unique)
-      const baseUsername = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      let username = baseUsername;
-      let counter = 1;
-      
-      while (savedUsers.some(u => u.username === username)) {
-        username = `${baseUsername}${counter}`;
-        counter++;
+      // Check if username is taken
+      const existingUsername = savedUsers.find(u => u.username === username);
+      if (existingUsername) {
+        return { success: false, error: 'Username already taken' };
       }
 
       // Generate verification code
       const verificationCode = generateVerificationCode();
-      
+
       // Create pending user
       const pendingUser = {
         id: Date.now().toString(),
         email,
-        name,
+        name: username, // Use username as display name
         username,
         password, // In real app, hash this
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
@@ -156,16 +153,17 @@ export const AuthProvider = ({ children }) => {
 
       // Store pending verification
       setPendingVerification(pendingUser);
-      
+
       // Simulate sending verification email (show code to user)
-      await simulateEmailSend(email, verificationCode, name);
-      
-      return { 
-        success: true, 
+      await simulateEmailSend(email, verificationCode, username);
+
+      return {
+        success: true,
         requiresVerification: true,
         verificationCode, // Include code for demo purposes
         message: 'Account created! Check the green notification above for your verification code.'
       };
+
     } catch (error) {
       toast.error('Registration failed');
       return { success: false, error: error.message };
@@ -185,10 +183,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       // Mark as verified and save to users list
-      const verifiedUser = {
-        ...pendingVerification,
-        emailVerified: true
-      };
+      const verifiedUser = { ...pendingVerification, emailVerified: true };
       delete verifiedUser.verificationCode;
 
       const savedUsers = JSON.parse(localStorage.getItem('mealplan_users') || '[]');
@@ -202,6 +197,7 @@ export const AuthProvider = ({ children }) => {
 
       toast.success('✅ Email verified! Account created successfully!');
       return { success: true };
+
     } catch (error) {
       toast.error('Verification failed');
       return { success: false, error: error.message };
@@ -212,14 +208,10 @@ export const AuthProvider = ({ children }) => {
     if (!pendingVerification) return { success: false };
 
     const newCode = generateVerificationCode();
-    const updatedPending = {
-      ...pendingVerification,
-      verificationCode: newCode
-    };
-    
+    const updatedPending = { ...pendingVerification, verificationCode: newCode };
     setPendingVerification(updatedPending);
-    await simulateEmailSend(updatedPending.email, newCode, updatedPending.name);
-    
+
+    await simulateEmailSend(updatedPending.email, newCode, updatedPending.username);
     return { success: true };
   };
 
@@ -234,7 +226,7 @@ export const AuthProvider = ({ children }) => {
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
     localStorage.setItem('mealplan_user', JSON.stringify(updatedUser));
-    
+
     // Also update in users list
     const savedUsers = JSON.parse(localStorage.getItem('mealplan_users') || '[]');
     const userIndex = savedUsers.findIndex(u => u.id === updatedUser.id);
@@ -247,10 +239,7 @@ export const AuthProvider = ({ children }) => {
   // Add demo mode helper
   const skipEmailVerification = () => {
     if (pendingVerification) {
-      const verifiedUser = {
-        ...pendingVerification,
-        emailVerified: true
-      };
+      const verifiedUser = { ...pendingVerification, emailVerified: true };
       delete verifiedUser.verificationCode;
 
       const savedUsers = JSON.parse(localStorage.getItem('mealplan_users') || '[]');

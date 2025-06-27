@@ -13,7 +13,7 @@ const { FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiSt
 
 const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('all');
+  const [selectedFilter, setSelectedFilter] = useState('saved'); // Changed default to 'saved'
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCleanupModal, setShowCleanupModal] = useState(false);
@@ -54,7 +54,7 @@ const Recipes = () => {
   const { addXP } = useGamification();
   const { user } = useAuth();
 
-  // Get all unique recipes
+  // Get all unique recipes for empty state check only
   const allRecipes = getAllUniqueRecipes();
 
   // Get user's own created recipes (not default/shared)
@@ -67,22 +67,33 @@ const Recipes = () => {
     recipe.shared && recipe.sharedByUserId !== user?.id
   );
 
-  // Calculate filter counts correctly
+  // REMOVED 'all' filter - only show saved, community, and my-recipes
   const filters = [
-    { id: 'all', name: 'All Recipes', count: allRecipes.length },
     { id: 'saved', name: 'Saved', count: savedRecipes.length },
     { id: 'community', name: 'Community', count: communityRecipes.length },
     { id: 'my-recipes', name: 'My Recipes', count: userCreatedRecipes.length }
   ];
+
+  // Helper function to get username by user ID
+  const getUsernameById = (userId) => {
+    if (userId === user?.id) {
+      return user?.username || user?.name || 'You';
+    }
+    
+    // Try to find the username in shared recipes
+    const sharedRecipe = sharedRecipes.find(recipe => recipe.sharedByUserId === userId);
+    if (sharedRecipe && sharedRecipe.sharedBy) {
+      return sharedRecipe.sharedBy;
+    }
+    
+    return 'Unknown User';
+  };
 
   // Filter recipes based on selected filter and search term
   const getFilteredRecipes = () => {
     let recipesToFilter = [];
 
     switch (selectedFilter) {
-      case 'all':
-        recipesToFilter = allRecipes;
-        break;
       case 'saved':
         recipesToFilter = savedRecipes;
         break;
@@ -93,7 +104,7 @@ const Recipes = () => {
         recipesToFilter = userCreatedRecipes;
         break;
       default:
-        recipesToFilter = allRecipes;
+        recipesToFilter = savedRecipes; // Default to saved if unknown filter
     }
 
     // Apply search filter
@@ -256,7 +267,6 @@ const Recipes = () => {
               Recipe Collection
             </h1>
             <p className="text-gray-600 font-medium">
-              {selectedFilter === 'all' && 'Discover and manage all your recipes'}
               {selectedFilter === 'saved' && 'Your personally saved recipe favorites'}
               {selectedFilter === 'community' && 'Recipes shared by the community'}
               {selectedFilter === 'my-recipes' && 'Recipes you\'ve created'}
@@ -425,7 +435,7 @@ const Recipes = () => {
                 <p className="text-gray-600 font-medium mb-4">
                   {searchTerm ? `No recipes match "${searchTerm}" in ${filters.find(f => f.id === selectedFilter)?.name}` : `No recipes in ${filters.find(f => f.id === selectedFilter)?.name} yet`}
                 </p>
-                {(selectedFilter === 'my-recipes' || selectedFilter === 'all') && (
+                {selectedFilter === 'my-recipes' && (
                   <motion.button
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
@@ -559,9 +569,9 @@ const Recipes = () => {
                             {recipe.servings}
                           </div>
                         </div>
-                        {recipe.shared && hasSharedRecipe(recipe.originalId || recipe.id) && (
+                        {recipe.shared && recipe.sharedByUserId && (
                           <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">
-                            Shared by You
+                            @{getUsernameById(recipe.sharedByUserId)}
                           </span>
                         )}
                       </div>

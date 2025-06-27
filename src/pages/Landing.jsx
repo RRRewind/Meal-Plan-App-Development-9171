@@ -14,7 +14,7 @@ const Landing = () => {
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [formData, setFormData] = useState({
-    name: '',
+    username: '', // Changed from 'name' to 'username'
     email: '',
     password: ''
   });
@@ -77,7 +77,8 @@ const Landing = () => {
       if (isLogin) {
         result = await login(formData.email, formData.password);
       } else {
-        result = await register(formData.name, formData.email, formData.password);
+        // Pass username instead of name to register
+        result = await register(formData.username, formData.email, formData.password);
       }
 
       if (result.success) {
@@ -310,8 +311,7 @@ const Landing = () => {
                           🚀 Demo Mode Active
                         </p>
                         <p className="text-blue-700 text-sm">
-                          Since this is a demo, your verification code is shown above in the green notification. 
-                          In a real app, this would be sent to your email.
+                          Since this is a demo, your verification code is shown above in the green notification. In a real app, this would be sent to your email.
                         </p>
                       </div>
                       <p className="text-gray-600 font-medium mb-2">
@@ -411,16 +411,16 @@ const Landing = () => {
                       {!isLogin && (
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-3">
-                            Full Name
+                            Username
                           </label>
                           <div className="relative">
                             <SafeIcon icon={FiUser} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
                             <input
                               type="text"
-                              value={formData.name}
-                              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                              value={formData.username}
+                              onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
                               className="w-full pl-12 pr-4 py-4 input-modern rounded-xl text-lg font-medium placeholder-gray-400"
-                              placeholder="Enter your name"
+                              placeholder="Choose a username"
                               required={!isLogin}
                             />
                           </div>
