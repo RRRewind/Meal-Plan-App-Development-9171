@@ -9,9 +9,7 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const {
-  FiChef, FiCalendar, FiShoppingCart, FiClock, FiUsers, FiStar, FiArrowRight, FiMail, FiLock, FiUser, FiHeart, FiShield, FiRefreshCw, FiZap
-} = FiIcons;
+const { FiChef, FiCalendar, FiShoppingCart, FiClock, FiUsers, FiStar, FiArrowRight, FiMail, FiLock, FiUser, FiHeart, FiRefreshCw, FiZap } = FiIcons;
 
 const Landing = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -403,15 +401,15 @@ const Landing = () => {
                   >
                     <div className="text-center mb-8">
                       <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                        {sharedRecipeData ? 
-                          (isLogin ? 'Sign in to save recipe!' : 'Join to save recipe!') : 
-                          (isLogin ? 'Welcome Back!' : 'Join Meal Plan')
+                        {sharedRecipeData
+                          ? (isLogin ? 'Sign in to save recipe!' : 'Join to save recipe!')
+                          : (isLogin ? 'Welcome Back!' : 'Join Meal Plan')
                         }
                       </h2>
                       <p className="text-gray-600 font-medium">
-                        {sharedRecipeData ? 
-                          `Save "${sharedRecipeData.title}" to your collection` : 
-                          (isLogin ? 'Sign in to continue your culinary journey' : 'Start your cooking adventure today')
+                        {sharedRecipeData
+                          ? `Save "${sharedRecipeData.title}" to your collection`
+                          : (isLogin ? 'Sign in to continue your culinary journey' : 'Start your cooking adventure today')
                         }
                       </p>
                     </div>
@@ -478,19 +476,6 @@ const Landing = () => {
                         </div>
                       )}
 
-                      {/* Admin Login Info */}
-                      {isLogin && (
-                        <div className="bg-gradient-to-r from-purple-50/60 to-blue-50/60 p-4 rounded-xl border border-purple-200/50">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <SafeIcon icon={FiShield} className="text-purple-600" />
-                            <span className="text-sm font-semibold text-purple-800">Admin Access</span>
-                          </div>
-                          <p className="text-xs text-purple-600">
-                            Email: admin@supertasty.recipes | Password: admin123
-                          </p>
-                        </div>
-                      )}
-
                       <motion.button
                         whileHover={{ scale: 1.02, y: -2 }}
                         whileTap={{ scale: 0.98 }}
@@ -503,9 +488,9 @@ const Landing = () => {
                         ) : (
                           <>
                             <span>
-                              {sharedRecipeData ? 
-                                (isLogin ? 'Sign In & Save Recipe' : 'Create Account & Save Recipe') : 
-                                (isLogin ? 'Sign In' : 'Create Account')
+                              {sharedRecipeData
+                                ? (isLogin ? 'Sign In & Save Recipe' : 'Create Account & Save Recipe')
+                                : (isLogin ? 'Sign In' : 'Create Account')
                               }
                             </span>
                             <SafeIcon icon={FiArrowRight} className="text-lg" />

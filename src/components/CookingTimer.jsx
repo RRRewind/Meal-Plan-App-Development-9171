@@ -1,17 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCookingMode } from '../contexts/CookingModeContext';
 import { useGamification } from '../contexts/GamificationContext';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 
-const { FiClock, FiPlay, FiPause, FiSquare, FiChevronLeft, FiChevronRight, FiX, FiCheck, FiMinus, FiPlus } = FiIcons;
+const { FiClock, FiPlay, FiPause, FiSquare, FiChevronLeft, FiChevronRight, FiX, FiCheck, FiMinus, FiPlus, FiBell } = FiIcons;
 
 const CookingTimer = () => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [customMinutes, setCustomMinutes] = useState('');
   const [customSeconds, setCustomSeconds] = useState('');
-  
+  const [showNotificationRequest, setShowNotificationRequest] = useState(false);
+
   const {
     isActive,
     currentRecipe,
@@ -30,7 +31,97 @@ const CookingTimer = () => {
 
   const { addXP, incrementRecipesCooked } = useGamification();
 
-  if (!isActive || !currentRecipe) return null;
+  // Check notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      setShowNotificationRequest(true);
+    }
+  }, []);
+
+  // Monitor timer completion for notifications
+  useEffect(() => {
+    if (timeLeft === 0 && !isTimerRunning && timeLeft !== null) {
+      // Timer just finished
+      if (Notification.permission === 'granted') {
+        new Notification('🍳 Timer Finished!', {
+          body: `Your cooking timer has completed for step ${currentStep + 1}.`,
+          icon: '/vite.svg',
+          requireInteraction: true
+        });
+      }
+    }
+  }, [timeLeft, isTimerRunning, currentStep]);
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setShowNotificationRequest(false);
+      if (permission === 'granted') {
+        new Notification('🍳 Great!', {
+          body: 'You\'ll now get notifications when your cooking timers finish.',
+          icon: '/vite.svg'
+        });
+      }
+    }
+  };
+
+  if (!isActive || !currentRecipe) {
+    // Show persistent timer indicator if there's an active timer but cooking mode is closed
+    if (timeLeft > 0) {
+      return (
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="fixed top-4 right-4 z-50"
+        >
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-4 text-white shadow-2xl cursor-pointer"
+            onClick={() => setIsMinimized(false)}
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                <SafeIcon icon={FiClock} className="text-white text-lg" />
+              </div>
+              <div>
+                <div className="font-bold text-lg">
+                  {formatTime(timeLeft)}
+                </div>
+                <div className="text-orange-100 text-sm">
+                  Background Timer
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    isTimerRunning ? pauseTimer() : resumeTimer();
+                  }}
+                  className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
+                >
+                  <SafeIcon icon={isTimerRunning ? FiPause : FiPlay} className="text-sm" />
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    resetTimer();
+                  }}
+                  className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
+                >
+                  <SafeIcon icon={FiSquare} className="text-sm" />
+                </motion.button>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      );
+    }
+    return null;
+  }
 
   const handleCompleteRecipe = () => {
     incrementRecipesCooked();
@@ -46,7 +137,6 @@ const CookingTimer = () => {
     const mins = parseInt(customMinutes) || 0;
     const secs = parseInt(customSeconds) || 0;
     const totalMinutes = mins + (secs / 60);
-    
     if (totalMinutes > 0) {
       startTimer(totalMinutes);
       setCustomMinutes('');
@@ -117,7 +207,7 @@ const CookingTimer = () => {
               </div>
             )}
           </div>
-          
+
           {/* Mini Progress Bar */}
           <div className="mt-3">
             <div className="w-full bg-white/20 rounded-full h-1.5">
@@ -135,15 +225,48 @@ const CookingTimer = () => {
 
   return (
     <AnimatePresence>
+      {/* Notification Permission Request */}
+      {showNotificationRequest && (
+        <motion.div
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -50 }}
+          className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50"
+        >
+          <div className="bg-blue-500 text-white rounded-xl p-4 shadow-2xl flex items-center space-x-4">
+            <SafeIcon icon={FiBell} className="text-xl" />
+            <div>
+              <p className="font-semibold">Enable Timer Notifications?</p>
+              <p className="text-sm text-blue-100">Get notified when your cooking timers finish</p>
+            </div>
+            <div className="flex space-x-2">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowNotificationRequest(false)}
+                className="px-3 py-1 bg-white/20 rounded-lg text-sm"
+              >
+                Later
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={requestNotificationPermission}
+                className="px-3 py-1 bg-white text-blue-500 rounded-lg text-sm font-semibold"
+              >
+                Enable
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       <motion.div
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         className="fixed inset-x-4 bottom-4 z-50 max-w-6xl mx-auto"
-        style={{ 
-          maxHeight: '85vh',
-          overflow: 'hidden'
-        }}
+        style={{ maxHeight: '85vh', overflow: 'hidden' }}
       >
         <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden max-h-full">
           {/* Header */}
@@ -162,7 +285,6 @@ const CookingTimer = () => {
                   </div>
                 </div>
               </div>
-              
               <div className="flex items-center space-x-2">
                 <motion.button
                   whileHover={{ scale: 1.1 }}

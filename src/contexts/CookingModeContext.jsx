@@ -18,6 +18,59 @@ export const CookingModeProvider = ({ children }) => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [isTimerRunning, setIsTimerRunning] = useState(false);
 
+  // Load persisted state on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem('cooking_mode_state');
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState);
+        if (state.isActive && state.currentRecipe) {
+          setIsActive(state.isActive);
+          setCurrentRecipe(state.currentRecipe);
+          setCurrentStep(state.currentStep || 0);
+          
+          // Restore timer if it exists
+          if (state.timer && state.timer.endTime) {
+            const now = Date.now();
+            const timeRemaining = Math.max(0, Math.floor((state.timer.endTime - now) / 1000));
+            
+            if (timeRemaining > 0) {
+              setTimeLeft(timeRemaining);
+              setIsTimerRunning(state.isTimerRunning);
+              setTimer(state.timer);
+            } else {
+              // Timer has expired
+              setTimeLeft(0);
+              setIsTimerRunning(false);
+              setTimer(null);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading cooking mode state:', error);
+        localStorage.removeItem('cooking_mode_state');
+      }
+    }
+  }, []);
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    if (isActive && currentRecipe) {
+      const state = {
+        isActive,
+        currentRecipe,
+        currentStep,
+        timer,
+        timeLeft,
+        isTimerRunning
+      };
+      localStorage.setItem('cooking_mode_state', JSON.stringify(state));
+    } else {
+      localStorage.removeItem('cooking_mode_state');
+    }
+  }, [isActive, currentRecipe, currentStep, timer, timeLeft, isTimerRunning]);
+
+  // Timer countdown effect
   useEffect(() => {
     let interval;
     if (isTimerRunning && timeLeft > 0) {
@@ -26,6 +79,12 @@ export const CookingModeProvider = ({ children }) => {
           if (prev <= 1) {
             setIsTimerRunning(false);
             // Timer finished - could play sound or show notification
+            if (Notification.permission === 'granted') {
+              new Notification('🍳 Timer Finished!', {
+                body: 'Your cooking timer has completed.',
+                icon: '/vite.svg'
+              });
+            }
             return 0;
           }
           return prev - 1;
@@ -48,6 +107,7 @@ export const CookingModeProvider = ({ children }) => {
     setTimer(null);
     setTimeLeft(0);
     setIsTimerRunning(false);
+    localStorage.removeItem('cooking_mode_state');
   };
 
   const nextStep = () => {
@@ -63,17 +123,40 @@ export const CookingModeProvider = ({ children }) => {
   };
 
   const startTimer = (minutes) => {
-    setTimeLeft(minutes * 60);
+    const duration = minutes * 60;
+    const endTime = Date.now() + (duration * 1000);
+    
+    setTimeLeft(duration);
     setIsTimerRunning(true);
-    setTimer({ duration: minutes * 60, started: Date.now() });
+    setTimer({
+      duration,
+      startTime: Date.now(),
+      endTime
+    });
   };
 
   const pauseTimer = () => {
     setIsTimerRunning(false);
+    // Update timer with remaining time
+    if (timer && timeLeft > 0) {
+      const newEndTime = Date.now() + (timeLeft * 1000);
+      setTimer(prev => ({
+        ...prev,
+        endTime: newEndTime
+      }));
+    }
   };
 
   const resumeTimer = () => {
-    setIsTimerRunning(true);
+    if (timeLeft > 0) {
+      setIsTimerRunning(true);
+      // Update end time based on current time left
+      const newEndTime = Date.now() + (timeLeft * 1000);
+      setTimer(prev => ({
+        ...prev,
+        endTime: newEndTime
+      }));
+    }
   };
 
   const resetTimer = () => {
