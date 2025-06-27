@@ -7,7 +7,11 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const { FiUser, FiBell, FiEye, FiGlobe, FiSave, FiLogOut, FiStar, FiMail, FiLock, FiHeart, FiChef, FiSettings, FiShield, FiEdit3, FiCheck, FiX, FiChevronDown, FiCamera } = FiIcons;
+const {
+  FiUser, FiBell, FiEye, FiGlobe, FiSave, FiLogOut, FiStar, FiMail,
+  FiLock, FiHeart, FiChef, FiSettings, FiShield, FiEdit3, FiCheck,
+  FiX, FiChevronDown, FiCamera
+} = FiIcons;
 
 const ProfileDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,6 +20,7 @@ const ProfileDropdown = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [saving, setSaving] = useState(false);
   const [forceShowSave, setForceShowSave] = useState(false); // Force save button for debugging
+
   const dropdownRef = useRef(null);
   const { user, logout } = useAuth();
   const { preferences, loading, updatePreferences, getDaysUntilUsernameChange } = useSettings();
@@ -27,6 +32,7 @@ const ProfileDropdown = () => {
         setIsOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
@@ -73,7 +79,7 @@ const ProfileDropdown = () => {
     };
 
     const hasAnyChanges = Object.values(changes).some(changed => changed);
-    
+
     // Debug logging
     console.log('Change detection:', {
       preferences: preferences,
@@ -83,7 +89,7 @@ const ProfileDropdown = () => {
     });
 
     setHasChanges(hasAnyChanges);
-    
+
     // Force show save button for testing if username changed
     if (changes.username) {
       setForceShowSave(true);
@@ -110,6 +116,7 @@ const ProfileDropdown = () => {
   const handleSave = async () => {
     setSaving(true);
     console.log('Attempting to save:', formData);
+
     try {
       const result = await updatePreferences(formData);
       if (result.success) {
@@ -128,7 +135,7 @@ const ProfileDropdown = () => {
   };
 
   const handleLogout = () => {
-    logout();
+    logout(); // This now redirects to landing page
     setIsOpen(false);
   };
 
@@ -146,8 +153,8 @@ const ProfileDropdown = () => {
   ];
 
   const cuisineOptions = [
-    'Italian', 'Mexican', 'Asian', 'Indian', 'Mediterranean',
-    'French', 'Thai', 'Japanese', 'Chinese', 'American', 'Greek', 'Spanish'
+    'Italian', 'Mexican', 'Asian', 'Indian', 'Mediterranean', 'French',
+    'Thai', 'Japanese', 'Chinese', 'American', 'Greek', 'Spanish'
   ];
 
   const skillLevels = [
@@ -161,7 +168,6 @@ const ProfileDropdown = () => {
 
   // Show save button if there are changes OR forced
   const shouldShowSaveButton = hasChanges || forceShowSave;
-
   console.log('Render state:', { hasChanges, forceShowSave, shouldShowSaveButton });
 
   return (
@@ -184,7 +190,9 @@ const ProfileDropdown = () => {
         </span>
         <SafeIcon
           icon={FiChevronDown}
-          className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          className={`text-gray-400 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
         />
       </motion.button>
 

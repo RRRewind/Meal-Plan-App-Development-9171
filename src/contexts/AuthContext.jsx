@@ -220,6 +220,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setPendingVerification(null);
     toast.success('Logged out successfully');
+    
+    // Force redirect to landing page
+    window.location.href = '/';
   };
 
   const updateUser = (updates) => {
