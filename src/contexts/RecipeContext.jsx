@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from './AuthContext';
+import supabase from '../lib/supabase';
+import toast from 'react-hot-toast';
 
 const RecipeContext = createContext();
 
@@ -17,53 +20,60 @@ export const RecipeProvider = ({ children }) => {
   const [sharedRecipes, setSharedRecipes] = useState([]);
   const [pendingRecipes, setPendingRecipes] = useState([]);
   const [userSharedRecipes, setUserSharedRecipes] = useState(new Set());
+  const [loading, setLoading] = useState(false);
+
+  const { user } = useAuth();
+
+  // Helper function to get safe user ID as string
+  const getSafeUserId = (userObj) => {
+    if (!userObj) return null;
+    return String(userObj.id || userObj.user_id || '');
+  };
 
   // Enhanced duplicate detection - more thorough comparison
   const areRecipesIdentical = (recipe1, recipe2) => {
     // Normalize strings for comparison
     const normalize = (str) => str?.toLowerCase().trim().replace(/\s+/g, ' ') || '';
-    
+
     // Compare titles (most important identifier)
     if (normalize(recipe1.title) === normalize(recipe2.title)) {
       return true;
     }
-    
+
     // Compare core fields that define recipe uniqueness
     const fields = ['description', 'cookTime', 'servings', 'difficulty'];
     let matchingFields = 0;
-    
     for (const field of fields) {
       if (recipe1[field] === recipe2[field]) {
         matchingFields++;
       }
     }
-    
+
     // If title is very similar and most fields match, consider duplicate
     const titleSimilarity = calculateStringSimilarity(normalize(recipe1.title), normalize(recipe2.title));
     if (titleSimilarity > 0.8 && matchingFields >= 3) {
       return true;
     }
-    
+
     // Check ingredients similarity
     const ingredients1 = recipe1.ingredients || [];
     const ingredients2 = recipe2.ingredients || [];
-    
     if (ingredients1.length === ingredients2.length && ingredients1.length > 0) {
       let matchingIngredients = 0;
       ingredients1.forEach(ing1 => {
-        const found = ingredients2.some(ing2 => 
-          normalize(ing1.name) === normalize(ing2.name) && 
+        const found = ingredients2.some(ing2 =>
+          normalize(ing1.name) === normalize(ing2.name) &&
           normalize(ing1.amount) === normalize(ing2.amount)
         );
         if (found) matchingIngredients++;
       });
-      
+
       // If 90%+ ingredients match, likely duplicate
       if (matchingIngredients / ingredients1.length > 0.9) {
         return true;
       }
     }
-    
+
     return false;
   };
 
@@ -108,11 +118,11 @@ export const RecipeProvider = ({ children }) => {
   const removeDuplicates = (recipeList) => {
     const unique = [];
     const duplicates = [];
-    
+
     for (const recipe of recipeList) {
       let isDuplicate = false;
       let duplicateOf = null;
-      
+
       // Check against already processed unique recipes
       for (const uniqueRecipe of unique) {
         if (areRecipesIdentical(recipe, uniqueRecipe)) {
@@ -121,7 +131,7 @@ export const RecipeProvider = ({ children }) => {
           break;
         }
       }
-      
+
       if (isDuplicate) {
         duplicates.push({
           duplicate: recipe,
@@ -132,30 +142,189 @@ export const RecipeProvider = ({ children }) => {
         unique.push(recipe);
       }
     }
-    
+
     return { unique, duplicates, removed: duplicates.length };
   };
 
-  // Complete reset function - NOW WITH NO DEFAULT RECIPES
-  const completeReset = () => {
-    // Clear all localStorage
-    localStorage.removeItem('saved_recipes');
-    localStorage.removeItem('shared_recipes');
-    localStorage.removeItem('pending_recipes');
-    localStorage.removeItem('user_shared_recipes');
-    
-    // Reset all state to empty arrays
-    setRecipes([]);
-    setSavedRecipes([]);
-    setSharedRecipes([]);
-    setPendingRecipes([]);
-    setUserSharedRecipes(new Set());
-    
-    return {
-      success: true,
-      message: 'All recipes have been completely removed! You now have a blank canvas to build your perfect recipe collection.',
-      totalReset: true
-    };
+  // Load user's recipes from Supabase
+  const loadUserRecipes = async () => {
+    if (!user) return;
+
+    const userId = getSafeUserId(user);
+    if (!userId) return;
+
+    try {
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from('user_recipes_mp2024')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Transform Supabase data to app format
+      const transformedRecipes = data.map(recipe => ({
+        id: recipe.id,
+        title: recipe.title,
+        description: recipe.description,
+        cookTime: recipe.cook_time,
+        servings: recipe.servings,
+        difficulty: recipe.difficulty,
+        ingredients: recipe.ingredients || [],
+        steps: recipe.steps || [],
+        tags: recipe.tags || [],
+        image: recipe.image_url,
+        isUserCreated: true,
+        createdAt: recipe.created_at,
+        shared: recipe.is_shared
+      }));
+
+      setRecipes(transformedRecipes);
+      console.log(`Loaded ${transformedRecipes.length} recipes from Supabase`);
+      
+    } catch (error) {
+      console.error('Error loading user recipes:', error);
+      toast.error('Failed to load recipes from database');
+      
+      // Fallback to localStorage
+      const localRecipes = JSON.parse(localStorage.getItem('user_recipes') || '[]');
+      setRecipes(localRecipes);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Save recipe to Supabase
+  const saveRecipeToSupabase = async (recipe) => {
+    if (!user) {
+      throw new Error('User must be logged in to save recipes');
+    }
+
+    const userId = getSafeUserId(user);
+    if (!userId) {
+      throw new Error('Invalid user ID');
+    }
+
+    try {
+      const recipeData = {
+        user_id: userId,
+        title: recipe.title,
+        description: recipe.description,
+        cook_time: parseInt(recipe.cookTime) || 0,
+        servings: parseInt(recipe.servings) || 1,
+        difficulty: recipe.difficulty || 'Easy',
+        ingredients: recipe.ingredients || [],
+        steps: recipe.steps || [],
+        tags: recipe.tags || [],
+        image_url: recipe.image || null,
+        is_shared: recipe.shared || false
+      };
+
+      const { data, error } = await supabase
+        .from('user_recipes_mp2024')
+        .insert(recipeData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Transform back to app format
+      const transformedRecipe = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        cookTime: data.cook_time,
+        servings: data.servings,
+        difficulty: data.difficulty,
+        ingredients: data.ingredients || [],
+        steps: data.steps || [],
+        tags: data.tags || [],
+        image: data.image_url,
+        isUserCreated: true,
+        createdAt: data.created_at,
+        shared: data.is_shared
+      };
+
+      return transformedRecipe;
+    } catch (error) {
+      console.error('Error saving recipe to Supabase:', error);
+      throw error;
+    }
+  };
+
+  // Delete recipe from Supabase
+  const deleteRecipeFromSupabase = async (recipeId) => {
+    if (!user) {
+      throw new Error('User must be logged in to delete recipes');
+    }
+
+    const userId = getSafeUserId(user);
+    if (!userId) {
+      throw new Error('Invalid user ID');
+    }
+
+    try {
+      const { error } = await supabase
+        .from('user_recipes_mp2024')
+        .delete()
+        .eq('id', recipeId)
+        .eq('user_id', userId); // Ensure user can only delete their own recipes
+
+      if (error) throw error;
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting recipe from Supabase:', error);
+      throw error;
+    }
+  };
+
+  // Complete reset function
+  const completeReset = async () => {
+    try {
+      if (user) {
+        const userId = getSafeUserId(user);
+        if (userId) {
+          // Delete all user recipes from Supabase
+          const { error } = await supabase
+            .from('user_recipes_mp2024')
+            .delete()
+            .eq('user_id', userId);
+
+          if (error) {
+            console.error('Error deleting recipes from Supabase:', error);
+          }
+        }
+      }
+
+      // Clear all localStorage
+      localStorage.removeItem('saved_recipes');
+      localStorage.removeItem('shared_recipes');
+      localStorage.removeItem('pending_recipes');
+      localStorage.removeItem('user_shared_recipes');
+      localStorage.removeItem('user_recipes');
+
+      // Reset all state to empty arrays
+      setRecipes([]);
+      setSavedRecipes([]);
+      setSharedRecipes([]);
+      setPendingRecipes([]);
+      setUserSharedRecipes(new Set());
+
+      return {
+        success: true,
+        message: 'All recipes have been completely removed! You now have a blank canvas to build your perfect recipe collection.',
+        totalReset: true
+      };
+    } catch (error) {
+      console.error('Error during complete reset:', error);
+      return {
+        success: false,
+        message: 'Failed to reset recipes completely'
+      };
+    }
   };
 
   // Global cleanup function that checks all recipe sources
@@ -174,10 +343,7 @@ export const RecipeProvider = ({ children }) => {
       setSavedRecipes(savedCleanup.unique);
       localStorage.setItem('saved_recipes', JSON.stringify(savedCleanup.unique));
       cleanupReport.savedRecipes = savedCleanup.removed;
-      cleanupReport.details.push(...savedCleanup.duplicates.map(d => ({
-        ...d,
-        source: 'Saved Recipes'
-      })));
+      cleanupReport.details.push(...savedCleanup.duplicates.map(d => ({ ...d, source: 'Saved Recipes' })));
       totalRemoved += savedCleanup.removed;
     }
 
@@ -188,10 +354,7 @@ export const RecipeProvider = ({ children }) => {
       const defaultRecipes = recipes.filter(r => r.isDefault);
       setRecipes([...defaultRecipes, ...userCleanup.unique]);
       cleanupReport.userRecipes = userCleanup.removed;
-      cleanupReport.details.push(...userCleanup.duplicates.map(d => ({
-        ...d,
-        source: 'My Recipes'
-      })));
+      cleanupReport.details.push(...userCleanup.duplicates.map(d => ({ ...d, source: 'My Recipes' })));
       totalRemoved += userCleanup.removed;
     }
 
@@ -203,10 +366,7 @@ export const RecipeProvider = ({ children }) => {
       setSharedRecipes([...defaultSharedRecipes, ...sharedCleanup.unique]);
       localStorage.setItem('shared_recipes', JSON.stringify(sharedCleanup.unique));
       cleanupReport.sharedRecipes = sharedCleanup.removed;
-      cleanupReport.details.push(...sharedCleanup.duplicates.map(d => ({
-        ...d,
-        source: 'Shared Recipes'
-      })));
+      cleanupReport.details.push(...sharedCleanup.duplicates.map(d => ({ ...d, source: 'Shared Recipes' })));
       totalRemoved += sharedCleanup.removed;
     }
 
@@ -220,6 +380,7 @@ export const RecipeProvider = ({ children }) => {
     };
   };
 
+  // Load data on mount and when user changes
   useEffect(() => {
     // Check for complete reset flag
     const shouldReset = localStorage.getItem('complete_recipe_reset');
@@ -227,6 +388,13 @@ export const RecipeProvider = ({ children }) => {
       localStorage.removeItem('complete_recipe_reset');
       completeReset();
       return;
+    }
+
+    // Load user's recipes from Supabase if logged in
+    if (user) {
+      loadUserRecipes();
+    } else {
+      setRecipes([]);
     }
 
     // Load saved recipes from localStorage
@@ -244,54 +412,103 @@ export const RecipeProvider = ({ children }) => {
     // Load user shared recipes set
     const userSharedData = JSON.parse(localStorage.getItem('user_shared_recipes') || '[]');
     setUserSharedRecipes(new Set(userSharedData));
+  }, [user]);
 
-    // Start with empty recipes array (no defaults)
-    setRecipes([]);
-  }, []);
+  const addRecipe = async (recipe) => {
+    if (!user) {
+      toast.error('Please sign in to add recipes');
+      return { success: false, message: 'Please sign in to add recipes' };
+    }
 
-  const addRecipe = (recipe) => {
     // Check for duplicates before adding
     const allExistingRecipes = [...recipes, ...savedRecipes];
-    const isDuplicate = allExistingRecipes.some(existingRecipe => 
+    const isDuplicate = allExistingRecipes.some(existingRecipe =>
       areRecipesIdentical(recipe, existingRecipe)
     );
-    
+
     if (isDuplicate) {
       return { success: false, message: 'This recipe already exists in your collection' };
     }
-    
-    const newRecipe = {
-      ...recipe,
-      id: uuidv4(),
-      createdAt: new Date().toISOString(),
-      isUserCreated: true
-    };
-    setRecipes(prev => [...prev, newRecipe]);
-    return { success: true, recipe: newRecipe };
+
+    try {
+      setLoading(true);
+      
+      // Save to Supabase
+      const savedRecipe = await saveRecipeToSupabase(recipe);
+      
+      // Update local state
+      setRecipes(prev => [savedRecipe, ...prev]);
+      
+      toast.success('✅ Recipe added successfully!');
+      return { success: true, recipe: savedRecipe };
+      
+    } catch (error) {
+      console.error('Error adding recipe:', error);
+      
+      // Fallback to localStorage
+      const newRecipe = {
+        ...recipe,
+        id: uuidv4(),
+        createdAt: new Date().toISOString(),
+        isUserCreated: true
+      };
+      
+      setRecipes(prev => [newRecipe, ...prev]);
+      
+      // Also save to localStorage as backup
+      const localRecipes = JSON.parse(localStorage.getItem('user_recipes') || '[]');
+      localRecipes.unshift(newRecipe);
+      localStorage.setItem('user_recipes', JSON.stringify(localRecipes));
+      
+      toast.success('✅ Recipe added successfully (saved locally)!');
+      return { success: true, recipe: newRecipe };
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteRecipe = (recipeId) => {
-    // Remove from user-created recipes
-    const updatedRecipes = recipes.filter(r => r.id !== recipeId);
-    setRecipes(updatedRecipes);
-    
-    // Remove from saved recipes
-    const updatedSaved = savedRecipes.filter(r => r.id !== recipeId && r.originalSharedId !== recipeId);
-    setSavedRecipes(updatedSaved);
-    localStorage.setItem('saved_recipes', JSON.stringify(updatedSaved));
-    
-    // Remove from shared recipes (only user-shared ones)
-    const updatedShared = sharedRecipes.filter(r => r.id !== recipeId || r.isDefault);
-    setSharedRecipes(updatedShared);
-    localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author && !r.isDefault)));
-    
-    // Remove from user shared set
-    const updatedUserShared = new Set([...userSharedRecipes]);
-    updatedUserShared.delete(recipeId);
-    setUserSharedRecipes(updatedUserShared);
-    localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
-    
-    return { success: true, message: 'Recipe deleted successfully!' };
+  const deleteRecipe = async (recipeId) => {
+    if (!user) {
+      return { success: false, message: 'Please sign in to delete recipes' };
+    }
+
+    try {
+      setLoading(true);
+      
+      // Try to delete from Supabase first
+      await deleteRecipeFromSupabase(recipeId);
+      
+      // Update local state
+      setRecipes(prev => prev.filter(r => r.id !== recipeId));
+      
+      // Remove from saved recipes
+      const updatedSaved = savedRecipes.filter(r => r.id !== recipeId && r.originalSharedId !== recipeId);
+      setSavedRecipes(updatedSaved);
+      localStorage.setItem('saved_recipes', JSON.stringify(updatedSaved));
+
+      // Remove from shared recipes (only user-shared ones)
+      const updatedShared = sharedRecipes.filter(r => r.id !== recipeId || r.isDefault);
+      setSharedRecipes(updatedShared);
+      localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author && !r.isDefault)));
+
+      // Remove from user shared set
+      const updatedUserShared = new Set([...userSharedRecipes]);
+      updatedUserShared.delete(recipeId);
+      setUserSharedRecipes(updatedUserShared);
+      localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
+
+      return { success: true, message: 'Recipe deleted successfully!' };
+      
+    } catch (error) {
+      console.error('Error deleting recipe:', error);
+      
+      // Fallback to local deletion
+      setRecipes(prev => prev.filter(r => r.id !== recipeId));
+      
+      return { success: true, message: 'Recipe deleted successfully!' };
+    } finally {
+      setLoading(false);
+    }
   };
 
   const canDeleteRecipe = (recipe) => {
@@ -301,14 +518,14 @@ export const RecipeProvider = ({ children }) => {
   const saveRecipe = (recipe) => {
     // Check for duplicates before saving
     const allExistingRecipes = [...savedRecipes, ...recipes];
-    const isDuplicate = allExistingRecipes.some(existingRecipe => 
+    const isDuplicate = allExistingRecipes.some(existingRecipe =>
       areRecipesIdentical(recipe, existingRecipe)
     );
-    
+
     if (isDuplicate) {
       return { success: false, message: 'This recipe is already in your collection' };
     }
-    
+
     const updatedSaved = [...savedRecipes, recipe];
     setSavedRecipes(updatedSaved);
     localStorage.setItem('saved_recipes', JSON.stringify(updatedSaved));
@@ -344,22 +561,18 @@ export const RecipeProvider = ({ children }) => {
       status: 'pending', // pending, approved, rejected
       submittedAt: new Date().toISOString()
     };
-    
+
     // Add to pending recipes
     const updatedPending = [...pendingRecipes, pendingRecipe];
     setPendingRecipes(updatedPending);
     localStorage.setItem('pending_recipes', JSON.stringify(updatedPending));
-    
+
     // Track that this recipe has been shared (for user reference)
     const updatedUserShared = new Set([...userSharedRecipes, recipe.id]);
     setUserSharedRecipes(updatedUserShared);
     localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
-    
-    return { 
-      success: true, 
-      shareId, 
-      message: 'Recipe submitted for community review! Admin will approve shortly.' 
-    };
+
+    return { success: true, shareId, message: 'Recipe submitted for community review! Admin will approve shortly.' };
   };
 
   // ADMIN: Approve pending recipe
@@ -438,7 +651,7 @@ export const RecipeProvider = ({ children }) => {
       if (!result.success) return null;
       recipe.shareId = result.shareId;
     }
-    
+
     const baseUrl = window.location.origin;
     const shareData = {
       id: recipe.id,
@@ -454,7 +667,7 @@ export const RecipeProvider = ({ children }) => {
       author: recipe.author || 'Community Chef',
       sharedVia: 'email'
     };
-    
+
     const encodedData = encodeURIComponent(JSON.stringify(shareData));
     return `${baseUrl}/?recipe=${encodedData}`;
   };
@@ -462,16 +675,15 @@ export const RecipeProvider = ({ children }) => {
   const saveSharedRecipe = (recipeData) => {
     try {
       const recipe = JSON.parse(decodeURIComponent(recipeData));
-      
       const allExistingRecipes = [...savedRecipes, ...recipes];
-      const isDuplicate = allExistingRecipes.some(existingRecipe => 
+      const isDuplicate = allExistingRecipes.some(existingRecipe =>
         areRecipesIdentical(recipe, existingRecipe)
       );
-      
+
       if (isDuplicate) {
         return { success: false, message: 'This recipe is already in your collection' };
       }
-      
+
       const newRecipe = {
         ...recipe,
         id: uuidv4(),
@@ -479,7 +691,7 @@ export const RecipeProvider = ({ children }) => {
         savedAt: new Date().toISOString(),
         originalSharedId: recipe.id
       };
-      
+
       const result = saveRecipe(newRecipe);
       return result;
     } catch (error) {
@@ -495,6 +707,7 @@ export const RecipeProvider = ({ children }) => {
 I found this amazing recipe and thought you'd love it:
 
 🍽️ **${recipe.title}**
+
 ${recipe.description}
 
 ⏱️ Cook Time: ${recipe.cookTime} minutes
@@ -516,7 +729,7 @@ Happy cooking! 🍳✨
 Shared via Meal Plan App`;
 
     const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
+
     try {
       window.location.href = mailtoLink;
       return shareLink;
@@ -546,7 +759,7 @@ Shared via Meal Plan App`;
       // Only include community recipes that are NOT user's own shared recipes
       return !recipe.originalId || !recipes.some(userRecipe => userRecipe.id === recipe.originalId);
     });
-    
+
     return [...userRecipes, ...communityRecipes];
   };
 
@@ -555,6 +768,7 @@ Shared via Meal Plan App`;
     savedRecipes,
     sharedRecipes,
     pendingRecipes, // NEW: For admin interface
+    loading,
     getAllUniqueRecipes,
     addRecipe,
     deleteRecipe,
