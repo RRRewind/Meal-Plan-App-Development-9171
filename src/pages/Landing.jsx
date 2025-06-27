@@ -7,7 +7,7 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const { FiChef, FiCalendar, FiShoppingCart, FiClock, FiUsers, FiStar, FiArrowRight, FiMail, FiLock, FiUser, FiHeart, FiShield, FiRefreshCw } = FiIcons;
+const { FiChef, FiCalendar, FiShoppingCart, FiClock, FiUsers, FiStar, FiArrowRight, FiMail, FiLock, FiUser, FiHeart, FiShield, FiRefreshCw, FiZap } = FiIcons;
 
 const Landing = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,7 +21,7 @@ const Landing = () => {
   const [loading, setLoading] = useState(false);
   const [sharedRecipeData, setSharedRecipeData] = useState(null);
 
-  const { login, register, user, pendingVerification, verifyEmail, resendVerificationCode } = useAuth();
+  const { login, register, user, pendingVerification, verifyEmail, resendVerificationCode, skipEmailVerification } = useAuth();
   const { saveSharedRecipe } = useRecipes();
   const navigate = useNavigate();
   const location = useLocation();
@@ -83,6 +83,10 @@ const Landing = () => {
       if (result.success) {
         if (result.requiresVerification) {
           setShowVerification(true);
+          // Show the verification code in the input for demo purposes
+          if (result.verificationCode) {
+            setVerificationCode(result.verificationCode);
+          }
         } else {
           // Check for shared recipe after login
           const urlParams = new URLSearchParams(location.search);
@@ -132,6 +136,22 @@ const Landing = () => {
     const result = await resendVerificationCode();
     if (result.success) {
       toast.success('📧 New verification code sent!');
+    }
+  };
+
+  const handleSkipVerification = async () => {
+    const result = skipEmailVerification();
+    if (result.success) {
+      // Check for shared recipe after verification
+      const urlParams = new URLSearchParams(location.search);
+      const sharedRecipe = urlParams.get('recipe');
+      if (sharedRecipe) {
+        setTimeout(() => {
+          handleSaveSharedRecipe(sharedRecipe);
+        }, 500);
+      } else {
+        navigate('/dashboard');
+      }
     }
   };
 
@@ -285,8 +305,17 @@ const Landing = () => {
                       <h2 className="text-3xl font-bold text-gray-900 mb-3">
                         Verify Your Email
                       </h2>
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                        <p className="text-blue-800 font-semibold text-sm mb-2">
+                          🚀 Demo Mode Active
+                        </p>
+                        <p className="text-blue-700 text-sm">
+                          Since this is a demo, your verification code is shown above in the green notification. 
+                          In a real app, this would be sent to your email.
+                        </p>
+                      </div>
                       <p className="text-gray-600 font-medium mb-2">
-                        We sent a 6-digit code to
+                        Enter the 6-digit code or use the skip option below
                       </p>
                       <p className="text-primary-600 font-bold">
                         {pendingVerification?.email}
@@ -324,6 +353,18 @@ const Landing = () => {
                             <SafeIcon icon={FiArrowRight} className="text-lg" />
                           </>
                         )}
+                      </motion.button>
+
+                      {/* Demo Skip Option */}
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleSkipVerification}
+                        className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center space-x-3 shadow-lg"
+                      >
+                        <SafeIcon icon={FiZap} className="text-lg" />
+                        <span>Skip Verification (Demo)</span>
                       </motion.button>
 
                       <div className="text-center">
@@ -419,6 +460,19 @@ const Landing = () => {
                           />
                         </div>
                       </div>
+
+                      {/* Demo Mode Info */}
+                      {!isLogin && (
+                        <div className="bg-gradient-to-r from-blue-50 to-green-50 p-4 rounded-xl border border-blue-200">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <SafeIcon icon={FiZap} className="text-blue-600" />
+                            <span className="text-sm font-semibold text-blue-800">Demo Mode</span>
+                          </div>
+                          <p className="text-xs text-blue-600">
+                            Email verification code will be shown on screen since this is a demo app
+                          </p>
+                        </div>
+                      )}
 
                       {/* Admin Login Info */}
                       {isLogin && (

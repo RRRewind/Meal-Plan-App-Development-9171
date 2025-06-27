@@ -13,7 +13,7 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [pendingVerification, setPendingVerification] = useState(null);
 
   // Admin credentials
@@ -25,27 +25,36 @@ export const AuthProvider = ({ children }) => {
     if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
-    setLoading(false);
   }, []);
 
   const generateVerificationCode = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
-  const sendVerificationEmail = async (email, code, name) => {
-    // Simulate sending email
-    console.log(`📧 Verification email sent to ${email}`);
+  const simulateEmailSend = async (email, code, name) => {
+    // Since we can't actually send emails in a browser environment,
+    // we'll display the code directly to the user
+    console.log(`📧 Simulated email to ${email}`);
     console.log(`Verification Code: ${code}`);
     
-    // In a real app, you would send this via your email service
-    toast.success(`📧 Verification code sent to ${email}!`, { duration: 5000 });
+    // Show the code to the user since we can't email it
+    toast.success(`Demo Mode: Your verification code is ${code}`, { 
+      duration: 10000,
+      style: {
+        background: '#10b981',
+        color: '#fff',
+        fontSize: '16px',
+        fontWeight: 'bold'
+      }
+    });
+    
     return true;
   };
 
   const login = async (email, password) => {
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       // Check for admin login
       if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
@@ -103,7 +112,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password) => {
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 800));
 
       // Check if user already exists
       const savedUsers = JSON.parse(localStorage.getItem('mealplan_users') || '[]');
@@ -148,13 +157,14 @@ export const AuthProvider = ({ children }) => {
       // Store pending verification
       setPendingVerification(pendingUser);
       
-      // Send verification email
-      await sendVerificationEmail(email, verificationCode, name);
+      // Simulate sending verification email (show code to user)
+      await simulateEmailSend(email, verificationCode, name);
       
       return { 
         success: true, 
         requiresVerification: true,
-        message: 'Verification code sent to your email'
+        verificationCode, // Include code for demo purposes
+        message: 'Account created! Check the green notification above for your verification code.'
       };
     } catch (error) {
       toast.error('Registration failed');
@@ -208,7 +218,7 @@ export const AuthProvider = ({ children }) => {
     };
     
     setPendingVerification(updatedPending);
-    await sendVerificationEmail(updatedPending.email, newCode, updatedPending.name);
+    await simulateEmailSend(updatedPending.email, newCode, updatedPending.name);
     
     return { success: true };
   };
@@ -234,6 +244,29 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Add demo mode helper
+  const skipEmailVerification = () => {
+    if (pendingVerification) {
+      const verifiedUser = {
+        ...pendingVerification,
+        emailVerified: true
+      };
+      delete verifiedUser.verificationCode;
+
+      const savedUsers = JSON.parse(localStorage.getItem('mealplan_users') || '[]');
+      savedUsers.push(verifiedUser);
+      localStorage.setItem('mealplan_users', JSON.stringify(savedUsers));
+
+      localStorage.setItem('mealplan_user', JSON.stringify(verifiedUser));
+      setUser(verifiedUser);
+      setPendingVerification(null);
+
+      toast.success('✅ Demo mode: Account verified automatically!');
+      return { success: true };
+    }
+    return { success: false };
+  };
+
   const value = {
     user,
     login,
@@ -243,7 +276,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     pendingVerification,
     verifyEmail,
-    resendVerificationCode
+    resendVerificationCode,
+    skipEmailVerification
   };
 
   return (
