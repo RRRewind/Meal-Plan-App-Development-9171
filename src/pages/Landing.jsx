@@ -177,6 +177,26 @@ const Landing = () => {
     }
   };
 
+  // FIXED: Handle Get Started Free button click
+  const handleGetStartedFree = () => {
+    // Scroll to the auth form and switch to signup mode
+    setIsLogin(false);
+    
+    // Smooth scroll to the auth form
+    const authForm = document.querySelector('.glass.rounded-3xl');
+    if (authForm) {
+      authForm.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'center'
+      });
+    }
+    
+    // Show a helpful toast
+    toast.success('🚀 Ready to start your culinary journey!', {
+      duration: 2000
+    });
+  };
+
   const features = [
     {
       icon: FiChef,
@@ -625,7 +645,7 @@ const Landing = () => {
             <motion.button
               whileHover={{ scale: 1.05, y: -5 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setIsLogin(false)}
+              onClick={handleGetStartedFree}
               className="bg-white text-primary-600 px-10 py-5 rounded-xl font-bold text-xl hover:bg-gray-50 transition-all duration-200 inline-flex items-center space-x-3 shadow-2xl"
             >
               <span>Get Started Free</span>

@@ -13,6 +13,7 @@ const CookingTimer = () => {
   const [customSeconds, setCustomSeconds] = useState('');
   const [showNotificationRequest, setShowNotificationRequest] = useState(false);
   const [notificationDismissed, setNotificationDismissed] = useState(false);
+  const [isTimerComplete, setIsTimerComplete] = useState(false);
 
   const {
     isActive,
@@ -36,11 +37,11 @@ const CookingTimer = () => {
   useEffect(() => {
     const hasAskedThisSession = sessionStorage.getItem('notification_asked');
     const hasDismissedPermanently = localStorage.getItem('notification_dismissed');
-    
+
     if (
-      'Notification' in window && 
-      Notification.permission === 'default' && 
-      !hasAskedThisSession && 
+      'Notification' in window &&
+      Notification.permission === 'default' &&
+      !hasAskedThisSession &&
       !hasDismissedPermanently &&
       !notificationDismissed
     ) {
@@ -48,15 +49,17 @@ const CookingTimer = () => {
       const timer = setTimeout(() => {
         setShowNotificationRequest(true);
       }, 2000);
-      
+
       return () => clearTimeout(timer);
     }
   }, [notificationDismissed]);
 
-  // Monitor timer completion for notifications
+  // Monitor timer completion for notifications and completion state
   useEffect(() => {
     if (timeLeft === 0 && !isTimerRunning && timeLeft !== null) {
       // Timer just finished
+      setIsTimerComplete(true);
+      
       if (Notification.permission === 'granted') {
         new Notification('🍳 Timer Finished!', {
           body: `Your cooking timer has completed for step ${currentStep + 1}.`,
@@ -64,6 +67,9 @@ const CookingTimer = () => {
           requireInteraction: true
         });
       }
+    } else if (timeLeft > 0) {
+      // Timer is running or paused, not complete
+      setIsTimerComplete(false);
     }
   }, [timeLeft, isTimerRunning, currentStep]);
 
@@ -72,10 +78,10 @@ const CookingTimer = () => {
       const permission = await Notification.requestPermission();
       setShowNotificationRequest(false);
       setNotificationDismissed(true);
-      
+
       // Mark as asked this session
       sessionStorage.setItem('notification_asked', 'true');
-      
+
       if (permission === 'granted') {
         new Notification('🍳 Great!', {
           body: 'You\'ll now get notifications when your cooking timers finish.',
@@ -88,20 +94,32 @@ const CookingTimer = () => {
   const dismissNotificationRequest = (permanently = false) => {
     setShowNotificationRequest(false);
     setNotificationDismissed(true);
-    
+
     // Mark as asked this session
     sessionStorage.setItem('notification_asked', 'true');
-    
+
     if (permanently) {
       // Don't ask again even in future sessions
       localStorage.setItem('notification_dismissed', 'true');
     }
   };
 
+  // Handle timer reset - also reset completion state
+  const handleResetTimer = () => {
+    resetTimer();
+    setIsTimerComplete(false);
+  };
+
+  // Handle starting new timer - reset completion state
+  const handleStartTimer = (minutes) => {
+    startTimer(minutes);
+    setIsTimerComplete(false);
+  };
+
   // ENHANCED: Show different floating widgets based on cooking mode state
   if (!isActive || !currentRecipe) {
     // Show persistent timer indicator if there's an active timer but cooking mode is closed
-    if (timeLeft > 0) {
+    if (timeLeft > 0 || isTimerComplete) {
       return (
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
@@ -110,39 +128,61 @@ const CookingTimer = () => {
         >
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-4 text-white shadow-2xl cursor-pointer"
+            animate={isTimerComplete ? { 
+              scale: [1, 1.1, 1], 
+              boxShadow: [
+                '0 10px 25px rgba(239, 68, 68, 0.3)',
+                '0 15px 35px rgba(239, 68, 68, 0.5)',
+                '0 10px 25px rgba(239, 68, 68, 0.3)'
+              ]
+            } : {}}
+            transition={isTimerComplete ? { 
+              duration: 1.5, 
+              repeat: Infinity,
+              ease: "easeInOut"
+            } : {}}
+            className={`rounded-2xl p-4 text-white shadow-2xl cursor-pointer ${
+              isTimerComplete 
+                ? 'bg-gradient-to-r from-red-500 to-red-600' 
+                : 'bg-gradient-to-r from-orange-500 to-red-500'
+            }`}
             onClick={() => setIsMinimized(false)}
           >
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <SafeIcon icon={FiClock} className="text-white text-lg" />
+                <SafeIcon 
+                  icon={isTimerComplete ? FiBell : FiClock} 
+                  className={`text-white text-lg ${isTimerComplete ? 'animate-pulse' : ''}`} 
+                />
               </div>
               <div>
                 <div className="font-bold text-lg">
-                  {formatTime(timeLeft)}
+                  {isTimerComplete ? '00:00' : formatTime(timeLeft)}
                 </div>
-                <div className="text-orange-100 text-sm">
-                  Background Timer
+                <div className={`text-sm ${isTimerComplete ? 'text-red-100 font-bold animate-pulse' : 'text-orange-100'}`}>
+                  {isTimerComplete ? 'Check Cooking!' : 'Background Timer'}
                 </div>
               </div>
               <div className="flex items-center space-x-2">
+                {!isTimerComplete && (
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      isTimerRunning ? pauseTimer() : resumeTimer();
+                    }}
+                    className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
+                  >
+                    <SafeIcon icon={isTimerRunning ? FiPause : FiPlay} className="text-sm" />
+                  </motion.button>
+                )}
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    isTimerRunning ? pauseTimer() : resumeTimer();
-                  }}
-                  className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
-                >
-                  <SafeIcon icon={isTimerRunning ? FiPause : FiPlay} className="text-sm" />
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    resetTimer();
+                    handleResetTimer();
                   }}
                   className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
                 >
@@ -164,7 +204,7 @@ const CookingTimer = () => {
   };
 
   const handleSetTimer = (minutes) => {
-    startTimer(minutes);
+    handleStartTimer(minutes);
   };
 
   const handleCustomTimer = () => {
@@ -172,7 +212,7 @@ const CookingTimer = () => {
     const secs = parseInt(customSeconds) || 0;
     const totalMinutes = mins + (secs / 60);
     if (totalMinutes > 0) {
-      startTimer(totalMinutes);
+      handleStartTimer(totalMinutes);
       setCustomMinutes('');
       setCustomSeconds('');
     }
@@ -199,7 +239,7 @@ const CookingTimer = () => {
   // ENHANCED: Different minimized states based on timer status - NOW IN BOTTOM RIGHT
   if (isMinimized) {
     // If timer is active, show countdown-focused widget
-    if (timeLeft > 0) {
+    if (timeLeft > 0 || isTimerComplete) {
       return (
         <motion.div
           initial={{ scale: 0, opacity: 0, y: 100 }}
@@ -209,32 +249,55 @@ const CookingTimer = () => {
         >
           <motion.div
             whileHover={{ scale: 1.05 }}
-            className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-4 text-white shadow-2xl"
+            animate={isTimerComplete ? { 
+              scale: [1, 1.1, 1], 
+              boxShadow: [
+                '0 10px 25px rgba(239, 68, 68, 0.3)',
+                '0 15px 35px rgba(239, 68, 68, 0.5)',
+                '0 10px 25px rgba(239, 68, 68, 0.3)'
+              ]
+            } : {}}
+            transition={isTimerComplete ? { 
+              duration: 1.5, 
+              repeat: Infinity,
+              ease: "easeInOut"
+            } : {}}
+            className={`rounded-2xl p-4 text-white shadow-2xl ${
+              isTimerComplete 
+                ? 'bg-gradient-to-r from-red-500 to-red-600' 
+                : 'bg-gradient-to-r from-orange-500 to-red-500'
+            }`}
           >
             {/* Main Timer Display */}
             <div className="text-center mb-3">
-              <div className="text-3xl font-bold mb-1">
-                {formatTime(timeLeft)}
+              <div className={`text-3xl font-bold mb-1 ${isTimerComplete ? 'animate-pulse' : ''}`}>
+                {isTimerComplete ? '00:00' : formatTime(timeLeft)}
               </div>
-              <div className="text-orange-100 text-sm font-medium">
-                Active Timer
+              <div className={`text-sm font-medium ${
+                isTimerComplete 
+                  ? 'text-red-100 animate-pulse font-bold' 
+                  : 'text-orange-100'
+              }`}>
+                {isTimerComplete ? 'Check Cooking!' : 'Active Timer'}
               </div>
             </div>
 
             {/* Timer Controls */}
             <div className="flex items-center justify-center space-x-2 mb-3">
+              {!isTimerComplete && (
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => isTimerRunning ? pauseTimer() : resumeTimer()}
+                  className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
+                >
+                  <SafeIcon icon={isTimerRunning ? FiPause : FiPlay} className="text-sm" />
+                </motion.button>
+              )}
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                onClick={() => isTimerRunning ? pauseTimer() : resumeTimer()}
-                className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
-              >
-                <SafeIcon icon={isTimerRunning ? FiPause : FiPlay} className="text-sm" />
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={resetTimer}
+                onClick={handleResetTimer}
                 className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
               >
                 <SafeIcon icon={FiSquare} className="text-sm" />
@@ -405,8 +468,8 @@ const CookingTimer = () => {
                   onClick={handleClose}
                   disabled={timeLeft > 0 && isTimerRunning}
                   className={`p-2 rounded-lg transition-colors duration-200 ${
-                    timeLeft > 0 && isTimerRunning 
-                      ? 'text-white/40 cursor-not-allowed' 
+                    timeLeft > 0 && isTimerRunning
+                      ? 'text-white/40 cursor-not-allowed'
                       : 'text-white/80 hover:text-white hover:bg-white/20'
                   }`}
                   title={timeLeft > 0 && isTimerRunning ? "Stop timer to close" : "Close cooking mode"}
@@ -497,32 +560,49 @@ const CookingTimer = () => {
                     </h4>
                     <div className="bg-gray-50 rounded-xl p-4">
                       <div className="text-center mb-4">
-                        <div className={`text-3xl font-bold ${timeLeft > 0 ? 'text-primary-600' : 'text-gray-400'}`}>
-                          {timeLeft > 0 ? formatTime(timeLeft) : '00:00'}
+                        <div className={`text-3xl font-bold ${
+                          isTimerComplete 
+                            ? 'text-red-600 animate-pulse' 
+                            : timeLeft > 0 
+                              ? 'text-primary-600' 
+                              : 'text-gray-400'
+                        }`}>
+                          {timeLeft > 0 || isTimerComplete ? formatTime(timeLeft) : '00:00'}
                         </div>
-                        {timeLeft === 0 && !isTimerRunning && (
+                        {isTimerComplete && (
+                          <motion.p 
+                            animate={{ scale: [1, 1.05, 1] }}
+                            transition={{ duration: 1, repeat: Infinity }}
+                            className="text-sm text-red-600 mt-1 font-bold"
+                          >
+                            ⏰ Check your cooking!
+                          </motion.p>
+                        )}
+                        {timeLeft === 0 && !isTimerComplete && (
                           <p className="text-sm text-gray-500 mt-1">Set a timer for this step</p>
                         )}
                       </div>
 
-                      {timeLeft > 0 ? (
+                      {timeLeft > 0 || isTimerComplete ? (
                         <div className="flex items-center justify-center space-x-2">
+                          {!isTimerComplete && (
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={isTimerRunning ? pauseTimer : resumeTimer}
+                              className={`p-2 rounded-lg transition-colors duration-200 ${
+                                isTimerRunning
+                                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                  : 'bg-green-100 text-green-700 hover:bg-green-200'
+                              }`}
+                            >
+                              <SafeIcon icon={isTimerRunning ? FiPause : FiPlay} />
+                            </motion.button>
+                          )}
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
-                            onClick={isTimerRunning ? pauseTimer : resumeTimer}
-                            className={`p-2 rounded-lg transition-colors duration-200 ${
-                              isTimerRunning
-                                ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                                : 'bg-green-100 text-green-700 hover:bg-green-200'
-                            }`}
-                          >
-                            <SafeIcon icon={isTimerRunning ? FiPause : FiPlay} />
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={resetTimer}
+                            onClick={handleResetTimer}
                             className="p-2 bg-red-100 text-red-700 hover:bg-red-200 rounded-lg transition-colors duration-200"
                           >
                             <SafeIcon icon={FiSquare} />
