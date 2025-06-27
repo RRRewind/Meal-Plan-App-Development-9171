@@ -19,6 +19,13 @@ export const RatingProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const { user } = useAuth();
 
+  // Helper function to get safe user ID as string
+  const getSafeUserId = (userObj) => {
+    if (!userObj) return null;
+    // Convert to string to ensure compatibility with TEXT column
+    return String(userObj.id || userObj.user_id || '');
+  };
+
   // Load ratings from Supabase
   const loadRatings = async (recipeIds = []) => {
     try {
@@ -42,14 +49,13 @@ export const RatingProvider = ({ children }) => {
         ratingsByRecipe[rating.recipe_id].push(rating);
 
         // Track user's own ratings
-        if (user && rating.user_id === user.id) {
+        if (user && rating.user_id === getSafeUserId(user)) {
           userRatingsByRecipe[rating.recipe_id] = rating;
         }
       });
 
       setRatings(prev => ({ ...prev, ...ratingsByRecipe }));
       setUserRatings(prev => ({ ...prev, ...userRatingsByRecipe }));
-
     } catch (error) {
       console.error('Error loading ratings:', error);
     }
@@ -67,12 +73,18 @@ export const RatingProvider = ({ children }) => {
       return { success: false };
     }
 
+    const userId = getSafeUserId(user);
+    if (!userId) {
+      toast.error('Invalid user session');
+      return { success: false };
+    }
+
     setLoading(true);
 
     try {
       const ratingData = {
         recipe_id: recipeId,
-        user_id: user.id,
+        user_id: userId, // Now sending as string
         username: user.username || user.name,
         rating,
         review: review.trim(),
@@ -81,15 +93,15 @@ export const RatingProvider = ({ children }) => {
 
       // Check if user already rated this recipe
       const existingRating = userRatings[recipeId];
-
       let result;
+
       if (existingRating) {
         // Update existing rating
         result = await supabase
           .from('recipe_ratings_mp2024')
           .update(ratingData)
           .eq('recipe_id', recipeId)
-          .eq('user_id', user.id);
+          .eq('user_id', userId);
       } else {
         // Insert new rating
         result = await supabase
@@ -102,7 +114,10 @@ export const RatingProvider = ({ children }) => {
       // Update local state
       setUserRatings(prev => ({
         ...prev,
-        [recipeId]: { ...ratingData, id: existingRating?.id || Date.now() }
+        [recipeId]: {
+          ...ratingData,
+          id: existingRating?.id || Date.now()
+        }
       }));
 
       // Reload ratings for this recipe
@@ -123,7 +138,7 @@ export const RatingProvider = ({ children }) => {
   // Get rating statistics for a recipe
   const getRatingStats = (recipeId) => {
     const recipeRatings = ratings[recipeId] || [];
-    
+
     if (recipeRatings.length === 0) {
       return {
         average: 0,
@@ -145,7 +160,7 @@ export const RatingProvider = ({ children }) => {
 
     // Smart score calculation (Bayesian average with confidence weighting)
     // Formula: (v × R + m × C) / (v + m)
-    // Where: v = number of votes, R = average rating, m = minimum votes needed, C = mean rating across all recipes
+    // Where: v=number of votes, R=average rating, m=minimum votes needed, C=mean rating across all recipes
     const minVotes = 10; // Minimum votes for confidence
     const globalMean = 3.5; // Assume global mean rating
     const smartScore = (count * average + minVotes * globalMean) / (count + minVotes);
@@ -166,9 +181,8 @@ export const RatingProvider = ({ children }) => {
   // Check if user can rate a recipe (only community recipes)
   const canRateRecipe = (recipe) => {
     if (!user || !recipe) return false;
-    
     // Only allow rating community recipes (shared recipes)
-    return recipe.shared && recipe.sharedByUserId !== user.id;
+    return recipe.shared && recipe.sharedByUserId !== getSafeUserId(user);
   };
 
   // Sort recipes by smart score (intelligent combination of rating and review count)
@@ -176,17 +190,17 @@ export const RatingProvider = ({ children }) => {
     return [...recipes].sort((a, b) => {
       const statsA = getRatingStats(a.id);
       const statsB = getRatingStats(b.id);
-      
+
       // Primary sort: Smart score (higher is better)
       if (statsB.smartScore !== statsA.smartScore) {
         return statsB.smartScore - statsA.smartScore;
       }
-      
+
       // Secondary sort: Review count (more reviews = higher)
       if (statsB.count !== statsA.count) {
         return statsB.count - statsA.count;
       }
-      
+
       // Tertiary sort: Average rating (higher is better)
       return statsB.average - statsA.average;
     });

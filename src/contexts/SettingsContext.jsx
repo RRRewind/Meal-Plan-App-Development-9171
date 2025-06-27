@@ -45,18 +45,31 @@ export const SettingsProvider = ({ children }) => {
     return [];
   };
 
+  // Helper function to get safe user ID as string
+  const getSafeUserId = (userObj) => {
+    if (!userObj) return null;
+    // Convert to string to ensure compatibility with TEXT column
+    return String(userObj.id || userObj.user_id || '');
+  };
+
   // Load user preferences with better error handling
   const loadPreferences = async () => {
     if (!user) return;
 
+    const userId = getSafeUserId(user);
+    if (!userId) {
+      console.error('No valid user ID found');
+      return;
+    }
+
     try {
       setLoading(true);
-      console.log('Loading preferences for user:', user.id);
+      console.log('Loading preferences for user ID (as string):', userId);
 
       const { data, error } = await supabase
         .from('user_preferences_mp2024')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
@@ -67,8 +80,8 @@ export const SettingsProvider = ({ children }) => {
           console.log('Database table not found, using local preferences');
           setPreferences({
             ...defaultPreferences,
-            userId: user.id,
-            username: user.username || user.name || `user_${user.id.slice(0, 8)}`,
+            userId: userId,
+            username: user.username || user.name || `user_${userId.slice(0, 8)}`,
             email: user.email,
             displayName: user.name,
             avatarUrl: user.avatar,
@@ -118,8 +131,8 @@ export const SettingsProvider = ({ children }) => {
       // Fallback to default preferences
       setPreferences({
         ...defaultPreferences,
-        userId: user.id,
-        username: user.username || user.name || `user_${user.id.slice(0, 8)}`,
+        userId: userId,
+        username: user.username || user.name || `user_${userId.slice(0, 8)}`,
         email: user.email,
         displayName: user.name,
         avatarUrl: user.avatar,
@@ -135,12 +148,18 @@ export const SettingsProvider = ({ children }) => {
   const createInitialPreferences = async () => {
     if (!user) return;
 
+    const userId = getSafeUserId(user);
+    if (!userId) {
+      console.error('No valid user ID for creating preferences');
+      return;
+    }
+
     try {
-      console.log('Creating initial preferences for user:', user.id);
+      console.log('Creating initial preferences for user ID:', userId);
       
       const initialData = {
-        user_id: user.id,
-        username: user.username || user.name || `user_${user.id.slice(0, 8)}`,
+        user_id: userId, // Now sending as string
+        username: user.username || user.name || `user_${userId.slice(0, 8)}`,
         email: user.email,
         display_name: user.name,
         avatar_url: user.avatar,
@@ -195,8 +214,8 @@ export const SettingsProvider = ({ children }) => {
       // Fallback to local preferences
       setPreferences({
         ...defaultPreferences,
-        userId: user.id,
-        username: user.username || user.name || `user_${user.id.slice(0, 8)}`,
+        userId: userId,
+        username: user.username || user.name || `user_${userId.slice(0, 8)}`,
         email: user.email,
         displayName: user.name,
         avatarUrl: user.avatar,
@@ -241,10 +260,16 @@ export const SettingsProvider = ({ children }) => {
       return { success: false, error: 'No user or preferences loaded' };
     }
 
+    const userId = getSafeUserId(user);
+    if (!userId) {
+      console.error('No valid user ID for updating preferences');
+      return { success: false, error: 'Invalid user ID' };
+    }
+
     setLoading(true);
 
     try {
-      console.log('Updating preferences:', updates);
+      console.log('Updating preferences for user ID:', userId, 'with updates:', updates);
 
       // Handle username change separately due to cooldown
       if (updates.username && updates.username !== preferences.username) {
@@ -263,7 +288,7 @@ export const SettingsProvider = ({ children }) => {
             .from('user_preferences_mp2024')
             .select('username')
             .ilike('username', updates.username)
-            .neq('user_id', user.id);
+            .neq('user_id', userId);
 
           if (checkError) {
             console.error('Username availability check error:', checkError);
@@ -284,7 +309,7 @@ export const SettingsProvider = ({ children }) => {
 
       // Prepare data for Supabase - send arrays directly for JSONB columns
       const supabaseData = {
-        user_id: user.id,
+        user_id: userId, // Ensure this is a string
         username: updates.username || preferences.username,
         email: updates.email || preferences.email,
         display_name: updates.displayName || preferences.displayName,
@@ -306,7 +331,7 @@ export const SettingsProvider = ({ children }) => {
         supabaseData.username_change_count = updates.username_change_count;
       }
 
-      console.log('Sending to Supabase (with direct arrays):', supabaseData);
+      console.log('Sending to Supabase (with TEXT user_id and direct arrays):', supabaseData);
 
       const { data, error } = await supabase
         .from('user_preferences_mp2024')
@@ -396,7 +421,9 @@ export const SettingsProvider = ({ children }) => {
       console.error('Error updating preferences:', error);
       
       // Provide more specific error messages
-      if (error.message && error.message.includes('malformed array literal')) {
+      if (error.message && error.message.includes('invalid input syntax for type uuid')) {
+        toast.error('User ID format error - please refresh and try again');
+      } else if (error.message && error.message.includes('malformed array literal')) {
         toast.error('Database format error - please try refreshing and signing in again');
       } else if (error.message && (error.message.includes('relation') || error.message.includes('does not exist'))) {
         toast.error('Database unavailable - changes saved locally');
