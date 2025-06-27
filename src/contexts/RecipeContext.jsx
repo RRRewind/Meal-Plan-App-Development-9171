@@ -17,95 +17,295 @@ export const RecipeProvider = ({ children }) => {
   const [sharedRecipes, setSharedRecipes] = useState([]);
   const [userSharedRecipes, setUserSharedRecipes] = useState(new Set());
 
-  useEffect(() => {
-    // Load initial data
-    const defaultRecipes = [
-      {
-        id: '1',
-        title: 'Classic Spaghetti Carbonara',
-        description: 'Creamy Italian pasta with eggs, cheese, and pancetta',
-        image: 'https://images.unsplash.com/photo-1621996346565-e3dbc353d2e5?w=500',
-        cookTime: 20,
-        servings: 4,
-        difficulty: 'Medium',
-        ingredients: [
-          { name: 'Spaghetti', amount: '400g' },
-          { name: 'Pancetta', amount: '150g' },
-          { name: 'Eggs', amount: '3 large' },
-          { name: 'Parmesan cheese', amount: '100g' },
-          { name: 'Black pepper', amount: 'to taste' },
-          { name: 'Salt', amount: 'to taste' }
-        ],
-        steps: [
-          'Cook spaghetti in salted boiling water until al dente',
-          'Fry pancetta until crispy',
-          'Beat eggs with grated parmesan and black pepper',
-          'Drain pasta, reserving some pasta water',
-          'Mix hot pasta with pancetta and egg mixture',
-          'Add pasta water if needed for creaminess',
-          'Serve immediately with extra parmesan'
-        ],
-        tags: ['Italian', 'Pasta', 'Quick'],
-        author: 'Chef Mario',
-        shared: true,
-        shareId: 'carbonara-classic'
-      },
-      {
-        id: '2',
-        title: 'Healthy Buddha Bowl',
-        description: 'Nutritious bowl with quinoa, vegetables, and tahini dressing',
-        image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500',
-        cookTime: 30,
-        servings: 2,
-        difficulty: 'Easy',
-        ingredients: [
-          { name: 'Quinoa', amount: '1 cup' },
-          { name: 'Sweet potato', amount: '1 large' },
-          { name: 'Chickpeas', amount: '1 can' },
-          { name: 'Spinach', amount: '2 cups' },
-          { name: 'Avocado', amount: '1 ripe' },
-          { name: 'Tahini', amount: '3 tbsp' },
-          { name: 'Lemon juice', amount: '2 tbsp' }
-        ],
-        steps: [
-          'Cook quinoa according to package instructions',
-          'Roast cubed sweet potato at 400°F for 25 minutes',
-          'Drain and rinse chickpeas',
-          'Make tahini dressing with tahini, lemon, and water',
-          'Arrange all ingredients in bowls',
-          'Drizzle with dressing and serve'
-        ],
-        tags: ['Healthy', 'Vegetarian', 'Bowl'],
-        author: 'Wellness Chef',
-        shared: true,
-        shareId: 'buddha-bowl-healthy'
+  // Enhanced duplicate detection - more thorough comparison
+  const areRecipesIdentical = (recipe1, recipe2) => {
+    // Normalize strings for comparison
+    const normalize = (str) => str?.toLowerCase().trim().replace(/\s+/g, ' ') || '';
+    
+    // Compare titles (most important identifier)
+    if (normalize(recipe1.title) === normalize(recipe2.title)) {
+      return true;
+    }
+    
+    // Compare core fields that define recipe uniqueness
+    const fields = ['description', 'cookTime', 'servings', 'difficulty'];
+    let matchingFields = 0;
+    
+    for (const field of fields) {
+      if (recipe1[field] === recipe2[field]) {
+        matchingFields++;
       }
-    ];
+    }
+    
+    // If title is very similar and most fields match, consider duplicate
+    const titleSimilarity = calculateStringSimilarity(normalize(recipe1.title), normalize(recipe2.title));
+    if (titleSimilarity > 0.8 && matchingFields >= 3) {
+      return true;
+    }
+    
+    // Check ingredients similarity
+    const ingredients1 = recipe1.ingredients || [];
+    const ingredients2 = recipe2.ingredients || [];
+    
+    if (ingredients1.length === ingredients2.length && ingredients1.length > 0) {
+      let matchingIngredients = 0;
+      ingredients1.forEach(ing1 => {
+        const found = ingredients2.some(ing2 => 
+          normalize(ing1.name) === normalize(ing2.name) && 
+          normalize(ing1.amount) === normalize(ing2.amount)
+        );
+        if (found) matchingIngredients++;
+      });
+      
+      // If 90%+ ingredients match, likely duplicate
+      if (matchingIngredients / ingredients1.length > 0.9) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
 
+  // Calculate string similarity using Levenshtein distance
+  const calculateStringSimilarity = (str1, str2) => {
+    const matrix = [];
+    const len1 = str1.length;
+    const len2 = str2.length;
+
+    if (len1 === 0) return len2 === 0 ? 1 : 0;
+    if (len2 === 0) return 0;
+
+    // Initialize matrix
+    for (let i = 0; i <= len2; i++) {
+      matrix[i] = [i];
+    }
+    for (let j = 0; j <= len1; j++) {
+      matrix[0][j] = j;
+    }
+
+    // Fill matrix
+    for (let i = 1; i <= len2; i++) {
+      for (let j = 1; j <= len1; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+
+    const distance = matrix[len2][len1];
+    const maxLength = Math.max(len1, len2);
+    return 1 - distance / maxLength;
+  };
+
+  // Enhanced duplicate removal with detailed reporting
+  const removeDuplicates = (recipeList) => {
+    const unique = [];
+    const duplicates = [];
+    
+    for (const recipe of recipeList) {
+      let isDuplicate = false;
+      let duplicateOf = null;
+      
+      // Check against already processed unique recipes
+      for (const uniqueRecipe of unique) {
+        if (areRecipesIdentical(recipe, uniqueRecipe)) {
+          isDuplicate = true;
+          duplicateOf = uniqueRecipe;
+          break;
+        }
+      }
+      
+      if (isDuplicate) {
+        duplicates.push({
+          duplicate: recipe,
+          originalTitle: duplicateOf.title,
+          reason: 'Similar content detected'
+        });
+      } else {
+        unique.push(recipe);
+      }
+    }
+    
+    return { unique, duplicates, removed: duplicates.length };
+  };
+
+  // Complete reset function - NOW WITH NO DEFAULT RECIPES
+  const completeReset = () => {
+    // Clear all localStorage
+    localStorage.removeItem('saved_recipes');
+    localStorage.removeItem('shared_recipes');
+    localStorage.removeItem('user_shared_recipes');
+    
+    // Reset all state to empty arrays
+    setRecipes([]);
+    setSavedRecipes([]);
+    setSharedRecipes([]);
+    setUserSharedRecipes(new Set());
+    
+    return {
+      success: true,
+      message: 'All recipes have been completely removed! You now have a blank canvas to build your perfect recipe collection.',
+      totalReset: true
+    };
+  };
+
+  // Global cleanup function that checks all recipe sources
+  const performGlobalCleanup = () => {
+    let totalRemoved = 0;
+    const cleanupReport = {
+      savedRecipes: 0,
+      userRecipes: 0,
+      sharedRecipes: 0,
+      details: []
+    };
+
+    // Clean up saved recipes
+    const savedCleanup = removeDuplicates(savedRecipes);
+    if (savedCleanup.removed > 0) {
+      setSavedRecipes(savedCleanup.unique);
+      localStorage.setItem('saved_recipes', JSON.stringify(savedCleanup.unique));
+      cleanupReport.savedRecipes = savedCleanup.removed;
+      cleanupReport.details.push(...savedCleanup.duplicates.map(d => ({
+        ...d,
+        source: 'Saved Recipes'
+      })));
+      totalRemoved += savedCleanup.removed;
+    }
+
+    // Clean up user-created recipes (non-default)
+    const userCreatedRecipes = recipes.filter(r => r.isUserCreated || !r.isDefault);
+    const userCleanup = removeDuplicates(userCreatedRecipes);
+    if (userCleanup.removed > 0) {
+      const defaultRecipes = recipes.filter(r => r.isDefault);
+      setRecipes([...defaultRecipes, ...userCleanup.unique]);
+      cleanupReport.userRecipes = userCleanup.removed;
+      cleanupReport.details.push(...userCleanup.duplicates.map(d => ({
+        ...d,
+        source: 'My Recipes'
+      })));
+      totalRemoved += userCleanup.removed;
+    }
+
+    // Clean up shared recipes (non-default)
+    const userSharedRecipesList = sharedRecipes.filter(r => !r.isDefault && !r.author);
+    const sharedCleanup = removeDuplicates(userSharedRecipesList);
+    if (sharedCleanup.removed > 0) {
+      const defaultSharedRecipes = sharedRecipes.filter(r => r.isDefault || r.author);
+      setSharedRecipes([...defaultSharedRecipes, ...sharedCleanup.unique]);
+      localStorage.setItem('shared_recipes', JSON.stringify(sharedCleanup.unique));
+      cleanupReport.sharedRecipes = sharedCleanup.removed;
+      cleanupReport.details.push(...sharedCleanup.duplicates.map(d => ({
+        ...d,
+        source: 'Shared Recipes'
+      })));
+      totalRemoved += sharedCleanup.removed;
+    }
+
+    return {
+      success: totalRemoved > 0,
+      totalRemoved,
+      report: cleanupReport,
+      message: totalRemoved > 0 
+        ? `Cleaned up ${totalRemoved} duplicate recipes across all collections!`
+        : 'No duplicates found - your recipe collection is perfectly organized!'
+    };
+  };
+
+  useEffect(() => {
+    // Check for complete reset flag
+    const shouldReset = localStorage.getItem('complete_recipe_reset');
+    if (shouldReset === 'true') {
+      localStorage.removeItem('complete_recipe_reset');
+      completeReset();
+      return;
+    }
+
+    // Load saved recipes from localStorage
     const savedRecipesData = JSON.parse(localStorage.getItem('saved_recipes') || '[]');
-    const sharedRecipesData = JSON.parse(localStorage.getItem('shared_recipes') || '[]');
-    const userSharedData = new Set(JSON.parse(localStorage.getItem('user_shared_recipes') || '[]'));
-
-    setRecipes(defaultRecipes);
     setSavedRecipes(savedRecipesData);
-    setSharedRecipes([...defaultRecipes, ...sharedRecipesData]);
-    setUserSharedRecipes(userSharedData);
+
+    // Load shared recipes from localStorage
+    const sharedRecipesData = JSON.parse(localStorage.getItem('shared_recipes') || '[]');
+    setSharedRecipes(sharedRecipesData);
+
+    // Load user shared recipes set
+    const userSharedData = JSON.parse(localStorage.getItem('user_shared_recipes') || '[]');
+    setUserSharedRecipes(new Set(userSharedData));
+
+    // Start with empty recipes array (no defaults)
+    setRecipes([]);
   }, []);
 
   const addRecipe = (recipe) => {
+    // Check for duplicates before adding
+    const allExistingRecipes = [...recipes, ...savedRecipes];
+    const isDuplicate = allExistingRecipes.some(existingRecipe => 
+      areRecipesIdentical(recipe, existingRecipe)
+    );
+    
+    if (isDuplicate) {
+      return { success: false, message: 'This recipe already exists in your collection' };
+    }
+    
     const newRecipe = {
       ...recipe,
       id: uuidv4(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      isUserCreated: true
     };
     setRecipes(prev => [...prev, newRecipe]);
-    return newRecipe;
+    return { success: true, recipe: newRecipe };
+  };
+
+  const deleteRecipe = (recipeId) => {
+    // Remove from user-created recipes
+    const updatedRecipes = recipes.filter(r => r.id !== recipeId);
+    setRecipes(updatedRecipes);
+    
+    // Remove from saved recipes
+    const updatedSaved = savedRecipes.filter(r => r.id !== recipeId && r.originalSharedId !== recipeId);
+    setSavedRecipes(updatedSaved);
+    localStorage.setItem('saved_recipes', JSON.stringify(updatedSaved));
+    
+    // Remove from shared recipes (only user-shared ones)
+    const updatedShared = sharedRecipes.filter(r => r.id !== recipeId || r.isDefault);
+    setSharedRecipes(updatedShared);
+    localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author && !r.isDefault)));
+    
+    // Remove from user shared set
+    const updatedUserShared = new Set([...userSharedRecipes]);
+    updatedUserShared.delete(recipeId);
+    setUserSharedRecipes(updatedUserShared);
+    localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
+    
+    return { success: true, message: 'Recipe deleted successfully!' };
+  };
+
+  const canDeleteRecipe = (recipe) => {
+    return !recipe.isDefault && (recipe.isUserCreated || recipe.savedFromShare || isRecipeSaved(recipe.id));
   };
 
   const saveRecipe = (recipe) => {
+    // Check for duplicates before saving
+    const allExistingRecipes = [...savedRecipes, ...recipes];
+    const isDuplicate = allExistingRecipes.some(existingRecipe => 
+      areRecipesIdentical(recipe, existingRecipe)
+    );
+    
+    if (isDuplicate) {
+      return { success: false, message: 'This recipe is already in your collection' };
+    }
+    
     const updatedSaved = [...savedRecipes, recipe];
     setSavedRecipes(updatedSaved);
     localStorage.setItem('saved_recipes', JSON.stringify(updatedSaved));
+    return { success: true, message: 'Recipe saved successfully!' };
   };
 
   const unsaveRecipe = (recipeId) => {
@@ -114,30 +314,36 @@ export const RecipeProvider = ({ children }) => {
     localStorage.setItem('saved_recipes', JSON.stringify(updatedSaved));
   };
 
+  // FIXED: Share recipe without creating duplicates
   const shareRecipe = (recipe) => {
-    // Check if user has already shared this recipe
     if (userSharedRecipes.has(recipe.id)) {
       return { success: false, message: 'You have already shared this recipe to the community' };
     }
 
+    // Create shared recipe with reference to original
     const shareId = `${recipe.title.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
     const sharedRecipe = {
       ...recipe,
+      originalId: recipe.id, // Keep reference to original
       shared: true,
       sharedAt: new Date().toISOString(),
-      shareId
+      shareId,
+      sharedBy: 'user' // Mark as user-shared
     };
     
+    // Add to shared recipes collection
     const updatedShared = [...sharedRecipes, sharedRecipe];
-    const updatedUserShared = new Set([...userSharedRecipes, recipe.id]);
-    
     setSharedRecipes(updatedShared);
+    
+    // Track that this recipe has been shared
+    const updatedUserShared = new Set([...userSharedRecipes, recipe.id]);
     setUserSharedRecipes(updatedUserShared);
     
-    localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author)));
+    // Save to localStorage
+    localStorage.setItem('shared_recipes', JSON.stringify(updatedShared.filter(r => !r.author && !r.isDefault)));
     localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
     
-    return { success: true, shareId, message: 'Recipe shared successfully!' };
+    return { success: true, shareId, message: 'Recipe shared to community successfully!' };
   };
 
   const generateShareableLink = (recipe) => {
@@ -159,7 +365,8 @@ export const RecipeProvider = ({ children }) => {
       ingredients: recipe.ingredients,
       steps: recipe.steps,
       tags: recipe.tags,
-      author: recipe.author || 'Community Chef'
+      author: recipe.author || 'Community Chef',
+      sharedVia: 'email'
     };
     
     const encodedData = encodeURIComponent(JSON.stringify(shareData));
@@ -169,21 +376,26 @@ export const RecipeProvider = ({ children }) => {
   const saveSharedRecipe = (recipeData) => {
     try {
       const recipe = JSON.parse(decodeURIComponent(recipeData));
-      const existingRecipe = savedRecipes.find(r => r.title === recipe.title);
       
-      if (existingRecipe) {
-        return { success: false, message: 'Recipe already in your collection' };
+      const allExistingRecipes = [...savedRecipes, ...recipes];
+      const isDuplicate = allExistingRecipes.some(existingRecipe => 
+        areRecipesIdentical(recipe, existingRecipe)
+      );
+      
+      if (isDuplicate) {
+        return { success: false, message: 'This recipe is already in your collection' };
       }
       
       const newRecipe = {
         ...recipe,
         id: uuidv4(),
         savedFromShare: true,
-        savedAt: new Date().toISOString()
+        savedAt: new Date().toISOString(),
+        originalSharedId: recipe.id
       };
       
-      saveRecipe(newRecipe);
-      return { success: true, message: 'Recipe saved to your collection!' };
+      const result = saveRecipe(newRecipe);
+      return result;
     } catch (error) {
       return { success: false, message: 'Invalid recipe data' };
     }
@@ -191,45 +403,84 @@ export const RecipeProvider = ({ children }) => {
 
   const emailShareRecipe = (recipe) => {
     const shareLink = generateShareableLink(recipe);
-    const subject = `Check out this recipe: ${recipe.title}`;
-    const body = `Hi! I found this amazing recipe and thought you'd love it:
+    const subject = `🍳 Check out this delicious recipe: ${recipe.title}`;
+    const body = `Hi there! 👋
 
-${recipe.title}
+I found this amazing recipe and thought you'd love it:
+
+🍽️ **${recipe.title}**
 ${recipe.description}
 
-Cook Time: ${recipe.cookTime} minutes
-Servings: ${recipe.servings}
+⏱️ Cook Time: ${recipe.cookTime} minutes
+👥 Servings: ${recipe.servings}
+📊 Difficulty: ${recipe.difficulty}
 
-Click here to view and save the recipe: ${shareLink}
+**Here's what makes it special:**
+${recipe.tags ? recipe.tags.map(tag => `• ${tag}`).join('\n') : '• Delicious and easy to make'}
 
-Happy cooking! 🍳`;
+**Click here to view the full recipe and automatically save it to your collection:**
+${shareLink}
+
+When you click the link:
+✅ If you're already logged in → Recipe saves automatically
+✅ If you're not logged in → Just sign in and it'll save instantly
+
+Happy cooking! 🍳✨
+
+Shared via Meal Plan App`;
 
     const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoLink;
     
-    return shareLink;
+    try {
+      window.location.href = mailtoLink;
+      return shareLink;
+    } catch (error) {
+      navigator.clipboard.writeText(shareLink);
+      throw new Error('Email client not available, link copied to clipboard');
+    }
   };
 
   const isRecipeSaved = (recipeId) => {
-    return savedRecipes.some(r => r.id === recipeId);
+    return savedRecipes.some(r => r.id === recipeId || r.originalSharedId === recipeId);
   };
 
   const hasSharedRecipe = (recipeId) => {
     return userSharedRecipes.has(recipeId);
   };
 
+  // Enhanced cleanup function with detailed reporting
+  const cleanupDuplicates = () => {
+    return performGlobalCleanup();
+  };
+
+  // FIXED: Get unique recipes for "All Recipes" view
+  const getAllUniqueRecipes = () => {
+    const userRecipes = recipes; // User's own recipes
+    const communityRecipes = sharedRecipes.filter(recipe => {
+      // Only include community recipes that are NOT user's own shared recipes
+      return !recipe.originalId || !recipes.some(userRecipe => userRecipe.id === recipe.originalId);
+    });
+    
+    return [...userRecipes, ...communityRecipes];
+  };
+
   const value = {
     recipes,
     savedRecipes,
     sharedRecipes,
+    getAllUniqueRecipes, // NEW: Use this for "All Recipes" view
     addRecipe,
+    deleteRecipe,
+    canDeleteRecipe,
     saveRecipe,
     unsaveRecipe,
     shareRecipe,
     emailShareRecipe,
     saveSharedRecipe,
     isRecipeSaved,
-    hasSharedRecipe
+    hasSharedRecipe,
+    cleanupDuplicates,
+    completeReset
   };
 
   return (

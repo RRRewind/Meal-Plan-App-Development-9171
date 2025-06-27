@@ -13,32 +13,49 @@ const Landing = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
+  const [sharedRecipeData, setSharedRecipeData] = useState(null);
   const { login, register, user } = useAuth();
   const { saveSharedRecipe } = useRecipes();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
-    }
-  }, [user, navigate]);
-
-  useEffect(() => {
     // Check for shared recipe in URL
     const urlParams = new URLSearchParams(location.search);
     const sharedRecipe = urlParams.get('recipe');
     
-    if (sharedRecipe && user) {
-      const result = saveSharedRecipe(sharedRecipe);
-      if (result.success) {
-        toast.success(result.message);
-        navigate('/recipes');
-      } else {
-        toast.error(result.message);
+    if (sharedRecipe) {
+      try {
+        const recipeData = JSON.parse(decodeURIComponent(sharedRecipe));
+        setSharedRecipeData(recipeData);
+        
+        if (user) {
+          // User is already logged in, save immediately
+          handleSaveSharedRecipe(sharedRecipe);
+        }
+      } catch (error) {
+        toast.error('Invalid recipe link');
+        navigate('/', { replace: true });
       }
     }
-  }, [location.search, user, saveSharedRecipe, navigate]);
+  }, [location.search, user]);
+
+  useEffect(() => {
+    if (user && !sharedRecipeData) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate, sharedRecipeData]);
+
+  const handleSaveSharedRecipe = (recipeData) => {
+    const result = saveSharedRecipe(recipeData);
+    if (result.success) {
+      toast.success(`🎉 ${result.message}`);
+      setTimeout(() => navigate('/recipes'), 1500);
+    } else {
+      toast.error(result.message);
+      setTimeout(() => navigate('/dashboard'), 1500);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,14 +76,7 @@ const Landing = () => {
         
         if (sharedRecipe) {
           setTimeout(() => {
-            const result = saveSharedRecipe(sharedRecipe);
-            if (result.success) {
-              toast.success(result.message);
-              navigate('/recipes');
-            } else {
-              toast.error(result.message);
-              navigate('/dashboard');
-            }
+            handleSaveSharedRecipe(sharedRecipe);
           }, 500);
         } else {
           navigate('/dashboard');
@@ -118,6 +128,24 @@ const Landing = () => {
         <div className="absolute top-40 right-20 w-16 h-16 bg-gradient-to-r from-accent-200 to-primary-200 rounded-full opacity-20 animate-float" style={{ animationDelay: '2s' }}></div>
         <div className="absolute bottom-40 left-20 w-24 h-24 bg-gradient-to-r from-secondary-200 to-accent-200 rounded-full opacity-20 animate-float" style={{ animationDelay: '4s' }}></div>
       </div>
+
+      {/* Shared Recipe Banner */}
+      {sharedRecipeData && (
+        <motion.div
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white p-4 shadow-lg"
+        >
+          <div className="max-w-4xl mx-auto text-center">
+            <h3 className="font-bold text-lg mb-1">
+              🍳 Someone shared a delicious recipe with you!
+            </h3>
+            <p className="text-primary-100">
+              "{sharedRecipeData.title}" - {user ? 'Saving to your collection...' : 'Sign in to save it instantly!'}
+            </p>
+          </div>
+        </motion.div>
+      )}
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
@@ -195,10 +223,14 @@ const Landing = () => {
             >
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                  {isLogin ? 'Welcome Back!' : 'Join Meal Plan'}
+                  {sharedRecipeData 
+                    ? (isLogin ? 'Sign in to save recipe!' : 'Join to save recipe!')
+                    : (isLogin ? 'Welcome Back!' : 'Join Meal Plan')}
                 </h2>
                 <p className="text-gray-600 font-medium">
-                  {isLogin ? 'Sign in to continue your culinary journey' : 'Start your cooking adventure today'}
+                  {sharedRecipeData 
+                    ? `Save "${sharedRecipeData.title}" to your collection`
+                    : (isLogin ? 'Sign in to continue your culinary journey' : 'Start your cooking adventure today')}
                 </p>
               </div>
 
@@ -267,7 +299,11 @@ const Landing = () => {
                     <div className="animate-spin rounded-full h-6 w-6 border-3 border-white border-t-transparent" />
                   ) : (
                     <>
-                      <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                      <span>
+                        {sharedRecipeData 
+                          ? (isLogin ? 'Sign In & Save Recipe' : 'Create Account & Save Recipe')
+                          : (isLogin ? 'Sign In' : 'Create Account')}
+                      </span>
                       <SafeIcon icon={FiArrowRight} className="text-lg" />
                     </>
                   )}

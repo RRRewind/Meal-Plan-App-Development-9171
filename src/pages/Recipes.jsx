@@ -9,12 +9,17 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const { FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiStar, FiMail, FiCheck } = FiIcons;
+const { FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiStar, FiMail, FiCheck, FiRefreshCw, FiTrash2, FiAlertTriangle, FiZap, FiRotateCcw, FiBookOpen, FiChef } = FiIcons;
 
 const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showCleanupModal, setShowCleanupModal] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [cleanupResult, setCleanupResult] = useState(null);
+  const [recipeToDelete, setRecipeToDelete] = useState(null);
   const [newRecipe, setNewRecipe] = useState({
     title: '',
     description: '',
@@ -31,33 +36,43 @@ const Recipes = () => {
     recipes, 
     sharedRecipes, 
     savedRecipes, 
+    getAllUniqueRecipes, // FIXED: Use this instead of combining manually
     saveRecipe, 
     unsaveRecipe, 
+    deleteRecipe,
+    canDeleteRecipe,
     isRecipeSaved, 
     shareRecipe, 
     emailShareRecipe, 
-    hasSharedRecipe 
+    hasSharedRecipe, 
+    addRecipe, 
+    cleanupDuplicates,
+    completeReset 
   } = useRecipes();
   const { startCookingMode } = useCookingMode();
   const { addXP } = useGamification();
   const { user } = useAuth();
 
-  const allRecipes = [...recipes, ...sharedRecipes];
+  // FIXED: Use getAllUniqueRecipes to prevent duplicates
+  const allRecipes = getAllUniqueRecipes();
+
   const filters = [
     { id: 'all', name: 'All Recipes', count: allRecipes.length },
     { id: 'saved', name: 'Saved', count: savedRecipes.length },
-    { id: 'shared', name: 'Community', count: sharedRecipes.length }
+    { id: 'shared', name: 'Community', count: sharedRecipes.length },
+    { id: 'my-recipes', name: 'My Recipes', count: recipes.filter(r => r.isUserCreated || !r.isDefault).length }
   ];
 
   const filteredRecipes = allRecipes.filter(recipe => {
     const matchesSearch = recipe.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         recipe.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         recipe.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesFilter = selectedFilter === 'all' || 
-                         (selectedFilter === 'saved' && isRecipeSaved(recipe.id)) ||
-                         (selectedFilter === 'shared' && recipe.shared);
-    
+      recipe.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      recipe.tags?.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const matchesFilter = selectedFilter === 'all' ||
+      (selectedFilter === 'saved' && isRecipeSaved(recipe.id)) ||
+      (selectedFilter === 'shared' && recipe.shared) ||
+      (selectedFilter === 'my-recipes' && (recipe.isUserCreated || (!recipe.isDefault && isRecipeSaved(recipe.id))));
+
     return matchesSearch && matchesFilter;
   });
 
@@ -66,9 +81,36 @@ const Recipes = () => {
       unsaveRecipe(recipe.id);
       toast.success('Recipe removed from saved');
     } else {
-      saveRecipe(recipe);
-      addXP(5, 'Recipe saved');
-      toast.success('Recipe saved!');
+      const result = saveRecipe(recipe);
+      if (result.success) {
+        addXP(5, 'Recipe saved');
+        toast.success(result.message);
+      } else {
+        toast.error(result.message);
+      }
+    }
+  };
+
+  const handleDeleteRecipe = (recipe) => {
+    if (canDeleteRecipe(recipe)) {
+      setRecipeToDelete(recipe);
+      setShowDeleteModal(true);
+    } else {
+      toast.error('This recipe cannot be deleted');
+    }
+  };
+
+  const confirmDeleteRecipe = () => {
+    if (recipeToDelete) {
+      const result = deleteRecipe(recipeToDelete.id);
+      if (result.success) {
+        toast.success('🗑️ Recipe deleted successfully!');
+        addXP(5, 'Recipe deleted');
+        setShowDeleteModal(false);
+        setRecipeToDelete(null);
+      } else {
+        toast.error('Failed to delete recipe');
+      }
     }
   };
 
@@ -92,6 +134,30 @@ const Recipes = () => {
     }
   };
 
+  const handleCleanupDuplicates = () => {
+    const result = cleanupDuplicates();
+    setCleanupResult(result);
+    
+    if (result.success) {
+      toast.success(`🧹 ${result.message}`);
+      addXP(20, 'Cleaned up duplicates');
+      setShowCleanupModal(true);
+    } else {
+      toast.success('✨ No duplicates found - your collection is perfectly organized!');
+    }
+  };
+
+  const handleCompleteReset = () => {
+    const result = completeReset();
+    if (result.success) {
+      toast.success('🧹 All recipes completely removed! Fresh start with empty collection.');
+      addXP(50, 'Complete recipe reset');
+      setShowResetModal(false);
+    } else {
+      toast.error('Failed to reset recipes');
+    }
+  };
+
   const handleAddIngredient = () => {
     setNewRecipe(prev => ({
       ...prev,
@@ -108,20 +174,25 @@ const Recipes = () => {
 
   const handleSubmitRecipe = (e) => {
     e.preventDefault();
-    toast.success('Recipe added successfully!');
-    addXP(20, 'Recipe created');
-    setShowAddModal(false);
-    setNewRecipe({
-      title: '',
-      description: '',
-      cookTime: '',
-      servings: '',
-      difficulty: 'Easy',
-      ingredients: [{ name: '', amount: '' }],
-      steps: [''],
-      tags: [],
-      image: ''
-    });
+    const result = addRecipe(newRecipe);
+    if (result.success) {
+      toast.success('Recipe added successfully!');
+      addXP(20, 'Recipe created');
+      setShowAddModal(false);
+      setNewRecipe({
+        title: '',
+        description: '',
+        cookTime: '',
+        servings: '',
+        difficulty: 'Easy',
+        ingredients: [{ name: '', amount: '' }],
+        steps: [''],
+        tags: [],
+        image: ''
+      });
+    } else {
+      toast.error(result.message);
+    }
   };
 
   return (
@@ -138,19 +209,41 @@ const Recipes = () => {
               Recipe Collection
             </h1>
             <p className="text-gray-600 font-medium">
-              Discover, save, and share amazing recipes with intelligent management
+              Build your perfect recipe collection from scratch
             </p>
           </div>
-          
-          <motion.button
-            whileHover={{ scale: 1.05, y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowAddModal(true)}
-            className="mt-4 sm:mt-0 btn-gradient text-white px-6 py-3 rounded-xl font-semibold shadow-lg flex items-center space-x-2"
-          >
-            <SafeIcon icon={FiPlus} />
-            <span>Add Recipe</span>
-          </motion.button>
+          <div className="flex items-center space-x-3 mt-4 sm:mt-0">
+            {/* Complete Reset Button */}
+            <motion.button
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowResetModal(true)}
+              className="bg-gradient-to-r from-red-100 to-red-200 text-red-700 px-4 py-3 rounded-xl font-semibold shadow-lg flex items-center space-x-2 hover:from-red-200 hover:to-red-300 transition-all duration-200 glow-effect"
+            >
+              <SafeIcon icon={FiRotateCcw} />
+              <span>Reset All</span>
+            </motion.button>
+            
+            {/* Enhanced Cleanup Duplicates Button */}
+            <motion.button
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleCleanupDuplicates}
+              className="bg-gradient-to-r from-secondary-100 to-secondary-200 text-secondary-700 px-4 py-3 rounded-xl font-semibold shadow-lg flex items-center space-x-2 hover:from-secondary-200 hover:to-secondary-300 transition-all duration-200 glow-effect"
+            >
+              <SafeIcon icon={FiZap} />
+              <span>Smart Cleanup</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowAddModal(true)}
+              className="btn-gradient text-white px-6 py-3 rounded-xl font-semibold shadow-lg flex items-center space-x-2"
+            >
+              <SafeIcon icon={FiPlus} />
+              <span>Add Recipe</span>
+            </motion.button>
+          </div>
         </motion.div>
 
         {/* Search and Filters */}
@@ -172,9 +265,8 @@ const Recipes = () => {
                 className="w-full pl-12 pr-4 py-4 input-modern rounded-xl text-lg font-medium"
               />
             </div>
-
             {/* Filters */}
-            <div className="flex space-x-3">
+            <div className="flex flex-wrap gap-3">
               {filters.map((filter) => (
                 <motion.button
                   key={filter.id}
@@ -199,145 +291,207 @@ const Recipes = () => {
           </div>
         </motion.div>
 
-        {/* Recipe Grid */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
-        >
-          {filteredRecipes.map((recipe, index) => (
-            <motion.div
-              key={recipe.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              whileHover={{ y: -8 }}
-              className="glass rounded-2xl overflow-hidden shadow-lg card-hover glow-effect"
-            >
-              {/* Recipe Image */}
-              <div className="aspect-video bg-gradient-to-br from-primary-100 to-secondary-100 relative overflow-hidden">
-                {recipe.image ? (
-                  <img
-                    src={recipe.image}
-                    alt={recipe.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <SafeIcon icon={FiStar} className="text-4xl text-primary-400" />
-                  </div>
-                )}
-                
-                {/* Action Buttons */}
-                <div className="absolute top-3 right-3 flex space-x-2">
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => handleSaveRecipe(recipe)}
-                    className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
-                      isRecipeSaved(recipe.id)
-                        ? 'bg-red-500 text-white'
-                        : 'bg-white/90 text-gray-600 hover:bg-white hover:text-red-500'
-                    }`}
-                  >
-                    <SafeIcon icon={FiHeart} className="text-sm" />
-                  </motion.button>
-                  
-                  {user && (
-                    <>
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => handleEmailShareRecipe(recipe)}
-                        className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-blue-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
-                      >
-                        <SafeIcon icon={FiMail} className="text-sm" />
-                      </motion.button>
-                      
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => handleShareRecipe(recipe)}
-                        className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
-                          hasSharedRecipe(recipe.id)
-                            ? 'bg-green-500 text-white'
-                            : 'bg-white/90 text-gray-600 hover:bg-white hover:text-primary-500'
-                        }`}
-                      >
-                        <SafeIcon icon={hasSharedRecipe(recipe.id) ? FiCheck : FiShare2} className="text-sm" />
-                      </motion.button>
-                    </>
-                  )}
+        {/* Recipe Grid or Empty State */}
+        {allRecipes.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="glass rounded-3xl p-16 text-center shadow-lg"
+          >
+            <div className="max-w-2xl mx-auto">
+              <div className="w-24 h-24 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-full flex items-center justify-center mx-auto mb-8">
+                <SafeIcon icon={FiChef} className="text-4xl text-primary-500" />
+              </div>
+              <h2 className="text-4xl font-bold text-gray-900 mb-4">
+                Your Recipe Journey Starts Here! 🍳
+              </h2>
+              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+                You have a completely clean slate! Start building your perfect recipe collection by adding your first recipe.
+              </p>
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowAddModal(true)}
+                className="btn-gradient text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg flex items-center space-x-3 mx-auto"
+              >
+                <SafeIcon icon={FiPlus} className="text-xl" />
+                <span>Add Your First Recipe</span>
+              </motion.button>
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
+                <div className="glass p-6 rounded-xl">
+                  <SafeIcon icon={FiBookOpen} className="text-2xl text-primary-500 mb-3" />
+                  <h3 className="font-bold text-gray-900 mb-2">Create Recipes</h3>
+                  <p className="text-sm text-gray-600">Add your favorite recipes with ingredients, steps, and cooking tips.</p>
                 </div>
-
-                {/* Difficulty Badge */}
-                <div className="absolute bottom-3 left-3">
-                  <span className="bg-white/90 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-                    {recipe.difficulty}
-                  </span>
+                <div className="glass p-6 rounded-xl">
+                  <SafeIcon icon={FiHeart} className="text-2xl text-red-500 mb-3" />
+                  <h3 className="font-bold text-gray-900 mb-2">Save & Share</h3>
+                  <p className="text-sm text-gray-600">Save recipes you love and share them with friends via email.</p>
+                </div>
+                <div className="glass p-6 rounded-xl">
+                  <SafeIcon icon={FiPlay} className="text-2xl text-green-500 mb-3" />
+                  <h3 className="font-bold text-gray-900 mb-2">Cook Mode</h3>
+                  <p className="text-sm text-gray-600">Follow step-by-step instructions with built-in timers.</p>
                 </div>
               </div>
-
-              {/* Recipe Content */}
-              <div className="p-6">
-                <h3 className="font-bold text-xl text-gray-900 mb-2">
-                  {recipe.title}
-                </h3>
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">
-                  {recipe.description}
-                </p>
-
-                {/* Recipe Stats */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center space-x-4 text-sm text-gray-500 font-medium">
-                    <div className="flex items-center">
-                      <SafeIcon icon={FiClock} className="mr-1" />
-                      {recipe.cookTime}m
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
+          >
+            {filteredRecipes.map((recipe, index) => (
+              <motion.div
+                key={recipe.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                whileHover={{ y: -8 }}
+                className="glass rounded-2xl overflow-hidden shadow-lg card-hover glow-effect"
+              >
+                {/* Recipe Image */}
+                <div className="aspect-video bg-gradient-to-br from-primary-100 to-secondary-100 relative overflow-hidden">
+                  {recipe.image ? (
+                    <img
+                      src={recipe.image}
+                      alt={recipe.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <SafeIcon icon={FiStar} className="text-4xl text-primary-400" />
                     </div>
-                    <div className="flex items-center">
-                      <SafeIcon icon={FiUsers} className="mr-1" />
-                      {recipe.servings}
-                    </div>
+                  )}
+                  {/* Action Buttons */}
+                  <div className="absolute top-3 right-3 flex space-x-2">
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => handleSaveRecipe(recipe)}
+                      className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
+                        isRecipeSaved(recipe.id)
+                          ? 'bg-red-500 text-white'
+                          : 'bg-white/90 text-gray-600 hover:bg-white hover:text-red-500'
+                      }`}
+                    >
+                      <SafeIcon icon={FiHeart} className="text-sm" />
+                    </motion.button>
+                    {user && (
+                      <>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => handleEmailShareRecipe(recipe)}
+                          className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-blue-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
+                        >
+                          <SafeIcon icon={FiMail} className="text-sm" />
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => handleShareRecipe(recipe)}
+                          className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
+                            hasSharedRecipe(recipe.id)
+                              ? 'bg-green-500 text-white'
+                              : 'bg-white/90 text-gray-600 hover:bg-white hover:text-primary-500'
+                          }`}
+                        >
+                          <SafeIcon icon={hasSharedRecipe(recipe.id) ? FiCheck : FiShare2} className="text-sm" />
+                        </motion.button>
+                        {canDeleteRecipe(recipe) && (
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleDeleteRecipe(recipe)}
+                            className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-red-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
+                          >
+                            <SafeIcon icon={FiTrash2} className="text-sm" />
+                          </motion.button>
+                        )}
+                      </>
+                    )}
                   </div>
-                  
-                  {recipe.shared && (
-                    <span className="text-xs bg-secondary-100 text-secondary-700 px-3 py-1 rounded-full font-semibold">
-                      Community
+                  {/* Recipe Type Badge */}
+                  <div className="absolute bottom-3 left-3 flex space-x-2">
+                    <span className="bg-white/90 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                      {recipe.difficulty}
                     </span>
-                  )}
+                    {recipe.isUserCreated && (
+                      <span className="bg-secondary-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                        My Recipe
+                      </span>
+                    )}
+                    {recipe.shared && !recipe.isUserCreated && (
+                      <span className="bg-blue-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                        Community
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                {/* Tags */}
-                {recipe.tags && recipe.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {recipe.tags.slice(0, 3).map((tag, tagIndex) => (
-                      <span
-                        key={tagIndex}
-                        className="text-xs bg-primary-50 text-primary-600 px-3 py-1 rounded-full font-semibold"
-                      >
-                        {tag}
+                {/* Recipe Content */}
+                <div className="p-6">
+                  <h3 className="font-bold text-xl text-gray-900 mb-2">
+                    {recipe.title}
+                  </h3>
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">
+                    {recipe.description}
+                  </p>
+
+                  {/* Recipe Stats */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-4 text-sm text-gray-500 font-medium">
+                      <div className="flex items-center">
+                        <SafeIcon icon={FiClock} className="mr-1" />
+                        {recipe.cookTime}m
+                      </div>
+                      <div className="flex items-center">
+                        <SafeIcon icon={FiUsers} className="mr-1" />
+                        {recipe.servings}
+                      </div>
+                    </div>
+                    {recipe.shared && hasSharedRecipe(recipe.originalId || recipe.id) && (
+                      <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">
+                        Shared by You
                       </span>
-                    ))}
+                    )}
                   </div>
-                )}
 
-                {/* Cook Button */}
-                <motion.button
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => startCookingMode(recipe)}
-                  className="w-full btn-gradient text-white py-3 px-4 rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
-                >
-                  <SafeIcon icon={FiPlay} />
-                  <span>Start Cooking</span>
-                </motion.button>
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
+                  {/* Tags */}
+                  {recipe.tags && recipe.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {recipe.tags.slice(0, 3).map((tag, tagIndex) => (
+                        <span
+                          key={tagIndex}
+                          className="text-xs bg-primary-50 text-primary-600 px-3 py-1 rounded-full font-semibold"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
 
-        {filteredRecipes.length === 0 && (
+                  {/* Cook Button */}
+                  <motion.button
+                    whileHover={{ scale: 1.02, y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => startCookingMode(recipe)}
+                    className="w-full btn-gradient text-white py-3 px-4 rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
+                  >
+                    <SafeIcon icon={FiPlay} />
+                    <span>Start Cooking</span>
+                  </motion.button>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+
+        {filteredRecipes.length === 0 && allRecipes.length > 0 && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -352,6 +506,197 @@ const Recipes = () => {
             </p>
           </motion.div>
         )}
+
+        {/* Complete Reset Modal */}
+        <AnimatePresence>
+          {showResetModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowResetModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="glass rounded-3xl p-8 max-w-md w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <SafeIcon icon={FiRotateCcw} className="text-3xl text-red-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                    🧹 Complete Recipe Reset
+                  </h2>
+                  <p className="text-gray-600 mb-2 font-medium">
+                    This will permanently delete ALL recipes from your collection.
+                  </p>
+                  <p className="text-sm text-gray-500 mb-2">
+                    You'll have a completely empty recipe collection to start fresh.
+                  </p>
+                  <p className="text-xs text-red-500 mb-8 font-semibold">
+                    ⚠️ This action cannot be undone!
+                  </p>
+                  <div className="flex space-x-4">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setShowResetModal(false)}
+                      className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      Cancel
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleCompleteReset}
+                      className="flex-1 px-6 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-colors duration-200 shadow-lg"
+                    >
+                      Reset All
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Cleanup Results Modal */}
+        <AnimatePresence>
+          {showCleanupModal && cleanupResult && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowCleanupModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="glass rounded-3xl p-8 max-w-2xl w-full shadow-2xl max-h-[80vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center mb-6">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <SafeIcon icon={FiZap} className="text-3xl text-green-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    🧹 Cleanup Complete!
+                  </h2>
+                  <p className="text-lg text-gray-600 font-medium">
+                    Removed {cleanupResult.totalRemoved} duplicate recipes
+                  </p>
+                </div>
+
+                {/* Cleanup Summary */}
+                <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 mb-6">
+                  <h3 className="font-bold text-gray-900 mb-4">Cleanup Summary</h3>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="glass p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">{cleanupResult.report.savedRecipes}</div>
+                      <div className="text-sm text-gray-600">Saved Recipes</div>
+                    </div>
+                    <div className="glass p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">{cleanupResult.report.userRecipes}</div>
+                      <div className="text-sm text-gray-600">My Recipes</div>
+                    </div>
+                    <div className="glass p-4 rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600">{cleanupResult.report.sharedRecipes}</div>
+                      <div className="text-sm text-gray-600">Shared Recipes</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Details */}
+                {cleanupResult.report.details.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-bold text-gray-900 mb-3">Removed Duplicates:</h3>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {cleanupResult.report.details.map((detail, index) => (
+                        <div key={index} className="bg-red-50 p-3 rounded-lg border-l-4 border-red-200">
+                          <div className="font-medium text-red-800">"{detail.duplicate.title}"</div>
+                          <div className="text-sm text-red-600">
+                            From: {detail.source} • {detail.reason}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-center">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowCleanupModal(false)}
+                    className="px-8 py-3 btn-gradient text-white rounded-xl font-bold shadow-lg"
+                  >
+                    Awesome! 🎉
+                  </motion.button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Delete Confirmation Modal */}
+        <AnimatePresence>
+          {showDeleteModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowDeleteModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="glass rounded-3xl p-8 max-w-md w-full shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <SafeIcon icon={FiAlertTriangle} className="text-3xl text-red-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                    Delete Recipe?
+                  </h2>
+                  <p className="text-gray-600 mb-2 font-medium">
+                    Are you sure you want to delete "{recipeToDelete?.title}"?
+                  </p>
+                  <p className="text-sm text-gray-500 mb-8">
+                    This action cannot be undone.
+                  </p>
+                  <div className="flex space-x-4">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setShowDeleteModal(false)}
+                      className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200"
+                    >
+                      Cancel
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={confirmDeleteRecipe}
+                      className="flex-1 px-6 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-colors duration-200 shadow-lg"
+                    >
+                      Delete
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Add Recipe Modal */}
         <AnimatePresence>
