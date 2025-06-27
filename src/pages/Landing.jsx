@@ -9,7 +9,9 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const { FiChef, FiCalendar, FiShoppingCart, FiClock, FiUsers, FiStar, FiArrowRight, FiMail, FiLock, FiUser, FiHeart, FiShield, FiRefreshCw, FiZap } = FiIcons;
+const {
+  FiChef, FiCalendar, FiShoppingCart, FiClock, FiUsers, FiStar, FiArrowRight, FiMail, FiLock, FiUser, FiHeart, FiShield, FiRefreshCw, FiZap
+} = FiIcons;
 
 const Landing = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -191,12 +193,12 @@ const Landing = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-green-50 mesh-bg">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50/30 via-white to-orange-50/20 mesh-bg">
       {/* Floating Elements */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-10 w-20 h-20 bg-gradient-to-r from-primary-200 to-secondary-200 rounded-full opacity-20 animate-float"></div>
-        <div className="absolute top-40 right-20 w-16 h-16 bg-gradient-to-r from-accent-200 to-primary-200 rounded-full opacity-20 animate-float" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute bottom-40 left-20 w-24 h-24 bg-gradient-to-r from-secondary-200 to-accent-200 rounded-full opacity-20 animate-float" style={{ animationDelay: '4s' }}></div>
+        <div className="absolute top-20 left-10 w-20 h-20 bg-gradient-to-r from-primary-200/20 to-secondary-200/20 rounded-full opacity-20 animate-float"></div>
+        <div className="absolute top-40 right-20 w-16 h-16 bg-gradient-to-r from-accent-200/20 to-primary-200/20 rounded-full opacity-20 animate-float" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute bottom-40 left-20 w-24 h-24 bg-gradient-to-r from-secondary-200/20 to-accent-200/20 rounded-full opacity-20 animate-float" style={{ animationDelay: '4s' }}></div>
       </div>
 
       {/* Shared Recipe Banner */}
@@ -204,7 +206,7 @@ const Landing = () => {
         <motion.div
           initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-primary-500 to-secondary-500 text-white p-4 shadow-lg"
+          className="bg-gradient-to-r from-primary-500/95 to-secondary-500/95 text-white p-4 shadow-lg"
         >
           <div className="max-w-4xl mx-auto text-center">
             <h3 className="font-bold text-lg mb-1">
@@ -301,18 +303,18 @@ const Landing = () => {
                     exit={{ opacity: 0, x: -20 }}
                   >
                     <div className="text-center mb-8">
-                      <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-secondary-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <div className="w-16 h-16 bg-gradient-to-br from-primary-500/90 to-secondary-500/90 rounded-full flex items-center justify-center mx-auto mb-4">
                         <SafeIcon icon={FiMail} className="text-white text-2xl" />
                       </div>
                       <h2 className="text-3xl font-bold text-gray-900 mb-3">
                         Verify Your Email
                       </h2>
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                      <div className="bg-blue-50/80 border border-blue-200/50 rounded-xl p-4 mb-4">
                         <p className="text-blue-800 font-semibold text-sm mb-2">
                           🚀 Demo Mode Active
                         </p>
                         <p className="text-blue-700 text-sm">
-                          Since this is a demo, your verification code is shown above in the green notification. In a real app, this would be sent to your email.
+                          Since this is a demo, your verification code is shown above in the notification. In a real app, this would be sent to your email.
                         </p>
                       </div>
                       <p className="text-gray-600 font-medium mb-2">
@@ -362,7 +364,7 @@ const Landing = () => {
                         whileHover={{ scale: 1.02, y: -2 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleSkipVerification}
-                        className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center space-x-3 shadow-lg"
+                        className="w-full bg-gradient-to-r from-secondary-500/90 to-secondary-600/90 text-white py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center space-x-3 shadow-lg"
                       >
                         <SafeIcon icon={FiZap} className="text-lg" />
                         <span>Skip Verification (Demo)</span>
@@ -401,10 +403,16 @@ const Landing = () => {
                   >
                     <div className="text-center mb-8">
                       <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                        {sharedRecipeData ? (isLogin ? 'Sign in to save recipe!' : 'Join to save recipe!') : (isLogin ? 'Welcome Back!' : 'Join Meal Plan')}
+                        {sharedRecipeData ? 
+                          (isLogin ? 'Sign in to save recipe!' : 'Join to save recipe!') : 
+                          (isLogin ? 'Welcome Back!' : 'Join Meal Plan')
+                        }
                       </h2>
                       <p className="text-gray-600 font-medium">
-                        {sharedRecipeData ? `Save "${sharedRecipeData.title}" to your collection` : (isLogin ? 'Sign in to continue your culinary journey' : 'Start your cooking adventure today')}
+                        {sharedRecipeData ? 
+                          `Save "${sharedRecipeData.title}" to your collection` : 
+                          (isLogin ? 'Sign in to continue your culinary journey' : 'Start your cooking adventure today')
+                        }
                       </p>
                     </div>
 
@@ -459,7 +467,7 @@ const Landing = () => {
 
                       {/* Demo Mode Info */}
                       {!isLogin && (
-                        <div className="bg-gradient-to-r from-blue-50 to-green-50 p-4 rounded-xl border border-blue-200">
+                        <div className="bg-gradient-to-r from-blue-50/60 to-secondary-50/60 p-4 rounded-xl border border-blue-200/50">
                           <div className="flex items-center space-x-2 mb-2">
                             <SafeIcon icon={FiZap} className="text-blue-600" />
                             <span className="text-sm font-semibold text-blue-800">Demo Mode</span>
@@ -472,7 +480,7 @@ const Landing = () => {
 
                       {/* Admin Login Info */}
                       {isLogin && (
-                        <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-xl border border-purple-200">
+                        <div className="bg-gradient-to-r from-purple-50/60 to-blue-50/60 p-4 rounded-xl border border-purple-200/50">
                           <div className="flex items-center space-x-2 mb-2">
                             <SafeIcon icon={FiShield} className="text-purple-600" />
                             <span className="text-sm font-semibold text-purple-800">Admin Access</span>
@@ -495,7 +503,10 @@ const Landing = () => {
                         ) : (
                           <>
                             <span>
-                              {sharedRecipeData ? (isLogin ? 'Sign In & Save Recipe' : 'Create Account & Save Recipe') : (isLogin ? 'Sign In' : 'Create Account')}
+                              {sharedRecipeData ? 
+                                (isLogin ? 'Sign In & Save Recipe' : 'Create Account & Save Recipe') : 
+                                (isLogin ? 'Sign In' : 'Create Account')
+                              }
                             </span>
                             <SafeIcon icon={FiArrowRight} className="text-lg" />
                           </>
@@ -520,7 +531,7 @@ const Landing = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-24 bg-white/50 backdrop-blur-sm">
+      <section className="py-24 bg-white/30 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 50 }}
@@ -546,7 +557,7 @@ const Landing = () => {
                 whileHover={{ y: -10 }}
                 className="glass p-8 rounded-2xl card-hover glow-effect"
               >
-                <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+                <div className="w-16 h-16 bg-gradient-to-br from-primary-500/90 to-primary-600/90 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
                   <SafeIcon icon={feature.icon} className="text-white text-2xl" />
                 </div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">
@@ -562,8 +573,8 @@ const Landing = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-500 relative overflow-hidden">
-        <div className="absolute inset-0 bg-black/10"></div>
+      <section className="py-24 bg-gradient-to-r from-primary-500/95 via-primary-600/95 to-secondary-500/95 relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/5"></div>
         <div className="relative max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 50 }}

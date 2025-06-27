@@ -12,8 +12,7 @@ import * as FiIcons from 'react-icons/fi';
 import { format, addDays } from 'date-fns';
 
 const {
-  FiChef, FiCalendar, FiTrendingUp, FiStar, FiClock, FiPlay, FiAward, FiTarget,
-  FiShoppingCart, FiBook
+  FiChef, FiCalendar, FiTrendingUp, FiStar, FiClock, FiPlay, FiAward, FiTarget, FiShoppingCart, FiBook
 } = FiIcons;
 
 const Dashboard = () => {
@@ -33,25 +32,25 @@ const Dashboard = () => {
       title: 'Recipes Cooked',
       value: user?.recipesCooked || 0,
       icon: FiChef,
-      color: 'from-primary-500 to-primary-600'
+      color: 'from-primary-500/90 to-primary-600/90'
     },
     {
       title: 'Current Level',
       value: user?.level || 1,
       icon: FiStar,
-      color: 'from-secondary-500 to-secondary-600'
+      color: 'from-secondary-500/90 to-secondary-600/90'
     },
     {
       title: 'Cooking Streak',
       value: `${user?.streakDays || 0} days`,
       icon: FiTrendingUp,
-      color: 'from-purple-500 to-purple-600'
+      color: 'from-purple-500/90 to-purple-600/90'
     },
     {
       title: 'Saved Recipes',
       value: savedRecipes.length,
       icon: FiTarget,
-      color: 'from-blue-500 to-blue-600'
+      color: 'from-blue-500/90 to-blue-600/90'
     }
   ];
 
@@ -79,7 +78,7 @@ const Dashboard = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="bg-gradient-to-r from-primary-500 to-secondary-500 rounded-2xl p-8 text-white">
+          <div className="bg-gradient-to-r from-primary-500/95 to-secondary-500/95 rounded-2xl p-8 text-white">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-bold mb-2">
@@ -112,7 +111,7 @@ const Dashboard = () => {
             <motion.div
               key={stat.title}
               whileHover={{ scale: 1.02 }}
-              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+              className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-gray-100/50"
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -139,7 +138,7 @@ const Dashboard = () => {
             transition={{ delay: 0.2 }}
             className="lg:col-span-2"
           >
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-gray-100/50">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center">
                   <SafeIcon icon={FiCalendar} className="mr-2 text-primary-500" />
@@ -156,10 +155,10 @@ const Dashboard = () => {
                   return (
                     <div
                       key={mealType}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                      className="flex items-center justify-between p-4 bg-gray-50/50 rounded-lg"
                     >
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-lg flex items-center justify-center">
+                        <div className="w-10 h-10 bg-gradient-to-br from-primary-100/60 to-secondary-100/60 rounded-lg flex items-center justify-center">
                           <span className="text-sm font-semibold text-primary-700 capitalize">
                             {mealType[0].toUpperCase()}
                           </span>
@@ -180,7 +179,7 @@ const Dashboard = () => {
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           onClick={() => startCookingMode(meal)}
-                          className="bg-primary-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600 transition-colors duration-200 flex items-center space-x-2"
+                          className="bg-primary-500/90 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600/90 transition-colors duration-200 flex items-center space-x-2"
                         >
                           <SafeIcon icon={FiPlay} className="text-sm" />
                           <span>Cook</span>
@@ -192,9 +191,9 @@ const Dashboard = () => {
 
                 {/* Show snacks if any */}
                 {todayMeals.snacks && todayMeals.snacks.length > 0 && (
-                  <div className="flex items-center justify-between p-4 bg-amber-50 rounded-lg border border-amber-200">
+                  <div className="flex items-center justify-between p-4 bg-amber-50/60 rounded-lg border border-amber-200/50">
                     <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg flex items-center justify-center">
+                      <div className="w-10 h-10 bg-gradient-to-br from-amber-100/60 to-orange-100/60 rounded-lg flex items-center justify-center">
                         <span className="text-sm font-semibold text-amber-700">S</span>
                       </div>
                       <div>
@@ -210,7 +209,7 @@ const Dashboard = () => {
             </div>
 
             {/* Weekly Overview */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mt-6">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-gray-100/50 mt-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">
                 This Week's Plan
               </h3>
@@ -230,8 +229,8 @@ const Dashboard = () => {
                       key={index}
                       className={`p-3 rounded-lg text-center ${
                         isToday
-                          ? 'bg-primary-100 border-2 border-primary-300'
-                          : 'bg-gray-50 hover:bg-gray-100'
+                          ? 'bg-primary-100/60 border-2 border-primary-300/50'
+                          : 'bg-gray-50/50 hover:bg-gray-100/50'
                       } transition-colors duration-200`}
                     >
                       <p className={`text-xs font-medium mb-1 ${
@@ -264,7 +263,7 @@ const Dashboard = () => {
             className="space-y-6"
           >
             {/* Recent Achievements */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-gray-100/50">
               <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center">
                 <SafeIcon icon={FiAward} className="mr-2 text-secondary-500" />
                 Recent Badges
@@ -277,7 +276,7 @@ const Dashboard = () => {
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.1 }}
-                      className="flex items-center space-x-3 p-3 bg-gradient-to-r from-secondary-50 to-primary-50 rounded-lg"
+                      className="flex items-center space-x-3 p-3 bg-gradient-to-r from-secondary-50/60 to-primary-50/60 rounded-lg"
                     >
                       <span className="text-2xl">{badge.icon}</span>
                       <div>
@@ -295,36 +294,36 @@ const Dashboard = () => {
             </div>
 
             {/* Quick Actions */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+            <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-sm border border-gray-100/50">
               <h3 className="text-lg font-bold text-gray-900 mb-4">
                 Quick Actions
               </h3>
               <div className="space-y-3">
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handlePlanWeek}
-                  className="w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white p-3 rounded-lg font-medium hover:from-primary-600 hover:to-primary-700 transition-all duration-200 flex items-center justify-center space-x-2"
+                  className="w-full bg-gradient-to-r from-primary-500/90 to-primary-600/90 text-white p-3 rounded-lg font-medium hover:from-primary-600/90 hover:to-primary-700/90 transition-all duration-200 flex items-center justify-center space-x-2"
                 >
                   <SafeIcon icon={FiCalendar} />
                   <span>Plan This Week</span>
                 </motion.button>
 
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleDiscoverRecipes}
-                  className="w-full bg-gradient-to-r from-secondary-500 to-secondary-600 text-white p-3 rounded-lg font-medium hover:from-secondary-600 hover:to-secondary-700 transition-all duration-200 flex items-center justify-center space-x-2"
+                  className="w-full bg-gradient-to-r from-secondary-500/90 to-secondary-600/90 text-white p-3 rounded-lg font-medium hover:from-secondary-600/90 hover:to-secondary-700/90 transition-all duration-200 flex items-center justify-center space-x-2"
                 >
                   <SafeIcon icon={FiBook} />
                   <span>Discover Recipes</span>
                 </motion.button>
 
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
+                  whileHover={{ scale: 1.02, y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleViewShoppingList}
-                  className="w-full border-2 border-primary-200 text-primary-700 p-3 rounded-lg font-medium hover:bg-primary-50 transition-all duration-200 flex items-center justify-center space-x-2"
+                  className="w-full border-2 border-primary-200/50 text-primary-700 p-3 rounded-lg font-medium hover:bg-primary-50/50 transition-all duration-200 flex items-center justify-center space-x-2"
                 >
                   <SafeIcon icon={FiShoppingCart} />
                   <span>View Shopping List</span>
