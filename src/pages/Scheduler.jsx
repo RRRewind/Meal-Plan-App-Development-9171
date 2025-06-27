@@ -8,38 +8,66 @@ import { useGamification } from '../contexts/GamificationContext';
 import Layout from '../components/Layout';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
+import toast from 'react-hot-toast';
 
-const { FiCalendar, FiPlus, FiX, FiClock, FiUsers, FiPlay, FiChevronLeft, FiChevronRight } = FiIcons;
+const {
+  FiCalendar, FiPlus, FiX, FiClock, FiUsers, FiPlay, FiChevronLeft, FiChevronRight,
+  FiCoffee, FiSun, FiMoon, FiCookie
+} = FiIcons;
 
 const Scheduler = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedMealType, setSelectedMealType] = useState(null);
   const [showRecipeModal, setShowRecipeModal] = useState(false);
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date()));
-  
+
   const { mealPlan, addMealToDay, removeMealFromDay, getMealsForDay } = useMealPlan();
   const { recipes, sharedRecipes } = useRecipes();
   const { startCookingMode } = useCookingMode();
   const { addXP } = useGamification();
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeek, i));
-  const mealTypes = ['breakfast', 'lunch', 'dinner'];
-  const today = startOfDay(new Date());
+  const mealTypes = [
+    { id: 'breakfast', name: 'Breakfast', icon: FiCoffee, color: 'from-orange-400 to-orange-500' },
+    { id: 'lunch', name: 'Lunch', icon: FiSun, color: 'from-yellow-400 to-yellow-500' },
+    { id: 'dinner', name: 'Dinner', icon: FiMoon, color: 'from-indigo-400 to-indigo-500' },
+    { id: 'snacks', name: 'Snacks', icon: FiCookie, color: 'from-pink-400 to-pink-500', limit: 5 }
+  ];
 
-  // Filter out past dates
+  const today = startOfDay(new Date());
   const availableDays = weekDays.filter(day => !isBefore(day, today));
 
   const handleAddMeal = (recipe) => {
     if (selectedDate && selectedMealType) {
+      const dayMeals = getMealsForDay(selectedDate);
+      const mealTypeConfig = mealTypes.find(mt => mt.id === selectedMealType);
+      
+      // Check meal limits
+      if (selectedMealType === 'snacks') {
+        const currentSnacks = dayMeals.snacks || [];
+        if (currentSnacks.length >= 5) {
+          toast.error('Maximum 5 snacks per day allowed!');
+          return;
+        }
+      } else {
+        // For breakfast, lunch, dinner - only 1 meal allowed
+        if (dayMeals[selectedMealType]) {
+          toast.error(`Only one ${selectedMealType} meal allowed per day!`);
+          return;
+        }
+      }
+
       addMealToDay(selectedDate, selectedMealType, recipe);
       addXP(10, 'Meal planned');
+      toast.success(`${recipe.title} added to ${selectedMealType}!`);
       setShowRecipeModal(false);
       setSelectedMealType(null);
     }
   };
 
-  const handleRemoveMeal = (date, mealType) => {
-    removeMealFromDay(date, mealType);
+  const handleRemoveMeal = (date, mealType, snackIndex = null) => {
+    removeMealFromDay(date, mealType, snackIndex);
+    toast.success('Meal removed from schedule');
   };
 
   const openRecipeModal = (date, mealType) => {
@@ -61,6 +89,13 @@ const Scheduler = () => {
 
   const allRecipes = [...recipes, ...sharedRecipes];
 
+  const getMealDisplay = (dayMeals, mealType) => {
+    if (mealType === 'snacks') {
+      return dayMeals.snacks || [];
+    }
+    return dayMeals[mealType] ? [dayMeals[mealType]] : [];
+  };
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -78,7 +113,6 @@ const Scheduler = () => {
               Plan your meals for the week ahead
             </p>
           </div>
-          
           <div className="flex items-center space-x-4">
             <motion.button
               whileHover={{ scale: 1.05 }}
@@ -88,7 +122,6 @@ const Scheduler = () => {
             >
               <SafeIcon icon={FiChevronLeft} />
             </motion.button>
-            
             <div className="text-center">
               <p className="font-semibold text-gray-900">
                 {format(currentWeek, 'MMMM yyyy')}
@@ -97,7 +130,6 @@ const Scheduler = () => {
                 Week of {format(currentWeek, 'MMM d')}
               </p>
             </div>
-            
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -117,16 +149,18 @@ const Scheduler = () => {
           className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden"
         >
           {/* Days Header */}
-          <div className="grid grid-cols-7 bg-gray-50 border-b border-gray-200">
+          <div className="grid grid-cols-8 bg-gray-50 border-b border-gray-200">
+            {/* Empty cell for meal type labels */}
+            <div className="p-4 border-r border-gray-200">
+              <p className="text-sm font-semibold text-gray-600">Meal Type</p>
+            </div>
             {availableDays.map((day, index) => (
-              <div key={index} className="p-4 text-center">
+              <div key={index} className="p-4 text-center border-r border-gray-200 last:border-r-0">
                 <p className="font-semibold text-gray-900">
                   {format(day, 'EEE')}
                 </p>
                 <p className={`text-sm ${
-                  isToday(day) 
-                    ? 'text-primary-600 font-bold' 
-                    : 'text-gray-600'
+                  isToday(day) ? 'text-primary-600 font-bold' : 'text-gray-600'
                 }`}>
                   {format(day, 'MMM d')}
                 </p>
@@ -137,38 +171,58 @@ const Scheduler = () => {
           {/* Meals Grid */}
           <div className="divide-y divide-gray-200">
             {mealTypes.map((mealType) => (
-              <div key={mealType} className="grid grid-cols-7 min-h-32">
+              <div key={mealType.id} className="grid grid-cols-8 min-h-24">
+                {/* Meal Type Label */}
+                <div className="p-4 border-r border-gray-200 bg-gray-50 flex items-center">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-8 h-8 bg-gradient-to-r ${mealType.color} rounded-lg flex items-center justify-center shadow-sm`}>
+                      <SafeIcon icon={mealType.icon} className="text-white text-sm" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm">
+                        {mealType.name}
+                      </p>
+                      {mealType.limit && (
+                        <p className="text-xs text-gray-500">Max {mealType.limit}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Days */}
                 {availableDays.map((day, dayIndex) => {
                   const dayMeals = getMealsForDay(day);
-                  const meal = dayMeals[mealType];
+                  const meals = getMealDisplay(dayMeals, mealType.id);
                   const isPastDay = isBefore(day, today);
-                  
+                  const canAddMore = mealType.id === 'snacks' ? 
+                    meals.length < (mealType.limit || 1) : 
+                    meals.length === 0;
+
                   return (
                     <div
-                      key={`${mealType}-${dayIndex}`}
-                      className={`p-4 border-r border-gray-200 last:border-r-0 ${
+                      key={`${mealType.id}-${dayIndex}`}
+                      className={`p-3 border-r border-gray-200 last:border-r-0 min-h-24 ${
                         isPastDay ? 'bg-gray-50 opacity-50' : 'hover:bg-gray-50'
                       } transition-colors duration-200`}
                     >
-                      {dayIndex === 0 && (
-                        <div className="absolute left-2 top-1/2 transform -translate-y-1/2 -rotate-90 origin-center">
-                          <span className="text-xs font-medium text-gray-600 uppercase tracking-wide">
-                            {mealType}
-                          </span>
-                        </div>
-                      )}
-                      
-                      <div className="ml-6">
-                        {meal ? (
+                      <div className="space-y-2">
+                        {/* Existing Meals */}
+                        {meals.map((meal, mealIndex) => (
                           <motion.div
+                            key={mealIndex}
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             className="relative group"
                           >
-                            <div className="bg-gradient-to-br from-primary-50 to-secondary-50 p-3 rounded-lg border border-primary-200">
+                            <div className={`bg-gradient-to-br ${
+                              mealType.id === 'snacks' ? 'from-pink-50 to-purple-50 border-pink-200' :
+                              mealType.id === 'breakfast' ? 'from-orange-50 to-yellow-50 border-orange-200' :
+                              mealType.id === 'lunch' ? 'from-yellow-50 to-green-50 border-yellow-200' :
+                              'from-indigo-50 to-purple-50 border-indigo-200'
+                            } p-2 rounded-lg border`}>
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="font-medium text-gray-900 text-sm truncate">
+                                  <p className="font-medium text-gray-900 text-xs truncate">
                                     {meal.title}
                                   </p>
                                   <div className="flex items-center space-x-2 mt-1">
@@ -182,20 +236,19 @@ const Scheduler = () => {
                                     </div>
                                   </div>
                                 </div>
-                                
                                 <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                   <motion.button
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
                                     onClick={() => startCookingMode(meal)}
-                                    className="p-1 text-primary-600 hover:text-primary-700 hover:bg-primary-100 rounded"
+                                    className="p-1 text-green-600 hover:text-green-700 hover:bg-green-100 rounded"
                                   >
                                     <SafeIcon icon={FiPlay} className="text-xs" />
                                   </motion.button>
                                   <motion.button
                                     whileHover={{ scale: 1.1 }}
                                     whileTap={{ scale: 0.9 }}
-                                    onClick={() => handleRemoveMeal(day, mealType)}
+                                    onClick={() => handleRemoveMeal(day, mealType.id, mealType.id === 'snacks' ? mealIndex : null)}
                                     className="p-1 text-red-600 hover:text-red-700 hover:bg-red-100 rounded"
                                   >
                                     <SafeIcon icon={FiX} className="text-xs" />
@@ -204,16 +257,26 @@ const Scheduler = () => {
                               </div>
                             </div>
                           </motion.div>
-                        ) : !isPastDay ? (
+                        ))}
+
+                        {/* Add Meal Button */}
+                        {!isPastDay && canAddMore && (
                           <motion.button
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
-                            onClick={() => openRecipeModal(day, mealType)}
-                            className="w-full h-16 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 hover:border-primary-300 hover:text-primary-500 transition-colors duration-200"
+                            onClick={() => openRecipeModal(day, mealType.id)}
+                            className="w-full h-12 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-gray-400 hover:border-primary-300 hover:text-primary-500 transition-colors duration-200"
                           >
-                            <SafeIcon icon={FiPlus} className="text-lg" />
+                            <SafeIcon icon={FiPlus} className="text-sm" />
                           </motion.button>
-                        ) : null}
+                        )}
+
+                        {/* Max reached indicator */}
+                        {!isPastDay && !canAddMore && mealType.id === 'snacks' && (
+                          <div className="text-xs text-gray-500 text-center py-2">
+                            Max snacks reached
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -246,7 +309,9 @@ const Scheduler = () => {
                       Choose a Recipe
                     </h2>
                     <p className="text-gray-600">
-                      {selectedDate && format(selectedDate, 'EEEE, MMMM d')} • {selectedMealType}
+                      {selectedDate && format(selectedDate, 'EEEE, MMMM d')} • {
+                        mealTypes.find(mt => mt.id === selectedMealType)?.name
+                      }
                     </p>
                   </div>
                   <motion.button
@@ -280,7 +345,6 @@ const Scheduler = () => {
                           </div>
                         )}
                       </div>
-                      
                       <div className="p-4">
                         <h3 className="font-semibold text-gray-900 mb-2">
                           {recipe.title}
@@ -288,7 +352,6 @@ const Scheduler = () => {
                         <p className="text-sm text-gray-600 mb-3 line-clamp-2">
                           {recipe.description}
                         </p>
-                        
                         <div className="flex items-center justify-between text-sm text-gray-500">
                           <div className="flex items-center space-x-3">
                             <div className="flex items-center">

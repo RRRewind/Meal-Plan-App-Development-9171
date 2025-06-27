@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRecipes } from '../contexts/RecipeContext';
 import { useMealPlan } from '../contexts/MealPlanContext';
@@ -10,9 +11,13 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { format, addDays } from 'date-fns';
 
-const { FiChef, FiCalendar, FiTrendingUp, FiStar, FiClock, FiPlay, FiAward, FiTarget } = FiIcons;
+const {
+  FiChef, FiCalendar, FiTrendingUp, FiStar, FiClock, FiPlay, FiAward, FiTarget,
+  FiShoppingCart, FiBook
+} = FiIcons;
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { recipes, savedRecipes } = useRecipes();
   const { mealPlan, getMealsForDay } = useMealPlan();
@@ -51,6 +56,19 @@ const Dashboard = () => {
   ];
 
   const recentBadges = user?.badges?.slice(-3).map(badgeId => badges[badgeId]).filter(Boolean) || [];
+
+  // Quick action handlers
+  const handlePlanWeek = () => {
+    navigate('/scheduler');
+  };
+
+  const handleDiscoverRecipes = () => {
+    navigate('/recipes');
+  };
+
+  const handleViewShoppingList = () => {
+    navigate('/shopping-list');
+  };
 
   return (
     <Layout>
@@ -136,7 +154,10 @@ const Dashboard = () => {
                 {['breakfast', 'lunch', 'dinner'].map((mealType) => {
                   const meal = todayMeals[mealType];
                   return (
-                    <div key={mealType} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                    <div
+                      key={mealType}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    >
                       <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-lg flex items-center justify-center">
                           <span className="text-sm font-semibold text-primary-700 capitalize">
@@ -168,6 +189,23 @@ const Dashboard = () => {
                     </div>
                   );
                 })}
+
+                {/* Show snacks if any */}
+                {todayMeals.snacks && todayMeals.snacks.length > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-amber-50 rounded-lg border border-amber-200">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-amber-100 to-orange-100 rounded-lg flex items-center justify-center">
+                        <span className="text-sm font-semibold text-amber-700">S</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Snacks</p>
+                        <p className="text-sm text-gray-600">
+                          {todayMeals.snacks.length} snack{todayMeals.snacks.length !== 1 ? 's' : ''} planned
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -179,15 +217,20 @@ const Dashboard = () => {
               <div className="grid grid-cols-7 gap-2">
                 {upcomingDays.map((day, index) => {
                   const dayMeals = getMealsForDay(day);
-                  const mealCount = Object.keys(dayMeals).length;
+                  const mealCount = Object.keys(dayMeals).reduce((count, key) => {
+                    if (key === 'snacks' && Array.isArray(dayMeals[key])) {
+                      return count + dayMeals[key].length;
+                    }
+                    return dayMeals[key] ? count + 1 : count;
+                  }, 0);
                   const isToday = index === 0;
-                  
+
                   return (
                     <div
                       key={index}
                       className={`p-3 rounded-lg text-center ${
-                        isToday 
-                          ? 'bg-primary-100 border-2 border-primary-300' 
+                        isToday
+                          ? 'bg-primary-100 border-2 border-primary-300'
                           : 'bg-gray-50 hover:bg-gray-100'
                       } transition-colors duration-200`}
                     >
@@ -260,23 +303,31 @@ const Dashboard = () => {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white p-3 rounded-lg font-medium hover:from-primary-600 hover:to-primary-700 transition-all duration-200"
+                  onClick={handlePlanWeek}
+                  className="w-full bg-gradient-to-r from-primary-500 to-primary-600 text-white p-3 rounded-lg font-medium hover:from-primary-600 hover:to-primary-700 transition-all duration-200 flex items-center justify-center space-x-2"
                 >
-                  Plan This Week
+                  <SafeIcon icon={FiCalendar} />
+                  <span>Plan This Week</span>
                 </motion.button>
+
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full bg-gradient-to-r from-secondary-500 to-secondary-600 text-white p-3 rounded-lg font-medium hover:from-secondary-600 hover:to-secondary-700 transition-all duration-200"
+                  onClick={handleDiscoverRecipes}
+                  className="w-full bg-gradient-to-r from-secondary-500 to-secondary-600 text-white p-3 rounded-lg font-medium hover:from-secondary-600 hover:to-secondary-700 transition-all duration-200 flex items-center justify-center space-x-2"
                 >
-                  Discover Recipes
+                  <SafeIcon icon={FiBook} />
+                  <span>Discover Recipes</span>
                 </motion.button>
+
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="w-full border-2 border-primary-200 text-primary-700 p-3 rounded-lg font-medium hover:bg-primary-50 transition-all duration-200"
+                  onClick={handleViewShoppingList}
+                  className="w-full border-2 border-primary-200 text-primary-700 p-3 rounded-lg font-medium hover:bg-primary-50 transition-all duration-200 flex items-center justify-center space-x-2"
                 >
-                  View Shopping List
+                  <SafeIcon icon={FiShoppingCart} />
+                  <span>View Shopping List</span>
                 </motion.button>
               </div>
             </div>
