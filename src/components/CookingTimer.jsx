@@ -12,6 +12,7 @@ const CookingTimer = () => {
   const [customMinutes, setCustomMinutes] = useState('');
   const [customSeconds, setCustomSeconds] = useState('');
   const [showNotificationRequest, setShowNotificationRequest] = useState(false);
+  const [notificationDismissed, setNotificationDismissed] = useState(false);
 
   const {
     isActive,
@@ -31,12 +32,26 @@ const CookingTimer = () => {
 
   const { addXP, incrementRecipesCooked } = useGamification();
 
-  // Check notification permission on mount
+  // Check notification permission on mount - but only show request once per session
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      setShowNotificationRequest(true);
+    const hasAskedThisSession = sessionStorage.getItem('notification_asked');
+    const hasDismissedPermanently = localStorage.getItem('notification_dismissed');
+    
+    if (
+      'Notification' in window && 
+      Notification.permission === 'default' && 
+      !hasAskedThisSession && 
+      !hasDismissedPermanently &&
+      !notificationDismissed
+    ) {
+      // Only show after a short delay to avoid immediate popup
+      const timer = setTimeout(() => {
+        setShowNotificationRequest(true);
+      }, 2000);
+      
+      return () => clearTimeout(timer);
     }
-  }, []);
+  }, [notificationDismissed]);
 
   // Monitor timer completion for notifications
   useEffect(() => {
@@ -56,12 +71,30 @@ const CookingTimer = () => {
     if ('Notification' in window) {
       const permission = await Notification.requestPermission();
       setShowNotificationRequest(false);
+      setNotificationDismissed(true);
+      
+      // Mark as asked this session
+      sessionStorage.setItem('notification_asked', 'true');
+      
       if (permission === 'granted') {
         new Notification('🍳 Great!', {
           body: 'You\'ll now get notifications when your cooking timers finish.',
           icon: '/vite.svg'
         });
       }
+    }
+  };
+
+  const dismissNotificationRequest = (permanently = false) => {
+    setShowNotificationRequest(false);
+    setNotificationDismissed(true);
+    
+    // Mark as asked this session
+    sessionStorage.setItem('notification_asked', 'true');
+    
+    if (permanently) {
+      // Don't ask again even in future sessions
+      localStorage.setItem('notification_dismissed', 'true');
     }
   };
 
@@ -286,7 +319,7 @@ const CookingTimer = () => {
 
   return (
     <AnimatePresence>
-      {/* Notification Permission Request */}
+      {/* Notification Permission Request - Enhanced with better controls */}
       {showNotificationRequest && (
         <motion.div
           initial={{ opacity: 0, y: -50 }}
@@ -294,28 +327,38 @@ const CookingTimer = () => {
           exit={{ opacity: 0, y: -50 }}
           className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50"
         >
-          <div className="bg-blue-500 text-white rounded-xl p-4 shadow-2xl flex items-center space-x-4">
-            <SafeIcon icon={FiBell} className="text-xl" />
-            <div>
+          <div className="bg-blue-500 text-white rounded-xl p-4 shadow-2xl flex items-center space-x-4 max-w-md">
+            <SafeIcon icon={FiBell} className="text-xl flex-shrink-0" />
+            <div className="flex-1">
               <p className="font-semibold">Enable Timer Notifications?</p>
               <p className="text-sm text-blue-100">Get notified when your cooking timers finish</p>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex flex-col space-y-2">
+              <div className="flex space-x-2">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => dismissNotificationRequest(false)}
+                  className="px-3 py-1 bg-white/20 rounded-lg text-sm hover:bg-white/30 transition-colors"
+                >
+                  Later
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={requestNotificationPermission}
+                  className="px-3 py-1 bg-white text-blue-500 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors"
+                >
+                  Enable
+                </motion.button>
+              </div>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setShowNotificationRequest(false)}
-                className="px-3 py-1 bg-white/20 rounded-lg text-sm"
+                onClick={() => dismissNotificationRequest(true)}
+                className="text-xs text-blue-200 hover:text-white underline transition-colors"
               >
-                Later
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={requestNotificationPermission}
-                className="px-3 py-1 bg-white text-blue-500 rounded-lg text-sm font-semibold"
-              >
-                Enable
+                Don't ask again
               </motion.button>
             </div>
           </div>
