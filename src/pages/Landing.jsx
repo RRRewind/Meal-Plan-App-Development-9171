@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useRecipes } from '../contexts/RecipeContext';
+import { useSettings } from '../contexts/SettingsContext';
+import UsernameInput from '../components/UsernameInput';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
@@ -14,7 +16,7 @@ const Landing = () => {
   const [showVerification, setShowVerification] = useState(false);
   const [verificationCode, setVerificationCode] = useState('');
   const [formData, setFormData] = useState({
-    username: '', // Changed from 'name' to 'username'
+    username: '',
     email: '',
     password: ''
   });
@@ -23,6 +25,7 @@ const Landing = () => {
 
   const { login, register, user, pendingVerification, verifyEmail, resendVerificationCode, skipEmailVerification } = useAuth();
   const { saveSharedRecipe } = useRecipes();
+  const { checkUsernameAvailability } = useSettings();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -77,7 +80,16 @@ const Landing = () => {
       if (isLogin) {
         result = await login(formData.email, formData.password);
       } else {
-        // Pass username instead of name to register
+        // Check username availability before registration
+        if (formData.username) {
+          const isAvailable = await checkUsernameAvailability(formData.username);
+          if (!isAvailable) {
+            toast.error('Username is not available');
+            setLoading(false);
+            return;
+          }
+        }
+        
         result = await register(formData.username, formData.email, formData.password);
       }
 
@@ -413,17 +425,12 @@ const Landing = () => {
                           <label className="block text-sm font-semibold text-gray-700 mb-3">
                             Username
                           </label>
-                          <div className="relative">
-                            <SafeIcon icon={FiUser} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
-                            <input
-                              type="text"
-                              value={formData.username}
-                              onChange={(e) => setFormData(prev => ({ ...prev, username: e.target.value }))}
-                              className="w-full pl-12 pr-4 py-4 input-modern rounded-xl text-lg font-medium placeholder-gray-400"
-                              placeholder="Choose a username"
-                              required={!isLogin}
-                            />
-                          </div>
+                          <UsernameInput
+                            value={formData.username}
+                            onChange={(value) => setFormData(prev => ({ ...prev, username: value }))}
+                            showAvailability={true}
+                            className="text-lg"
+                          />
                         </div>
                       )}
 

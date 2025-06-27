@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 
-const { FiHome, FiCalendar, FiBook, FiShoppingCart, FiUser, FiLogOut, FiStar, FiTrendingUp, FiShield } = FiIcons;
+const { FiHome, FiCalendar, FiBook, FiShoppingCart, FiUser, FiLogOut, FiStar, FiTrendingUp, FiShield, FiSettings } = FiIcons;
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -17,15 +17,12 @@ const Layout = ({ children }) => {
     { name: 'Scheduler', href: '/scheduler', icon: FiCalendar },
     { name: 'Recipes', href: '/recipes', icon: FiBook },
     { name: 'Shopping List', href: '/shopping-list', icon: FiShoppingCart },
+    { name: 'Settings', href: '/settings', icon: FiSettings },
   ];
 
   // Add admin panel for admin users
   if (user?.isAdmin) {
-    navigation.push({
-      name: 'Admin Panel',
-      href: '/admin',
-      icon: FiShield
-    });
+    navigation.push({ name: 'Admin Panel', href: '/admin', icon: FiShield });
   }
 
   const handleLogout = () => {
@@ -128,7 +125,7 @@ const Layout = ({ children }) => {
 
       {/* Mobile Navigation */}
       <div className="md:hidden bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50">
-        <div className={`grid ${user?.isAdmin ? 'grid-cols-5' : 'grid-cols-4'} gap-1 p-2`}>
+        <div className={`grid ${user?.isAdmin ? 'grid-cols-6' : 'grid-cols-5'} gap-1 p-2`}>
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -146,7 +143,8 @@ const Layout = ({ children }) => {
               >
                 <SafeIcon icon={item.icon} className="text-lg mb-1" />
                 <span className="text-xs font-medium">
-                  {item.name === 'Admin Panel' ? 'Admin' : item.name}
+                  {item.name === 'Admin Panel' ? 'Admin' : 
+                   item.name === 'Shopping List' ? 'Shopping' : item.name}
                 </span>
               </motion.button>
             );

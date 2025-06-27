@@ -1,23 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRecipes } from '../contexts/RecipeContext';
 import { useCookingMode } from '../contexts/CookingModeContext';
 import { useGamification } from '../contexts/GamificationContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useRating } from '../contexts/RatingContext';
 import Layout from '../components/Layout';
 import SafeIcon from '../common/SafeIcon';
+import RatingDisplay from '../components/RatingDisplay';
+import RatingModal from '../components/RatingModal';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const { FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiStar, FiMail, FiCheck, FiRefreshCw, FiTrash2, FiAlertTriangle, FiZap, FiRotateCcw, FiBookOpen, FiChef } = FiIcons;
+const { FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiStar, FiMail, FiCheck, FiRefreshCw, FiTrash2, FiAlertTriangle, FiZap, FiRotateCcw, FiBookOpen, FiChef, FiTrendingUp } = FiIcons;
 
 const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState('saved'); // Changed default to 'saved'
+  const [selectedFilter, setSelectedFilter] = useState('saved');
+  const [sortBy, setSortBy] = useState('recent'); // New sort option
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [selectedRecipeForRating, setSelectedRecipeForRating] = useState(null);
   const [cleanupResult, setCleanupResult] = useState(null);
   const [recipeToDelete, setRecipeToDelete] = useState(null);
   const [newRecipe, setNewRecipe] = useState({
@@ -53,6 +59,7 @@ const Recipes = () => {
   const { startCookingMode } = useCookingMode();
   const { addXP } = useGamification();
   const { user } = useAuth();
+  const { loadRatings, getRatingStats, canRateRecipe, sortRecipesByRating } = useRating();
 
   // Get all unique recipes for empty state check only
   const allRecipes = getAllUniqueRecipes();
@@ -67,11 +74,23 @@ const Recipes = () => {
     recipe.shared && recipe.sharedByUserId !== user?.id
   );
 
-  // REMOVED 'all' filter - only show saved, community, and my-recipes
+  // Load ratings when community recipes change
+  useEffect(() => {
+    if (communityRecipes.length > 0) {
+      const recipeIds = communityRecipes.map(recipe => recipe.id);
+      loadRatings(recipeIds);
+    }
+  }, [communityRecipes.length, loadRatings]);
+
   const filters = [
     { id: 'saved', name: 'Saved', count: savedRecipes.length },
     { id: 'community', name: 'Community', count: communityRecipes.length },
     { id: 'my-recipes', name: 'My Recipes', count: userCreatedRecipes.length }
+  ];
+
+  const sortOptions = [
+    { id: 'recent', name: 'Most Recent' },
+    { id: 'rating', name: 'Highest Rated', onlyFor: 'community' }
   ];
 
   // Helper function to get username by user ID
@@ -80,7 +99,6 @@ const Recipes = () => {
       return user?.username || user?.name || 'You';
     }
     
-    // Try to find the username in shared recipes
     const sharedRecipe = sharedRecipes.find(recipe => recipe.sharedByUserId === userId);
     if (sharedRecipe && sharedRecipe.sharedBy) {
       return sharedRecipe.sharedBy;
@@ -89,8 +107,8 @@ const Recipes = () => {
     return 'Unknown User';
   };
 
-  // Filter recipes based on selected filter and search term
-  const getFilteredRecipes = () => {
+  // Filter and sort recipes based on selected filter, search term, and sort option
+  const getFilteredAndSortedRecipes = () => {
     let recipesToFilter = [];
 
     switch (selectedFilter) {
@@ -104,26 +122,34 @@ const Recipes = () => {
         recipesToFilter = userCreatedRecipes;
         break;
       default:
-        recipesToFilter = savedRecipes; // Default to saved if unknown filter
+        recipesToFilter = savedRecipes;
     }
 
     // Apply search filter
-    if (!searchTerm.trim()) {
-      return recipesToFilter;
-    }
-
-    return recipesToFilter.filter(recipe => {
+    if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
-      return (
+      recipesToFilter = recipesToFilter.filter(recipe => 
         recipe.title?.toLowerCase().includes(searchLower) ||
         recipe.description?.toLowerCase().includes(searchLower) ||
         recipe.tags?.some(tag => tag.toLowerCase().includes(searchLower)) ||
         recipe.ingredients?.some(ing => ing.name?.toLowerCase().includes(searchLower))
       );
+    }
+
+    // Apply sorting
+    if (sortBy === 'rating' && selectedFilter === 'community') {
+      return sortRecipesByRating(recipesToFilter);
+    }
+
+    // Default: most recent (by creation/share date)
+    return recipesToFilter.sort((a, b) => {
+      const dateA = new Date(a.sharedAt || a.createdAt || 0);
+      const dateB = new Date(b.sharedAt || b.createdAt || 0);
+      return dateB - dateA;
     });
   };
 
-  const filteredRecipes = getFilteredRecipes();
+  const filteredRecipes = getFilteredAndSortedRecipes();
 
   const handleSaveRecipe = (recipe) => {
     if (isRecipeSaved(recipe.id)) {
@@ -141,11 +167,12 @@ const Recipes = () => {
   };
 
   const handleDeleteRecipe = (recipe) => {
-    if (canDeleteRecipe(recipe)) {
+    // Enhanced delete permission check - only allow deleting own recipes
+    if (recipe.isUserCreated || (recipe.sharedByUserId === user?.id)) {
       setRecipeToDelete(recipe);
       setShowDeleteModal(true);
     } else {
-      toast.error('This recipe cannot be deleted');
+      toast.error('You can only delete your own recipes');
     }
   };
 
@@ -160,6 +187,15 @@ const Recipes = () => {
       } else {
         toast.error('Failed to delete recipe');
       }
+    }
+  };
+
+  const handleRateRecipe = (recipe) => {
+    if (canRateRecipe(recipe)) {
+      setSelectedRecipeForRating(recipe);
+      setShowRatingModal(true);
+    } else {
+      toast.error('You can only rate community recipes from other users');
     }
   };
 
@@ -253,6 +289,14 @@ const Recipes = () => {
     }
   };
 
+  // Check if user can delete a recipe (enhanced permissions)
+  const canUserDeleteRecipe = (recipe) => {
+    if (!user) return false;
+    
+    // Users can only delete their own created recipes or recipes they shared
+    return recipe.isUserCreated || recipe.sharedByUserId === user.id;
+  };
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -268,12 +312,11 @@ const Recipes = () => {
             </h1>
             <p className="text-gray-600 font-medium">
               {selectedFilter === 'saved' && 'Your personally saved recipe favorites'}
-              {selectedFilter === 'community' && 'Recipes shared by the community'}
+              {selectedFilter === 'community' && 'Recipes shared by the community - rate and discover!'}
               {selectedFilter === 'my-recipes' && 'Recipes you\'ve created'}
             </p>
           </div>
           <div className="flex items-center space-x-3 mt-4 sm:mt-0">
-            {/* Complete Reset Button */}
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -284,7 +327,6 @@ const Recipes = () => {
               <span>Reset All</span>
             </motion.button>
 
-            {/* Enhanced Cleanup Duplicates Button */}
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -307,7 +349,7 @@ const Recipes = () => {
           </div>
         </motion.div>
 
-        {/* Search and Filters */}
+        {/* Search, Filters, and Sort */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -327,14 +369,21 @@ const Recipes = () => {
               />
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap gap-3">
+            {/* Filters and Sort */}
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* Filter Buttons */}
               {filters.map((filter) => (
                 <motion.button
                   key={filter.id}
                   whileHover={{ scale: 1.02, y: -1 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => setSelectedFilter(filter.id)}
+                  onClick={() => {
+                    setSelectedFilter(filter.id);
+                    // Reset sort when changing filters
+                    if (filter.id !== 'community' && sortBy === 'rating') {
+                      setSortBy('recent');
+                    }
+                  }}
                   className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center space-x-2 ${
                     selectedFilter === filter.id
                       ? 'bg-primary-500 text-white shadow-lg'
@@ -353,6 +402,29 @@ const Recipes = () => {
                   </span>
                 </motion.button>
               ))}
+
+              {/* Sort Dropdown */}
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="px-4 py-3 bg-white/80 border border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-white transition-colors duration-200"
+              >
+                {sortOptions
+                  .filter(option => !option.onlyFor || option.onlyFor === selectedFilter)
+                  .map(option => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+              </select>
+
+              {/* Sort indicator for community recipes */}
+              {selectedFilter === 'community' && sortBy === 'rating' && (
+                <div className="flex items-center space-x-2 text-sm text-primary-600 font-semibold">
+                  <SafeIcon icon={FiTrendingUp} />
+                  <span>Smart Ranked</span>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
@@ -419,6 +491,9 @@ const Recipes = () => {
                 ) : (
                   <>Showing {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''} in {filters.find(f => f.id === selectedFilter)?.name}</>
                 )}
+                {selectedFilter === 'community' && sortBy === 'rating' && (
+                  <span className="ml-2 text-primary-600 font-semibold">• Sorted by smart rating</span>
+                )}
               </p>
             </motion.div>
 
@@ -454,160 +529,195 @@ const Recipes = () => {
                 transition={{ delay: 0.2 }}
                 className="grid md:grid-cols-2 lg:grid-cols-3 gap-8"
               >
-                {filteredRecipes.map((recipe, index) => (
-                  <motion.div
-                    key={recipe.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    whileHover={{ y: -8 }}
-                    className="glass rounded-2xl overflow-hidden shadow-lg card-hover glow-effect"
-                  >
-                    {/* Recipe Image */}
-                    <div className="aspect-video bg-gradient-to-br from-primary-100 to-secondary-100 relative overflow-hidden">
-                      {recipe.image ? (
-                        <img
-                          src={recipe.image}
-                          alt={recipe.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <SafeIcon icon={FiStar} className="text-4xl text-primary-400" />
-                        </div>
-                      )}
+                {filteredRecipes.map((recipe, index) => {
+                  const ratingStats = getRatingStats(recipe.id);
+                  const canRate = canRateRecipe(recipe);
+                  
+                  return (
+                    <motion.div
+                      key={recipe.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      whileHover={{ y: -8 }}
+                      className="glass rounded-2xl overflow-hidden shadow-lg card-hover glow-effect"
+                    >
+                      {/* Recipe Image */}
+                      <div className="aspect-video bg-gradient-to-br from-primary-100 to-secondary-100 relative overflow-hidden">
+                        {recipe.image ? (
+                          <img
+                            src={recipe.image}
+                            alt={recipe.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <SafeIcon icon={FiStar} className="text-4xl text-primary-400" />
+                          </div>
+                        )}
 
-                      {/* Action Buttons */}
-                      <div className="absolute top-3 right-3 flex space-x-2">
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => handleSaveRecipe(recipe)}
-                          className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
-                            isRecipeSaved(recipe.id)
-                              ? 'bg-red-500 text-white'
-                              : 'bg-white/90 text-gray-600 hover:bg-white hover:text-red-500'
-                          }`}
-                        >
-                          <SafeIcon icon={FiHeart} className="text-sm" />
-                        </motion.button>
+                        {/* Action Buttons */}
+                        <div className="absolute top-3 right-3 flex space-x-2">
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleSaveRecipe(recipe)}
+                            className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
+                              isRecipeSaved(recipe.id)
+                                ? 'bg-red-500 text-white'
+                                : 'bg-white/90 text-gray-600 hover:bg-white hover:text-red-500'
+                            }`}
+                          >
+                            <SafeIcon icon={FiHeart} className="text-sm" />
+                          </motion.button>
 
-                        {user && (
-                          <>
+                          {/* Rating Button for Community Recipes */}
+                          {canRate && (
                             <motion.button
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}
-                              onClick={() => handleEmailShareRecipe(recipe)}
-                              className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-blue-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
+                              onClick={() => handleRateRecipe(recipe)}
+                              className="p-2 bg-yellow-100 text-yellow-600 hover:bg-yellow-200 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
                             >
-                              <SafeIcon icon={FiMail} className="text-sm" />
+                              <SafeIcon icon={FiStar} className="text-sm" />
                             </motion.button>
+                          )}
 
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={() => handleShareRecipe(recipe)}
-                              className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
-                                hasSharedRecipe(recipe.id)
-                                  ? 'bg-green-500 text-white'
-                                  : 'bg-white/90 text-gray-600 hover:bg-white hover:text-primary-500'
-                              }`}
-                            >
-                              <SafeIcon icon={hasSharedRecipe(recipe.id) ? FiCheck : FiShare2} className="text-sm" />
-                            </motion.button>
-
-                            {canDeleteRecipe(recipe) && (
+                          {user && (
+                            <>
                               <motion.button
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
-                                onClick={() => handleDeleteRecipe(recipe)}
-                                className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-red-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
+                                onClick={() => handleEmailShareRecipe(recipe)}
+                                className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-blue-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
                               >
-                                <SafeIcon icon={FiTrash2} className="text-sm" />
+                                <SafeIcon icon={FiMail} className="text-sm" />
                               </motion.button>
-                            )}
-                          </>
-                        )}
-                      </div>
 
-                      {/* Recipe Type Badge */}
-                      <div className="absolute bottom-3 left-3 flex space-x-2">
-                        <span className="bg-white/90 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-                          {recipe.difficulty}
-                        </span>
-                        {recipe.isUserCreated && (
-                          <span className="bg-secondary-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-                            My Recipe
-                          </span>
-                        )}
-                        {recipe.shared && !recipe.isUserCreated && (
-                          <span className="bg-blue-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
-                            Community
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => handleShareRecipe(recipe)}
+                                className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
+                                  hasSharedRecipe(recipe.id)
+                                    ? 'bg-green-500 text-white'
+                                    : 'bg-white/90 text-gray-600 hover:bg-white hover:text-primary-500'
+                                }`}
+                              >
+                                <SafeIcon icon={hasSharedRecipe(recipe.id) ? FiCheck : FiShare2} className="text-sm" />
+                              </motion.button>
 
-                    {/* Recipe Content */}
-                    <div className="p-6">
-                      <h3 className="font-bold text-xl text-gray-900 mb-2">
-                        {recipe.title}
-                      </h3>
-                      <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">
-                        {recipe.description}
-                      </p>
-
-                      {/* Recipe Stats */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-4 text-sm text-gray-500 font-medium">
-                          <div className="flex items-center">
-                            <SafeIcon icon={FiClock} className="mr-1" />
-                            {recipe.cookTime}m
-                          </div>
-                          <div className="flex items-center">
-                            <SafeIcon icon={FiUsers} className="mr-1" />
-                            {recipe.servings}
-                          </div>
+                              {canUserDeleteRecipe(recipe) && (
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => handleDeleteRecipe(recipe)}
+                                  className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-red-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
+                                >
+                                  <SafeIcon icon={FiTrash2} className="text-sm" />
+                                </motion.button>
+                              )}
+                            </>
+                          )}
                         </div>
-                        {recipe.shared && recipe.sharedByUserId && (
-                          <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">
-                            @{getUsernameById(recipe.sharedByUserId)}
-                          </span>
-                        )}
-                      </div>
 
-                      {/* Tags */}
-                      {recipe.tags && recipe.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-4">
-                          {recipe.tags.slice(0, 3).map((tag, tagIndex) => (
-                            <span
-                              key={tagIndex}
-                              className="text-xs bg-primary-50 text-primary-600 px-3 py-1 rounded-full font-semibold"
-                            >
-                              {tag}
+                        {/* Recipe Type Badge */}
+                        <div className="absolute bottom-3 left-3 flex space-x-2">
+                          <span className="bg-white/90 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                            {recipe.difficulty}
+                          </span>
+                          {recipe.isUserCreated && (
+                            <span className="bg-secondary-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                              My Recipe
                             </span>
-                          ))}
+                          )}
+                          {recipe.shared && !recipe.isUserCreated && (
+                            <span className="bg-blue-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                              Community
+                            </span>
+                          )}
                         </div>
-                      )}
+                      </div>
 
-                      {/* Cook Button */}
-                      <motion.button
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => startCookingMode(recipe)}
-                        className="w-full btn-gradient text-white py-3 px-4 rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
-                      >
-                        <SafeIcon icon={FiPlay} />
-                        <span>Start Cooking</span>
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                ))}
+                      {/* Recipe Content */}
+                      <div className="p-6">
+                        <h3 className="font-bold text-xl text-gray-900 mb-2">
+                          {recipe.title}
+                        </h3>
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">
+                          {recipe.description}
+                        </p>
+
+                        {/* Rating Display for Community Recipes */}
+                        {recipe.shared && (
+                          <div className="mb-4">
+                            <RatingDisplay stats={ratingStats} size="sm" />
+                          </div>
+                        )}
+
+                        {/* Recipe Stats */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center space-x-4 text-sm text-gray-500 font-medium">
+                            <div className="flex items-center">
+                              <SafeIcon icon={FiClock} className="mr-1" />
+                              {recipe.cookTime}m
+                            </div>
+                            <div className="flex items-center">
+                              <SafeIcon icon={FiUsers} className="mr-1" />
+                              {recipe.servings}
+                            </div>
+                          </div>
+                          {recipe.shared && recipe.sharedByUserId && (
+                            <span className="text-xs bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">
+                              @{getUsernameById(recipe.sharedByUserId)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Tags */}
+                        {recipe.tags && recipe.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {recipe.tags.slice(0, 3).map((tag, tagIndex) => (
+                              <span
+                                key={tagIndex}
+                                className="text-xs bg-primary-50 text-primary-600 px-3 py-1 rounded-full font-semibold"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Cook Button */}
+                        <motion.button
+                          whileHover={{ scale: 1.02, y: -2 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => startCookingMode(recipe)}
+                          className="w-full btn-gradient text-white py-3 px-4 rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
+                        >
+                          <SafeIcon icon={FiPlay} />
+                          <span>Start Cooking</span>
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  );
+                })}
               </motion.div>
             )}
           </>
         )}
 
+        {/* Rating Modal */}
+        <RatingModal
+          recipe={selectedRecipeForRating}
+          isOpen={showRatingModal}
+          onClose={() => {
+            setShowRatingModal(false);
+            setSelectedRecipeForRating(null);
+          }}
+        />
+
+        {/* All other modals remain the same... */}
         {/* Complete Reset Modal */}
         <AnimatePresence>
           {showResetModal && (
@@ -694,7 +804,6 @@ const Recipes = () => {
                   </p>
                 </div>
 
-                {/* Cleanup Summary */}
                 <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 mb-6">
                   <h3 className="font-bold text-gray-900 mb-4">Cleanup Summary</h3>
                   <div className="grid grid-cols-3 gap-4 text-center">
@@ -713,7 +822,6 @@ const Recipes = () => {
                   </div>
                 </div>
 
-                {/* Details */}
                 {cleanupResult.report.details.length > 0 && (
                   <div className="mb-6">
                     <h3 className="font-bold text-gray-900 mb-3">Removed Duplicates:</h3>
@@ -831,7 +939,6 @@ const Recipes = () => {
                 </div>
 
                 <form onSubmit={handleSubmitRecipe} className="space-y-6">
-                  {/* Basic Info */}
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -912,7 +1019,6 @@ const Recipes = () => {
                     </div>
                   </div>
 
-                  {/* Ingredients */}
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <label className="block text-sm font-semibold text-gray-700">
@@ -959,7 +1065,6 @@ const Recipes = () => {
                     </div>
                   </div>
 
-                  {/* Steps */}
                   <div>
                     <div className="flex items-center justify-between mb-4">
                       <label className="block text-sm font-semibold text-gray-700">
@@ -998,7 +1103,6 @@ const Recipes = () => {
                     </div>
                   </div>
 
-                  {/* Submit Button */}
                   <div className="flex space-x-4 pt-6">
                     <motion.button
                       type="button"
