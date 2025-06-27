@@ -184,6 +184,14 @@ export const SettingsProvider = ({ children }) => {
 
       if (error) {
         console.error('Error creating initial preferences:', error);
+        
+        // If it's a duplicate key error, try to load existing record instead
+        if (error.code === '23505') {
+          console.log('Record already exists, loading existing preferences');
+          await loadPreferences();
+          return;
+        }
+        
         throw error;
       }
 
@@ -253,7 +261,7 @@ export const SettingsProvider = ({ children }) => {
     }
   };
 
-  // Update preferences with enhanced error handling
+  // Update preferences with enhanced error handling and proper upsert
   const updatePreferences = async (updates) => {
     if (!user || !preferences) {
       console.error('Cannot update preferences: no user or preferences');
@@ -333,17 +341,53 @@ export const SettingsProvider = ({ children }) => {
 
       console.log('Sending to Supabase (with TEXT user_id and direct arrays):', supabaseData);
 
-      const { data, error } = await supabase
+      // First try to update existing record
+      const { data: updateData, error: updateError } = await supabase
         .from('user_preferences_mp2024')
-        .upsert(supabaseData)
+        .update(supabaseData)
+        .eq('user_id', userId)
         .select()
         .single();
 
-      if (error) {
-        console.error('Supabase update error:', error);
+      let data, error;
+
+      if (updateError && updateError.code === 'PGRST116') {
+        // No rows found to update, try insert
+        console.log('No existing record found, inserting new one');
+        const insertResult = await supabase
+          .from('user_preferences_mp2024')
+          .insert(supabaseData)
+          .select()
+          .single();
         
-        // If it's a database structure issue, save locally
-        if (error.code === '42P01' || error.message.includes('relation') || error.message.includes('does not exist')) {
+        data = insertResult.data;
+        error = insertResult.error;
+      } else {
+        // Update was successful or had a different error
+        data = updateData;
+        error = updateError;
+      }
+
+      if (error) {
+        console.error('Supabase operation error:', error);
+        
+        // Handle duplicate key error by trying update again
+        if (error.code === '23505') {
+          console.log('Duplicate key error, trying update again');
+          const retryResult = await supabase
+            .from('user_preferences_mp2024')
+            .update(supabaseData)
+            .eq('user_id', userId)
+            .select()
+            .single();
+          
+          data = retryResult.data;
+          error = retryResult.error;
+          
+          if (error) {
+            throw error;
+          }
+        } else if (error.code === '42P01' || error.message.includes('relation') || error.message.includes('does not exist')) {
           console.log('Database table issue, saving locally');
           
           // Update local state directly
@@ -367,12 +411,12 @@ export const SettingsProvider = ({ children }) => {
           
           toast.success('Settings saved locally (database unavailable)');
           return { success: true, data: updatedPreferences };
+        } else {
+          throw error;
         }
-        
-        throw error;
       }
 
-      console.log('Update successful:', data);
+      console.log('Database operation successful:', data);
 
       // Handle the returned data - JSONB arrays come back as actual arrays
       const dietaryPreferences = ensureArray(data.dietary_preferences);
@@ -425,6 +469,8 @@ export const SettingsProvider = ({ children }) => {
         toast.error('User ID format error - please refresh and try again');
       } else if (error.message && error.message.includes('malformed array literal')) {
         toast.error('Database format error - please try refreshing and signing in again');
+      } else if (error.message && error.message.includes('duplicate key value violates unique constraint')) {
+        toast.error('Settings conflict - please refresh and try again');
       } else if (error.message && (error.message.includes('relation') || error.message.includes('does not exist'))) {
         toast.error('Database unavailable - changes saved locally');
         
