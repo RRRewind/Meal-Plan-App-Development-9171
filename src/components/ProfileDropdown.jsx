@@ -105,7 +105,7 @@ const ProfileDropdown = () => {
       const result = await updatePreferences(formData);
       if (result.success) {
         setHasChanges(false);
-        toast.success('Settings saved successfully!');
+        // Don't show generic toast here as updatePreferences already shows specific messages
       }
     } catch (error) {
       toast.error('Failed to save settings');
@@ -249,6 +249,9 @@ const ProfileDropdown = () => {
                         showAvailability={true}
                         className="text-sm"
                       />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Username changes are limited to once every 14 days
+                      </p>
                     </div>
 
                     <div>
@@ -565,7 +568,7 @@ const ProfileDropdown = () => {
                         ) : (
                           <SafeIcon icon={FiSave} className="text-xs" />
                         )}
-                        <span>{saving ? 'Saving...' : 'Save'}</span>
+                        <span>{saving ? 'Saving...' : 'Save Changes'}</span>
                       </motion.button>
                     )}
                   </AnimatePresence>

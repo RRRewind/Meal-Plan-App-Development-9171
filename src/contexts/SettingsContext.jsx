@@ -16,8 +16,6 @@ export const useSettings = () => {
 export const SettingsProvider = ({ children }) => {
   const [preferences, setPreferences] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [usernameAvailability, setUsernameAvailability] = useState({});
-  const [checkingUsername, setCheckingUsername] = useState(false);
   const { user, updateUser } = useAuth();
 
   // Default preferences
@@ -51,6 +49,7 @@ export const SettingsProvider = ({ children }) => {
       if (data) {
         setPreferences({
           ...defaultPreferences,
+          userId: data.user_id,
           username: data.username,
           email: data.email,
           displayName: data.display_name,
@@ -102,6 +101,7 @@ export const SettingsProvider = ({ children }) => {
 
       setPreferences({
         ...defaultPreferences,
+        userId: data.user_id,
         username: data.username,
         email: data.email,
         displayName: data.display_name,
@@ -114,97 +114,6 @@ export const SettingsProvider = ({ children }) => {
     } catch (error) {
       console.error('Error creating initial preferences:', error);
       toast.error('Failed to initialize preferences');
-    }
-  };
-
-  // Check username availability
-  const checkUsernameAvailability = async (username) => {
-    if (!username || username.length < 3) {
-      setUsernameAvailability(prev => ({
-        ...prev,
-        [username]: { available: false, reason: 'Username must be at least 3 characters' }
-      }));
-      return false;
-    }
-
-    // Username validation
-    const usernameRegex = /^[a-zA-Z0-9_]+$/;
-    if (!usernameRegex.test(username)) {
-      setUsernameAvailability(prev => ({
-        ...prev,
-        [username]: { available: false, reason: 'Username can only contain letters, numbers, and underscores' }
-      }));
-      return false;
-    }
-
-    // Check if it's the current user's username
-    if (preferences?.username === username) {
-      setUsernameAvailability(prev => ({
-        ...prev,
-        [username]: { available: true, reason: 'Current username' }
-      }));
-      return true;
-    }
-
-    setCheckingUsername(true);
-
-    try {
-      const { data, error } = await supabase
-        .rpc('check_username_available_mp2024', {
-          check_username: username,
-          current_user_id: user?.id
-        });
-
-      if (error) {
-        console.error('RPC Error:', error);
-        throw error;
-      }
-
-      const isAvailable = data === true;
-      const result = {
-        available: isAvailable,
-        reason: isAvailable ? 'Username is available' : 'Username is already taken'
-      };
-
-      setUsernameAvailability(prev => ({
-        ...prev,
-        [username]: result
-      }));
-
-      return isAvailable;
-
-    } catch (error) {
-      console.error('Error checking username availability:', error);
-      setUsernameAvailability(prev => ({
-        ...prev,
-        [username]: { available: false, reason: 'Error checking availability' }
-      }));
-      return false;
-    } finally {
-      setCheckingUsername(false);
-    }
-  };
-
-  // Check if user can change username
-  const canChangeUsername = async () => {
-    if (!user) return false;
-
-    try {
-      const { data, error } = await supabase
-        .rpc('can_change_username_mp2024', {
-          user_id_param: user.id
-        });
-
-      if (error) {
-        console.error('RPC Error:', error);
-        throw error;
-      }
-      
-      return data === true;
-
-    } catch (error) {
-      console.error('Error checking username change cooldown:', error);
-      return false;
     }
   };
 
@@ -223,7 +132,32 @@ export const SettingsProvider = ({ children }) => {
     return diffDays;
   };
 
-  // Update preferences
+  // Check if user can change username
+  const canChangeUsername = async () => {
+    if (!user || !preferences) return false;
+
+    try {
+      const { data, error } = await supabase
+        .rpc('can_change_username_mp2024', {
+          user_id_param: user.id
+        });
+
+      if (error) {
+        console.error('RPC Error:', error);
+        // Fallback to local calculation
+        return getDaysUntilUsernameChange() === 0;
+      }
+      
+      return data === true;
+
+    } catch (error) {
+      console.error('Error checking username change cooldown:', error);
+      // Fallback to local calculation
+      return getDaysUntilUsernameChange() === 0;
+    }
+  };
+
+  // Update preferences with enhanced username handling
   const updatePreferences = async (updates) => {
     if (!user || !preferences) return { success: false };
 
@@ -241,8 +175,20 @@ export const SettingsProvider = ({ children }) => {
         }
 
         // Check if username is available
-        const isAvailable = await checkUsernameAvailability(updates.username);
-        if (!isAvailable) {
+        const { data: availabilityData, error: availabilityError } = await supabase
+          .rpc('check_username_available_mp2024', {
+            check_username: updates.username,
+            current_user_id: user.id
+          });
+
+        if (availabilityError) {
+          console.error('Username availability check error:', availabilityError);
+          toast.error('Failed to check username availability');
+          setLoading(false);
+          return { success: false, error: 'Unable to verify username availability' };
+        }
+
+        if (!availabilityData) {
           toast.error('Username is not available');
           setLoading(false);
           return { success: false, error: 'Username not available' };
@@ -287,6 +233,7 @@ export const SettingsProvider = ({ children }) => {
 
       // Update local state
       const updatedPreferences = {
+        userId: data.user_id,
         username: data.username,
         email: data.email,
         displayName: data.display_name,
@@ -314,7 +261,13 @@ export const SettingsProvider = ({ children }) => {
         });
       }
 
-      toast.success('Settings saved successfully!');
+      // Show specific success message for username changes
+      if (updates.username && updates.username !== preferences.username) {
+        toast.success(`✅ Username updated to "${data.username}"!`);
+      } else {
+        toast.success('Settings saved successfully!');
+      }
+
       return { success: true, data: updatedPreferences };
 
     } catch (error) {
@@ -338,10 +291,7 @@ export const SettingsProvider = ({ children }) => {
   const value = {
     preferences,
     loading,
-    usernameAvailability,
-    checkingUsername,
     updatePreferences,
-    checkUsernameAvailability,
     canChangeUsername,
     getDaysUntilUsernameChange,
     loadPreferences

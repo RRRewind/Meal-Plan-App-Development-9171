@@ -15,10 +15,9 @@ const UsernameInput = ({
 }) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
   const [isCheckingLocal, setIsCheckingLocal] = useState(false);
+  const [localAvailability, setLocalAvailability] = useState({});
+  
   const { 
-    usernameAvailability, 
-    checkingUsername, 
-    checkUsernameAvailability,
     preferences,
     getDaysUntilUsernameChange,
     canChangeUsername
@@ -31,30 +30,134 @@ const UsernameInput = ({
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedValue(value);
-    }, 500);
+    }, 800); // Increased debounce time
 
     return () => clearTimeout(timer);
   }, [value]);
 
+  // Manual username availability check
+  const checkUsernameAvailability = useCallback(async (username) => {
+    if (!username || username.length < 3) {
+      setLocalAvailability(prev => ({
+        ...prev,
+        [username]: { available: false, reason: 'Username must be at least 3 characters' }
+      }));
+      return false;
+    }
+
+    // Username validation
+    const usernameRegex = /^[a-zA-Z0-9_]+$/;
+    if (!usernameRegex.test(username)) {
+      setLocalAvailability(prev => ({
+        ...prev,
+        [username]: { available: false, reason: 'Username can only contain letters, numbers, and underscores' }
+      }));
+      return false;
+    }
+
+    // Check if it's the current user's username
+    if (preferences?.username === username) {
+      setLocalAvailability(prev => ({
+        ...prev,
+        [username]: { available: true, reason: 'Current username' }
+      }));
+      return true;
+    }
+
+    setIsCheckingLocal(true);
+
+    try {
+      // Import supabase directly to avoid context issues
+      const { default: supabase } = await import('../lib/supabase');
+      
+      const { data, error } = await supabase
+        .rpc('check_username_available_mp2024', {
+          check_username: username,
+          current_user_id: preferences?.userId || null
+        });
+
+      if (error) {
+        console.error('RPC Error:', error);
+        
+        // Fallback: Check directly in the table
+        const { data: existingUsers, error: tableError } = await supabase
+          .from('user_preferences_mp2024')
+          .select('username')
+          .ilike('username', username)
+          .neq('user_id', preferences?.userId || '00000000-0000-0000-0000-000000000000');
+
+        if (tableError) {
+          throw tableError;
+        }
+
+        const isAvailable = !existingUsers || existingUsers.length === 0;
+        const result = {
+          available: isAvailable,
+          reason: isAvailable ? 'Username is available' : 'Username is already taken'
+        };
+
+        setLocalAvailability(prev => ({
+          ...prev,
+          [username]: result
+        }));
+
+        return isAvailable;
+      }
+
+      const isAvailable = data === true;
+      const result = {
+        available: isAvailable,
+        reason: isAvailable ? 'Username is available' : 'Username is already taken'
+      };
+
+      setLocalAvailability(prev => ({
+        ...prev,
+        [username]: result
+      }));
+
+      return isAvailable;
+
+    } catch (error) {
+      console.error('Error checking username availability:', error);
+      setLocalAvailability(prev => ({
+        ...prev,
+        [username]: { available: false, reason: 'Unable to check availability. Please try again.' }
+      }));
+      return false;
+    } finally {
+      setIsCheckingLocal(false);
+    }
+  }, [preferences]);
+
   // Check availability when debounced value changes
   useEffect(() => {
     if (debouncedValue && debouncedValue.length >= 3 && showAvailability) {
-      const checkAvailability = async () => {
-        setIsCheckingLocal(true);
-        try {
-          await checkUsernameAvailability(debouncedValue);
-        } finally {
-          setIsCheckingLocal(false);
-        }
-      };
-      checkAvailability();
+      checkUsernameAvailability(debouncedValue);
     }
   }, [debouncedValue, checkUsernameAvailability, showAvailability]);
 
   // Check username change permissions
   const checkChangePermissions = useCallback(async () => {
+    if (!preferences) return;
+
     try {
-      const canChangeResult = await canChangeUsername();
+      const { default: supabase } = await import('../lib/supabase');
+      
+      const { data, error } = await supabase
+        .rpc('can_change_username_mp2024', {
+          user_id_param: preferences.userId
+        });
+
+      if (error) {
+        console.error('Error checking username change permissions:', error);
+        // Fallback logic
+        const days = getDaysUntilUsernameChange();
+        setCanChange(days === 0);
+        setCooldownDays(days);
+        return;
+      }
+
+      const canChangeResult = data === true;
       setCanChange(canChangeResult);
       
       if (!canChangeResult) {
@@ -63,8 +166,12 @@ const UsernameInput = ({
       }
     } catch (error) {
       console.error('Error checking change permissions:', error);
+      // Fallback to local calculation
+      const days = getDaysUntilUsernameChange();
+      setCanChange(days === 0);
+      setCooldownDays(days);
     }
-  }, [canChangeUsername, getDaysUntilUsernameChange]);
+  }, [preferences, getDaysUntilUsernameChange]);
 
   useEffect(() => {
     if (preferences) {
@@ -72,13 +179,12 @@ const UsernameInput = ({
     }
   }, [preferences, checkChangePermissions]);
 
-  const availability = usernameAvailability[debouncedValue];
+  const availability = localAvailability[debouncedValue];
   const isCurrentUsername = preferences?.username === debouncedValue;
   const showCooldownWarning = !canChange && value !== preferences?.username;
-  const isLoading = checkingUsername || isCheckingLocal;
 
   const getStatusIcon = () => {
-    if (isLoading) {
+    if (isCheckingLocal) {
       return <SafeIcon icon={FiLoader} className="text-gray-400 animate-spin" />;
     }
 
@@ -118,7 +224,7 @@ const UsernameInput = ({
       };
     }
 
-    if (isLoading) {
+    if (isCheckingLocal) {
       return {
         message: 'Checking availability...',
         color: 'text-gray-600',
