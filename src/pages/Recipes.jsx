@@ -12,16 +12,18 @@ import RatingModal from '../components/RatingModal';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const { FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiStar, FiMail, FiCheck, FiRefreshCw, FiTrash2, FiAlertTriangle, FiZap, FiRotateCcw, FiBookOpen, FiChef, FiTrendingUp } = FiIcons;
+const {
+  FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiStar, FiMail, FiCheck,
+  FiRefreshCw, FiTrash2, FiAlertTriangle, FiZap, FiBookOpen, FiChef, FiTrendingUp
+} = FiIcons;
 
 const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('saved');
-  const [sortBy, setSortBy] = useState('recent'); // New sort option
+  const [sortBy, setSortBy] = useState('recent');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCleanupModal, setShowCleanupModal] = useState(false);
-  const [showResetModal, setShowResetModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [selectedRecipeForRating, setSelectedRecipeForRating] = useState(null);
   const [cleanupResult, setCleanupResult] = useState(null);
@@ -39,21 +41,9 @@ const Recipes = () => {
   });
 
   const {
-    recipes,
-    sharedRecipes,
-    savedRecipes,
-    getAllUniqueRecipes,
-    saveRecipe,
-    unsaveRecipe,
-    deleteRecipe,
-    canDeleteRecipe,
-    isRecipeSaved,
-    shareRecipe,
-    emailShareRecipe,
-    hasSharedRecipe,
-    addRecipe,
-    cleanupDuplicates,
-    completeReset
+    recipes, sharedRecipes, savedRecipes, getAllUniqueRecipes, saveRecipe, unsaveRecipe,
+    deleteRecipe, canDeleteRecipe, isRecipeSaved, shareRecipe, emailShareRecipe,
+    hasSharedRecipe, addRecipe, cleanupDuplicates
   } = useRecipes();
 
   const { startCookingMode } = useCookingMode();
@@ -128,7 +118,7 @@ const Recipes = () => {
     // Apply search filter
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
-      recipesToFilter = recipesToFilter.filter(recipe => 
+      recipesToFilter = recipesToFilter.filter(recipe =>
         recipe.title?.toLowerCase().includes(searchLower) ||
         recipe.description?.toLowerCase().includes(searchLower) ||
         recipe.tags?.some(tag => tag.toLowerCase().includes(searchLower)) ||
@@ -232,23 +222,13 @@ const Recipes = () => {
   const handleCleanupDuplicates = () => {
     const result = cleanupDuplicates();
     setCleanupResult(result);
+    
     if (result.success) {
       toast.success(`🧹 ${result.message}`);
       addXP(20, 'Cleaned up duplicates');
       setShowCleanupModal(true);
     } else {
       toast.success('✨ No duplicates found - your collection is perfectly organized!');
-    }
-  };
-
-  const handleCompleteReset = () => {
-    const result = completeReset();
-    if (result.success) {
-      toast.success('🧹 All recipes completely removed! Fresh start with empty collection.');
-      addXP(50, 'Complete recipe reset');
-      setShowResetModal(false);
-    } else {
-      toast.error('Failed to reset recipes');
     }
   };
 
@@ -292,7 +272,6 @@ const Recipes = () => {
   // Check if user can delete a recipe (enhanced permissions)
   const canUserDeleteRecipe = (recipe) => {
     if (!user) return false;
-    
     // Users can only delete their own created recipes or recipes they shared
     return recipe.isUserCreated || recipe.sharedByUserId === user.id;
   };
@@ -320,23 +299,12 @@ const Recipes = () => {
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setShowResetModal(true)}
-              className="bg-gradient-to-r from-red-100 to-red-200 text-red-700 px-4 py-3 rounded-xl font-semibold shadow-lg flex items-center space-x-2 hover:from-red-200 hover:to-red-300 transition-all duration-200 glow-effect"
-            >
-              <SafeIcon icon={FiRotateCcw} />
-              <span>Reset All</span>
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
               onClick={handleCleanupDuplicates}
               className="bg-gradient-to-r from-secondary-100 to-secondary-200 text-secondary-700 px-4 py-3 rounded-xl font-semibold shadow-lg flex items-center space-x-2 hover:from-secondary-200 hover:to-secondary-300 transition-all duration-200 glow-effect"
             >
               <SafeIcon icon={FiZap} />
               <span>Smart Cleanup</span>
             </motion.button>
-
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -393,9 +361,7 @@ const Recipes = () => {
                   <span>{filter.name}</span>
                   <span
                     className={`text-xs px-2 py-1 rounded-full ${
-                      selectedFilter === filter.id
-                        ? 'bg-white/20'
-                        : 'bg-gray-100'
+                      selectedFilter === filter.id ? 'bg-white/20' : 'bg-gray-100'
                     }`}
                   >
                     {filter.count}
@@ -456,7 +422,6 @@ const Recipes = () => {
                 <SafeIcon icon={FiPlus} className="text-xl" />
                 <span>Add Your First Recipe</span>
               </motion.button>
-
               <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
                 <div className="glass p-6 rounded-xl">
                   <SafeIcon icon={FiBookOpen} className="text-2xl text-primary-500 mb-3" />
@@ -508,7 +473,10 @@ const Recipes = () => {
                   No recipes found
                 </h3>
                 <p className="text-gray-600 font-medium mb-4">
-                  {searchTerm ? `No recipes match "${searchTerm}" in ${filters.find(f => f.id === selectedFilter)?.name}` : `No recipes in ${filters.find(f => f.id === selectedFilter)?.name} yet`}
+                  {searchTerm
+                    ? `No recipes match "${searchTerm}" in ${filters.find(f => f.id === selectedFilter)?.name}`
+                    : `No recipes in ${filters.find(f => f.id === selectedFilter)?.name} yet`
+                  }
                 </p>
                 {selectedFilter === 'my-recipes' && (
                   <motion.button
@@ -532,7 +500,7 @@ const Recipes = () => {
                 {filteredRecipes.map((recipe, index) => {
                   const ratingStats = getRatingStats(recipe.id);
                   const canRate = canRateRecipe(recipe);
-                  
+
                   return (
                     <motion.div
                       key={recipe.id}
@@ -545,11 +513,7 @@ const Recipes = () => {
                       {/* Recipe Image */}
                       <div className="aspect-video bg-gradient-to-br from-primary-100 to-secondary-100 relative overflow-hidden">
                         {recipe.image ? (
-                          <img
-                            src={recipe.image}
-                            alt={recipe.title}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <SafeIcon icon={FiStar} className="text-4xl text-primary-400" />
@@ -593,7 +557,6 @@ const Recipes = () => {
                               >
                                 <SafeIcon icon={FiMail} className="text-sm" />
                               </motion.button>
-
                               <motion.button
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
@@ -606,7 +569,6 @@ const Recipes = () => {
                               >
                                 <SafeIcon icon={hasSharedRecipe(recipe.id) ? FiCheck : FiShare2} className="text-sm" />
                               </motion.button>
-
                               {canUserDeleteRecipe(recipe) && (
                                 <motion.button
                                   whileHover={{ scale: 1.1 }}
@@ -716,64 +678,6 @@ const Recipes = () => {
             setSelectedRecipeForRating(null);
           }}
         />
-
-        {/* All other modals remain the same... */}
-        {/* Complete Reset Modal */}
-        <AnimatePresence>
-          {showResetModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-              onClick={() => setShowResetModal(false)}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="glass rounded-3xl p-8 max-w-md w-full shadow-2xl"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <SafeIcon icon={FiRotateCcw} className="text-3xl text-red-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-3">
-                    🧹 Complete Recipe Reset
-                  </h2>
-                  <p className="text-gray-600 mb-2 font-medium">
-                    This will permanently delete ALL recipes from your collection.
-                  </p>
-                  <p className="text-sm text-gray-500 mb-2">
-                    You'll have a completely empty recipe collection to start fresh.
-                  </p>
-                  <p className="text-xs text-red-500 mb-8 font-semibold">
-                    ⚠️ This action cannot be undone!
-                  </p>
-                  <div className="flex space-x-4">
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setShowResetModal(false)}
-                      className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200"
-                    >
-                      Cancel
-                    </motion.button>
-                    <motion.button
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={handleCompleteReset}
-                      className="flex-1 px-6 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-colors duration-200 shadow-lg"
-                    >
-                      Reset All
-                    </motion.button>
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
 
         {/* Cleanup Results Modal */}
         <AnimatePresence>

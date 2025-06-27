@@ -157,15 +157,18 @@ const ProfileDropdown = () => {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 10, scale: 0.95 }}
           transition={{ duration: 0.2 }}
-          className="fixed w-96 max-h-[80vh] overflow-hidden glass rounded-3xl shadow-2xl border border-white/20"
+          className="fixed w-96 glass rounded-3xl shadow-2xl border border-white/20"
           style={{
             top: dropdownPosition.top,
             right: dropdownPosition.right,
-            zIndex: 99999
+            zIndex: 99999,
+            maxHeight: '80vh',
+            display: 'flex',
+            flexDirection: 'column'
           }}
         >
           {/* Header */}
-          <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-4 text-white">
+          <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-4 text-white flex-shrink-0">
             <div className="flex items-center space-x-3">
               <img
                 src={user.avatar}
@@ -196,7 +199,7 @@ const ProfileDropdown = () => {
           </div>
 
           {/* Tab Navigation */}
-          <div className="p-3 border-b border-gray-100">
+          <div className="p-3 border-b border-gray-100 flex-shrink-0">
             <div className="flex space-x-1 overflow-x-auto">
               {tabs.map((tab) => (
                 <motion.button
@@ -217,8 +220,8 @@ const ProfileDropdown = () => {
             </div>
           </div>
 
-          {/* Content Area */}
-          <div className="max-h-96 overflow-y-auto">
+          {/* Content Area - Now with proper scrolling */}
+          <div className="flex-1 overflow-y-auto" style={{ minHeight: 0 }}>
             <div className="p-4">
               {/* Profile Tab */}
               {activeTab === 'profile' && (
@@ -280,6 +283,22 @@ const ProfileDropdown = () => {
                       placeholder="https://example.com/avatar.jpg"
                     />
                   </div>
+
+                  {/* Add some extra content to test scrolling */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-2">
+                      Email (Read Only)
+                    </label>
+                    <input
+                      type="email"
+                      value={formData.email || ''}
+                      disabled
+                      className="w-full px-3 py-2 input-modern rounded-lg text-sm bg-gray-50 text-gray-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Email cannot be changed
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -335,13 +354,54 @@ const ProfileDropdown = () => {
                       </motion.button>
                     </div>
                   </motion.div>
+
+                  {/* Add more notification options to test scrolling */}
+                  <div className="space-y-3 mt-6">
+                    <h5 className="font-semibold text-gray-700 text-sm">Notification Frequency</h5>
+                    <div className="space-y-2">
+                      <label className="flex items-center space-x-2">
+                        <input type="radio" name="frequency" className="text-primary-500" defaultChecked />
+                        <span className="text-sm text-gray-600">Real-time</span>
+                      </label>
+                      <label className="flex items-center space-x-2">
+                        <input type="radio" name="frequency" className="text-primary-500" />
+                        <span className="text-sm text-gray-600">Daily digest</span>
+                      </label>
+                      <label className="flex items-center space-x-2">
+                        <input type="radio" name="frequency" className="text-primary-500" />
+                        <span className="text-sm text-gray-600">Weekly summary</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 mt-6">
+                    <h5 className="font-semibold text-gray-700 text-sm">Categories</h5>
+                    <div className="space-y-2">
+                      <label className="flex items-center space-x-2">
+                        <input type="checkbox" className="text-primary-500" defaultChecked />
+                        <span className="text-sm text-gray-600">Recipe recommendations</span>
+                      </label>
+                      <label className="flex items-center space-x-2">
+                        <input type="checkbox" className="text-primary-500" defaultChecked />
+                        <span className="text-sm text-gray-600">Cooking tips</span>
+                      </label>
+                      <label className="flex items-center space-x-2">
+                        <input type="checkbox" className="text-primary-500" />
+                        <span className="text-sm text-gray-600">Community updates</span>
+                      </label>
+                      <label className="flex items-center space-x-2">
+                        <input type="checkbox" className="text-primary-500" />
+                        <span className="text-sm text-gray-600">Achievement alerts</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
           </div>
 
           {/* Footer with Save Button */}
-          <div className="p-4 border-t border-gray-100 bg-gray-50/50">
+          <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div className="flex space-x-2">
                 {hasChanges && (
