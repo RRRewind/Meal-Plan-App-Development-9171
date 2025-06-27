@@ -811,7 +811,7 @@ const Recipes = () => {
           )}
         </AnimatePresence>
 
-        {/* Add Recipe Modal */}
+        {/* Add Recipe Modal - NOW WITH SOLID BACKGROUND */}
         <AnimatePresence>
           {showAddModal && (
             <motion.div
@@ -825,7 +825,7 @@ const Recipes = () => {
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="glass rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+                className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between mb-8">
@@ -852,7 +852,7 @@ const Recipes = () => {
                         type="text"
                         value={newRecipe.title}
                         onChange={(e) => setNewRecipe(prev => ({ ...prev, title: e.target.value }))}
-                        className="w-full px-4 py-3 input-modern rounded-xl font-medium"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
                         required
                       />
                     </div>
@@ -864,7 +864,7 @@ const Recipes = () => {
                         type="url"
                         value={newRecipe.image}
                         onChange={(e) => setNewRecipe(prev => ({ ...prev, image: e.target.value }))}
-                        className="w-full px-4 py-3 input-modern rounded-xl font-medium"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
                       />
                     </div>
                   </div>
@@ -877,7 +877,7 @@ const Recipes = () => {
                       value={newRecipe.description}
                       onChange={(e) => setNewRecipe(prev => ({ ...prev, description: e.target.value }))}
                       rows={3}
-                      className="w-full px-4 py-3 input-modern rounded-xl font-medium"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200 resize-none"
                       required
                     />
                   </div>
@@ -891,7 +891,7 @@ const Recipes = () => {
                         type="number"
                         value={newRecipe.cookTime}
                         onChange={(e) => setNewRecipe(prev => ({ ...prev, cookTime: e.target.value }))}
-                        className="w-full px-4 py-3 input-modern rounded-xl font-medium"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
                         required
                       />
                     </div>
@@ -903,7 +903,7 @@ const Recipes = () => {
                         type="number"
                         value={newRecipe.servings}
                         onChange={(e) => setNewRecipe(prev => ({ ...prev, servings: e.target.value }))}
-                        className="w-full px-4 py-3 input-modern rounded-xl font-medium"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
                         required
                       />
                     </div>
@@ -914,7 +914,7 @@ const Recipes = () => {
                       <select
                         value={newRecipe.difficulty}
                         onChange={(e) => setNewRecipe(prev => ({ ...prev, difficulty: e.target.value }))}
-                        className="w-full px-4 py-3 input-modern rounded-xl font-medium"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
                       >
                         <option value="Easy">Easy</option>
                         <option value="Medium">Medium</option>
@@ -951,7 +951,7 @@ const Recipes = () => {
                               updated[index].name = e.target.value;
                               setNewRecipe(prev => ({ ...prev, ingredients: updated }));
                             }}
-                            className="px-4 py-3 input-modern rounded-xl font-medium"
+                            className="px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
                           />
                           <input
                             type="text"
@@ -962,7 +962,7 @@ const Recipes = () => {
                               updated[index].amount = e.target.value;
                               setNewRecipe(prev => ({ ...prev, ingredients: updated }));
                             }}
-                            className="px-4 py-3 input-modern rounded-xl font-medium"
+                            className="px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
                           />
                         </div>
                       ))}
@@ -1000,7 +1000,7 @@ const Recipes = () => {
                               setNewRecipe(prev => ({ ...prev, steps: updated }));
                             }}
                             rows={2}
-                            className="flex-1 px-4 py-3 input-modern rounded-xl font-medium"
+                            className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200 resize-none"
                           />
                         </div>
                       ))}
