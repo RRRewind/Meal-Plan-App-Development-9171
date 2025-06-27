@@ -43,11 +43,11 @@ const Landing = () => {
     "Become Chef"
   ];
 
-  // Cycle through phrases every 3 seconds
+  // Cycle through phrases every 2.5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentPhraseIndex((prev) => (prev + 1) % animatedPhrases.length);
-    }, 3000);
+    }, 2500);
 
     return () => clearInterval(interval);
   }, [animatedPhrases.length]);
@@ -263,44 +263,39 @@ const Landing = () => {
                   Smart Meal Planning Made Easy
                 </motion.div>
 
-                <h1 className="text-6xl lg:text-7xl font-bold text-gray-900 leading-tight">
-                  Plan, Cook &{' '}
-                  <span className="relative inline-block">
-                    {/* Enhanced gradient with more vibrant colors */}
-                    <span 
-                      className="block mt-2"
-                      style={{
-                        background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 25%, #ffd23f 50%, #ff6b9d 75%, #c44569 100%)',
-                        backgroundSize: '300% 300%',
-                        animation: 'gradientShift 4s ease infinite',
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        backgroundClip: 'text',
-                        fontWeight: '900',
-                        textShadow: '0 0 30px rgba(255, 107, 53, 0.3)'
-                      }}
-                    >
-                      {/* Animated text container */}
-                      <div className="relative h-24 overflow-hidden">
-                        <AnimatePresence mode="wait">
-                          <motion.span
-                            key={currentPhraseIndex}
-                            initial={{ y: 100, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            exit={{ y: -100, opacity: 0 }}
-                            transition={{
-                              duration: 0.6,
-                              ease: [0.25, 0.46, 0.45, 0.94]
-                            }}
-                            className="absolute inset-0 flex items-center"
-                          >
-                            {animatedPhrases[currentPhraseIndex]}
-                          </motion.span>
-                        </AnimatePresence>
-                      </div>
-                    </span>
-                  </span>
-                </h1>
+                {/* UPDATED: Reduced spacing and bigger animated text */}
+                <div className="space-y-1">
+                  <h1 className="text-6xl lg:text-7xl font-bold text-gray-900 leading-none">
+                    Plan, Cook &
+                  </h1>
+                  
+                  {/* Animated Title - BIGGER TEXT & REDUCED SPACING */}
+                  <div className="w-full min-h-[140px] lg:min-h-[180px] relative -mt-2">
+                    <AnimatePresence mode="wait">
+                      <motion.h1
+                        key={currentPhraseIndex}
+                        initial={{ y: 100, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        exit={{ y: -100, opacity: 0 }}
+                        transition={{
+                          duration: 0.6,
+                          ease: "easeInOut"
+                        }}
+                        className="absolute top-0 left-0 w-full text-7xl lg:text-8xl font-black leading-none"
+                        style={{
+                          background: 'linear-gradient(135deg, #ff4757 0%, #ff6b35 25%, #ffa726 50%, #ffcc02 75%, #ff6b9d 100%)',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          backgroundClip: 'text',
+                          backgroundSize: '200% 200%',
+                          animation: 'gradientShift 3s ease infinite'
+                        }}
+                      >
+                        {animatedPhrases[currentPhraseIndex]}
+                      </motion.h1>
+                    </AnimatePresence>
+                  </div>
+                </div>
 
                 <p className="text-xl text-gray-600 leading-relaxed font-medium">
                   Transform your cooking experience with AI-powered meal planning, intelligent ingredient management, and a gamified culinary journey.
