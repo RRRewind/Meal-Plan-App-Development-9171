@@ -12,17 +12,19 @@ import RatingModal from '../components/RatingModal';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
-const { FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiStar, FiMail, FiCheck, FiRefreshCw, FiTrash2, FiAlertTriangle, FiZap, FiBookOpen, FiChef, FiTrendingUp, FiExternalLink, FiLink } = FiIcons;
+const { FiSearch, FiHeart, FiClock, FiUsers, FiPlay, FiShare2, FiPlus, FiX, FiStar, FiMail, FiCheck, FiRefreshCw, FiTrash2, FiAlertTriangle, FiZap, FiBookOpen, FiChef, FiTrendingUp, FiExternalLink, FiLink, FiEdit3, FiSave } = FiIcons;
 
 const Recipes = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('saved');
   const [sortBy, setSortBy] = useState('recent');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [selectedRecipeForRating, setSelectedRecipeForRating] = useState(null);
+  const [editingRecipe, setEditingRecipe] = useState(null);
   const [cleanupResult, setCleanupResult] = useState(null);
   const [recipeToDelete, setRecipeToDelete] = useState(null);
   const [newRecipe, setNewRecipe] = useState({
@@ -38,23 +40,7 @@ const Recipes = () => {
     url: ''
   });
 
-  const {
-    recipes,
-    sharedRecipes,
-    savedRecipes,
-    getAllUniqueRecipes,
-    saveRecipe,
-    unsaveRecipe,
-    deleteRecipe,
-    canDeleteRecipe,
-    isRecipeSaved,
-    shareRecipe,
-    emailShareRecipe,
-    hasSharedRecipe,
-    addRecipe,
-    cleanupDuplicates
-  } = useRecipes();
-
+  const { recipes, sharedRecipes, savedRecipes, getAllUniqueRecipes, saveRecipe, unsaveRecipe, deleteRecipe, canDeleteRecipe, isRecipeSaved, shareRecipe, emailShareRecipe, hasSharedRecipe, addRecipe, updateRecipe, cleanupDuplicates } = useRecipes();
   const { startCookingMode } = useCookingMode();
   const { addXP } = useGamification();
   const { user } = useAuth();
@@ -107,7 +93,7 @@ const Recipes = () => {
   // Filter and sort recipes based on selected filter, search term, and sort option
   const getFilteredAndSortedRecipes = () => {
     let recipesToFilter = [];
-
+    
     switch (selectedFilter) {
       case 'saved':
         recipesToFilter = savedRecipes;
@@ -163,6 +149,45 @@ const Recipes = () => {
     }
   };
 
+  // ✅ NEW: Edit recipe functionality
+  const handleEditRecipe = (recipe) => {
+    // Check if user can edit this recipe
+    if (!canUserEditRecipe(recipe)) {
+      toast.error('You can only edit your own recipes');
+      return;
+    }
+
+    setEditingRecipe({
+      ...recipe,
+      ingredients: recipe.ingredients || [{ name: '', amount: '' }],
+      steps: recipe.steps || [''],
+      tags: recipe.tags || []
+    });
+    setShowEditModal(true);
+  };
+
+  // ✅ NEW: Save edited recipe
+  const handleSaveEdit = async (e) => {
+    e.preventDefault();
+    
+    if (!editingRecipe) return;
+
+    try {
+      const result = await updateRecipe(editingRecipe.id, editingRecipe);
+      if (result.success) {
+        toast.success('✅ Recipe updated successfully!');
+        addXP(15, 'Recipe updated');
+        setShowEditModal(false);
+        setEditingRecipe(null);
+      } else {
+        toast.error(result.message || 'Failed to update recipe');
+      }
+    } catch (error) {
+      toast.error('Failed to update recipe');
+      console.error('Edit recipe error:', error);
+    }
+  };
+
   const handleDeleteRecipe = (recipe) => {
     // Enhanced delete permission check - only allow deleting own recipes
     if (recipe.isUserCreated || (recipe.sharedByUserId === user?.id)) {
@@ -200,16 +225,18 @@ const Recipes = () => {
   // ✅ COMMUNITY SHARING: Only creators can share to community (or admins)
   const canShareRecipeToCommuity = (recipe) => {
     if (!user) return false;
-    
     // Admins can share any recipe
     if (user.isAdmin) return true;
-    
     // Regular users can only share recipes they created
-    const isOwnRecipe = recipe.isUserCreated || 
-                       (recipe.sharedByUserId === user.id) ||
-                       (!recipe.shared && !recipe.isDefault);
-    
+    const isOwnRecipe = recipe.isUserCreated || (recipe.sharedByUserId === user.id) || (!recipe.shared && !recipe.isDefault);
     return isOwnRecipe;
+  };
+
+  // ✅ NEW: Check if user can edit recipe
+  const canUserEditRecipe = (recipe) => {
+    if (!user) return false;
+    // Users can only edit their own created recipes
+    return recipe.isUserCreated || recipe.sharedByUserId === user.id;
   };
 
   const handleShareRecipe = (recipe) => {
@@ -261,15 +288,21 @@ const Recipes = () => {
     }
   };
 
-  const handleAddIngredient = () => {
-    setNewRecipe(prev => ({
+  const handleAddIngredient = (isEdit = false) => {
+    const targetRecipe = isEdit ? editingRecipe : newRecipe;
+    const setTargetRecipe = isEdit ? setEditingRecipe : setNewRecipe;
+    
+    setTargetRecipe(prev => ({
       ...prev,
       ingredients: [...prev.ingredients, { name: '', amount: '' }]
     }));
   };
 
-  const handleAddStep = () => {
-    setNewRecipe(prev => ({
+  const handleAddStep = (isEdit = false) => {
+    const targetRecipe = isEdit ? editingRecipe : newRecipe;
+    const setTargetRecipe = isEdit ? setEditingRecipe : setNewRecipe;
+    
+    setTargetRecipe(prev => ({
       ...prev,
       steps: [...prev.steps, '']
     }));
@@ -315,6 +348,213 @@ const Recipes = () => {
       addXP(2, 'Recipe details viewed');
     }
   };
+
+  // ✅ NEW: Recipe form component for both add and edit
+  const RecipeForm = ({ recipe, setRecipe, onSubmit, isEdit = false, onCancel }) => (
+    <form onSubmit={onSubmit} className="space-y-6">
+      <div className="grid md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Recipe Title
+          </label>
+          <input
+            type="text"
+            value={recipe.title}
+            onChange={(e) => setRecipe(prev => ({ ...prev, title: e.target.value }))}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Image URL
+          </label>
+          <input
+            type="url"
+            value={recipe.image}
+            onChange={(e) => setRecipe(prev => ({ ...prev, image: e.target.value }))}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
+          <SafeIcon icon={FiLink} className="mr-2 text-primary-500" />
+          Recipe URL (Optional)
+        </label>
+        <input
+          type="url"
+          value={recipe.url}
+          onChange={(e) => setRecipe(prev => ({ ...prev, url: e.target.value }))}
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
+          placeholder="https://example.com/full-recipe"
+        />
+        <p className="text-xs text-gray-500 mt-1">
+          Link to the full recipe page, video, or detailed instructions
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-2">
+          Description
+        </label>
+        <textarea
+          value={recipe.description}
+          onChange={(e) => setRecipe(prev => ({ ...prev, description: e.target.value }))}
+          rows={3}
+          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200 resize-none"
+          required
+        />
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Cook Time (minutes)
+          </label>
+          <input
+            type="number"
+            value={recipe.cookTime}
+            onChange={(e) => setRecipe(prev => ({ ...prev, cookTime: e.target.value }))}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Servings
+          </label>
+          <input
+            type="number"
+            value={recipe.servings}
+            onChange={(e) => setRecipe(prev => ({ ...prev, servings: e.target.value }))}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">
+            Difficulty
+          </label>
+          <select
+            value={recipe.difficulty}
+            onChange={(e) => setRecipe(prev => ({ ...prev, difficulty: e.target.value }))}
+            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
+          >
+            <option value="Easy">Easy</option>
+            <option value="Medium">Medium</option>
+            <option value="Hard">Hard</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <label className="block text-sm font-semibold text-gray-700">
+            Ingredients
+          </label>
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => handleAddIngredient(isEdit)}
+            className="text-primary-600 hover:text-primary-700 font-semibold text-sm flex items-center space-x-1"
+          >
+            <SafeIcon icon={FiPlus} />
+            <span>Add Ingredient</span>
+          </motion.button>
+        </div>
+        <div className="space-y-3">
+          {recipe.ingredients.map((ingredient, index) => (
+            <div key={index} className="grid grid-cols-2 gap-3">
+              <input
+                type="text"
+                placeholder="Ingredient name"
+                value={ingredient.name}
+                onChange={(e) => {
+                  const updated = [...recipe.ingredients];
+                  updated[index].name = e.target.value;
+                  setRecipe(prev => ({ ...prev, ingredients: updated }));
+                }}
+                className="px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
+              />
+              <input
+                type="text"
+                placeholder="Amount (e.g., 2 cups, 500g)"
+                value={ingredient.amount}
+                onChange={(e) => {
+                  const updated = [...recipe.ingredients];
+                  updated[index].amount = e.target.value;
+                  setRecipe(prev => ({ ...prev, ingredients: updated }));
+                }}
+                className="px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <label className="block text-sm font-semibold text-gray-700">
+            Cooking Steps
+          </label>
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => handleAddStep(isEdit)}
+            className="text-primary-600 hover:text-primary-700 font-semibold text-sm flex items-center space-x-1"
+          >
+            <SafeIcon icon={FiPlus} />
+            <span>Add Step</span>
+          </motion.button>
+        </div>
+        <div className="space-y-3">
+          {recipe.steps.map((step, index) => (
+            <div key={index} className="flex items-start space-x-4">
+              <span className="flex-shrink-0 w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-sm font-bold mt-2">
+                {index + 1}
+              </span>
+              <textarea
+                placeholder={`Step ${index + 1} instructions...`}
+                value={step}
+                onChange={(e) => {
+                  const updated = [...recipe.steps];
+                  updated[index] = e.target.value;
+                  setRecipe(prev => ({ ...prev, steps: updated }));
+                }}
+                rows={2}
+                className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200 resize-none"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex space-x-4 pt-6">
+        <motion.button
+          type="button"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onCancel}
+          className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200"
+        >
+          Cancel
+        </motion.button>
+        <motion.button
+          type="submit"
+          whileHover={{ scale: 1.02, y: -2 }}
+          whileTap={{ scale: 0.98 }}
+          className="flex-1 px-6 py-4 btn-gradient text-white rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
+        >
+          <SafeIcon icon={isEdit ? FiSave : FiPlus} />
+          <span>{isEdit ? 'Save Changes' : 'Add Recipe'}</span>
+        </motion.button>
+      </div>
+    </form>
+  );
 
   return (
     <Layout>
@@ -460,7 +700,6 @@ const Recipes = () => {
                 <SafeIcon icon={FiPlus} className="text-xl" />
                 <span>Add Your First Recipe</span>
               </motion.button>
-
               <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
                 <div className="glass p-6 rounded-xl">
                   <SafeIcon icon={FiBookOpen} className="text-2xl text-primary-500 mb-3" />
@@ -540,6 +779,7 @@ const Recipes = () => {
                   const ratingStats = getRatingStats(recipe.id);
                   const canRate = canRateRecipe(recipe);
                   const canShareToCommunity = canShareRecipeToCommuity(recipe);
+                  const canEdit = canUserEditRecipe(recipe);
 
                   return (
                     <motion.div
@@ -594,6 +834,19 @@ const Recipes = () => {
 
                           {user && (
                             <>
+                              {/* ✅ NEW: EDIT BUTTON: Show for recipe owners */}
+                              {canEdit && (
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => handleEditRecipe(recipe)}
+                                  className="p-2 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
+                                  title="Edit your recipe"
+                                >
+                                  <SafeIcon icon={FiEdit3} className="text-sm" />
+                                </motion.button>
+                              )}
+
                               {/* ✅ EMAIL BUTTON: Available for ALL recipes */}
                               <motion.button
                                 whileHover={{ scale: 1.1 }}
@@ -745,6 +998,50 @@ const Recipes = () => {
             setSelectedRecipeForRating(null);
           }}
         />
+
+        {/* ✅ NEW: Edit Recipe Modal */}
+        <AnimatePresence>
+          {showEditModal && editingRecipe && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowEditModal(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between mb-8">
+                  <h2 className="text-3xl font-bold text-gray-900 flex items-center">
+                    <SafeIcon icon={FiEdit3} className="mr-3 text-primary-500" />
+                    Edit Recipe
+                  </h2>
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowEditModal(false)}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl"
+                  >
+                    <SafeIcon icon={FiX} className="text-2xl" />
+                  </motion.button>
+                </div>
+
+                <RecipeForm
+                  recipe={editingRecipe}
+                  setRecipe={setEditingRecipe}
+                  onSubmit={handleSaveEdit}
+                  isEdit={true}
+                  onCancel={() => setShowEditModal(false)}
+                />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Cleanup Results Modal */}
         <AnimatePresence>
@@ -909,208 +1206,13 @@ const Recipes = () => {
                   </motion.button>
                 </div>
 
-                <form onSubmit={handleSubmitRecipe} className="space-y-6">
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Recipe Title
-                      </label>
-                      <input
-                        type="text"
-                        value={newRecipe.title}
-                        onChange={(e) => setNewRecipe(prev => ({ ...prev, title: e.target.value }))}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Image URL
-                      </label>
-                      <input
-                        type="url"
-                        value={newRecipe.image}
-                        onChange={(e) => setNewRecipe(prev => ({ ...prev, image: e.target.value }))}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                      <SafeIcon icon={FiLink} className="mr-2 text-primary-500" />
-                      Recipe URL (Optional)
-                    </label>
-                    <input
-                      type="url"
-                      value={newRecipe.url}
-                      onChange={(e) => setNewRecipe(prev => ({ ...prev, url: e.target.value }))}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
-                      placeholder="https://example.com/full-recipe"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Link to the full recipe page, video, or detailed instructions
-                    </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Description
-                    </label>
-                    <textarea
-                      value={newRecipe.description}
-                      onChange={(e) => setNewRecipe(prev => ({ ...prev, description: e.target.value }))}
-                      rows={3}
-                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200 resize-none"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Cook Time (minutes)
-                      </label>
-                      <input
-                        type="number"
-                        value={newRecipe.cookTime}
-                        onChange={(e) => setNewRecipe(prev => ({ ...prev, cookTime: e.target.value }))}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Servings
-                      </label>
-                      <input
-                        type="number"
-                        value={newRecipe.servings}
-                        onChange={(e) => setNewRecipe(prev => ({ ...prev, servings: e.target.value }))}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Difficulty
-                      </label>
-                      <select
-                        value={newRecipe.difficulty}
-                        onChange={(e) => setNewRecipe(prev => ({ ...prev, difficulty: e.target.value }))}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
-                      >
-                        <option value="Easy">Easy</option>
-                        <option value="Medium">Medium</option>
-                        <option value="Hard">Hard</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <label className="block text-sm font-semibold text-gray-700">
-                        Ingredients
-                      </label>
-                      <motion.button
-                        type="button"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handleAddIngredient}
-                        className="text-primary-600 hover:text-primary-700 font-semibold text-sm flex items-center space-x-1"
-                      >
-                        <SafeIcon icon={FiPlus} />
-                        <span>Add Ingredient</span>
-                      </motion.button>
-                    </div>
-                    <div className="space-y-3">
-                      {newRecipe.ingredients.map((ingredient, index) => (
-                        <div key={index} className="grid grid-cols-2 gap-3">
-                          <input
-                            type="text"
-                            placeholder="Ingredient name"
-                            value={ingredient.name}
-                            onChange={(e) => {
-                              const updated = [...newRecipe.ingredients];
-                              updated[index].name = e.target.value;
-                              setNewRecipe(prev => ({ ...prev, ingredients: updated }));
-                            }}
-                            className="px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
-                          />
-                          <input
-                            type="text"
-                            placeholder="Amount (e.g., 2 cups, 500g)"
-                            value={ingredient.amount}
-                            onChange={(e) => {
-                              const updated = [...newRecipe.ingredients];
-                              updated[index].amount = e.target.value;
-                              setNewRecipe(prev => ({ ...prev, ingredients: updated }));
-                            }}
-                            className="px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-4">
-                      <label className="block text-sm font-semibold text-gray-700">
-                        Cooking Steps
-                      </label>
-                      <motion.button
-                        type="button"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={handleAddStep}
-                        className="text-primary-600 hover:text-primary-700 font-semibold text-sm flex items-center space-x-1"
-                      >
-                        <SafeIcon icon={FiPlus} />
-                        <span>Add Step</span>
-                      </motion.button>
-                    </div>
-                    <div className="space-y-3">
-                      {newRecipe.steps.map((step, index) => (
-                        <div key={index} className="flex items-start space-x-4">
-                          <span className="flex-shrink-0 w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-sm font-bold mt-2">
-                            {index + 1}
-                          </span>
-                          <textarea
-                            placeholder={`Step ${index + 1} instructions...`}
-                            value={step}
-                            onChange={(e) => {
-                              const updated = [...newRecipe.steps];
-                              updated[index] = e.target.value;
-                              setNewRecipe(prev => ({ ...prev, steps: updated }));
-                            }}
-                            rows={2}
-                            className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200 resize-none"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex space-x-4 pt-6">
-                    <motion.button
-                      type="button"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={() => setShowAddModal(false)}
-                      className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200"
-                    >
-                      Cancel
-                    </motion.button>
-                    <motion.button
-                      type="submit"
-                      whileHover={{ scale: 1.02, y: -2 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="flex-1 px-6 py-4 btn-gradient text-white rounded-xl font-bold shadow-lg"
-                    >
-                      Add Recipe
-                    </motion.button>
-                  </div>
-                </form>
+                <RecipeForm
+                  recipe={newRecipe}
+                  setRecipe={setNewRecipe}
+                  onSubmit={handleSubmitRecipe}
+                  isEdit={false}
+                  onCancel={() => setShowAddModal(false)}
+                />
               </motion.div>
             </motion.div>
           )}

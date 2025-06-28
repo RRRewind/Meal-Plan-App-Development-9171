@@ -33,7 +33,6 @@ export const RecipeProvider = ({ children }) => {
   const loadCommunityRecipes = async () => {
     try {
       setLoading(true);
-      
       const { data, error } = await supabase
         .from('community_recipes_mp2024')
         .select('*')
@@ -68,7 +67,6 @@ export const RecipeProvider = ({ children }) => {
 
       setSharedRecipes(transformedRecipes);
       console.log(`✅ Loaded ${transformedRecipes.length} community recipes from Supabase`);
-
     } catch (error) {
       console.error('❌ Error loading community recipes:', error);
       // Clear shared recipes on error instead of falling back to localStorage
@@ -113,7 +111,6 @@ export const RecipeProvider = ({ children }) => {
 
       setPendingRecipes(transformedRecipes);
       console.log(`✅ Loaded ${transformedRecipes.length} pending recipes from Supabase`);
-
     } catch (error) {
       console.error('❌ Error loading pending recipes:', error);
       setPendingRecipes([]);
@@ -152,8 +149,8 @@ export const RecipeProvider = ({ children }) => {
     if (ingredients1.length === ingredients2.length && ingredients1.length > 0) {
       let matchingIngredients = 0;
       ingredients1.forEach(ing1 => {
-        const found = ingredients2.some(ing2 => 
-          normalize(ing1.name) === normalize(ing2.name) && 
+        const found = ingredients2.some(ing2 =>
+          normalize(ing1.name) === normalize(ing2.name) &&
           normalize(ing1.amount) === normalize(ing2.amount)
         );
         if (found) matchingIngredients++;
@@ -283,11 +280,10 @@ export const RecipeProvider = ({ children }) => {
 
       // Clear localStorage backup if it exists
       localStorage.removeItem('user_recipes');
-
     } catch (error) {
       console.error('❌ Error loading user recipes from Supabase:', error);
       toast.error('Failed to load your recipes from database');
-      
+
       // Only use localStorage as emergency fallback for existing data
       const localRecipes = JSON.parse(localStorage.getItem('user_recipes') || '[]');
       if (localRecipes.length > 0) {
@@ -363,9 +359,73 @@ export const RecipeProvider = ({ children }) => {
       };
 
       return transformedRecipe;
-
     } catch (error) {
       console.error('❌ Error saving recipe to Supabase:', error);
+      throw error;
+    }
+  };
+
+  // ✅ NEW: Update recipe in Supabase
+  const updateRecipeInSupabase = async (recipeId, updatedRecipe) => {
+    if (!user) {
+      throw new Error('User must be logged in to update recipes');
+    }
+
+    const userId = getSafeUserId(user);
+    if (!userId) {
+      throw new Error('Invalid user ID');
+    }
+
+    try {
+      console.log(`🔄 Updating recipe ${recipeId} in Supabase`);
+
+      const recipeData = {
+        title: updatedRecipe.title,
+        description: updatedRecipe.description,
+        cook_time: parseInt(updatedRecipe.cookTime) || 0,
+        servings: parseInt(updatedRecipe.servings) || 1,
+        difficulty: updatedRecipe.difficulty || 'Easy',
+        ingredients: updatedRecipe.ingredients || [],
+        steps: updatedRecipe.steps || [],
+        tags: updatedRecipe.tags || [],
+        image_url: updatedRecipe.image || null,
+        recipe_url: updatedRecipe.url || null,
+        updated_at: new Date().toISOString()
+      };
+
+      const { data, error } = await supabase
+        .from('user_recipes_mp2024')
+        .update(recipeData)
+        .eq('id', recipeId)
+        .eq('user_id', userId) // Ensure user can only update their own recipes
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      console.log('✅ Recipe updated in Supabase successfully');
+
+      // Transform back to app format
+      const transformedRecipe = {
+        id: data.id,
+        title: data.title,
+        description: data.description,
+        cookTime: data.cook_time,
+        servings: data.servings,
+        difficulty: data.difficulty,
+        ingredients: data.ingredients || [],
+        steps: data.steps || [],
+        tags: data.tags || [],
+        image: data.image_url,
+        url: data.recipe_url,
+        isUserCreated: true,
+        createdAt: data.created_at,
+        shared: data.is_shared
+      };
+
+      return transformedRecipe;
+    } catch (error) {
+      console.error('❌ Error updating recipe in Supabase:', error);
       throw error;
     }
   };
@@ -394,7 +454,6 @@ export const RecipeProvider = ({ children }) => {
 
       console.log('✅ Recipe deleted from Supabase successfully');
       return true;
-
     } catch (error) {
       console.error('❌ Error deleting recipe from Supabase:', error);
       throw error;
@@ -474,7 +533,6 @@ export const RecipeProvider = ({ children }) => {
           recipeId: data.id
         };
       }
-
     } catch (error) {
       console.error('❌ Error sharing recipe to Supabase:', error);
       throw error;
@@ -506,7 +564,6 @@ export const RecipeProvider = ({ children }) => {
         message: 'Recipe approved and added to community!',
         recipeId: data
       };
-
     } catch (error) {
       console.error('Error approving recipe:', error);
       throw error;
@@ -534,7 +591,6 @@ export const RecipeProvider = ({ children }) => {
         success: true,
         message: `Recipe rejected${reason ? ': ' + reason : ''}`
       };
-
     } catch (error) {
       console.error('Error rejecting recipe:', error);
       throw error;
@@ -562,7 +618,6 @@ export const RecipeProvider = ({ children }) => {
         success: true,
         message: 'Recipe removed from community'
       };
-
     } catch (error) {
       console.error('Error removing community recipe:', error);
       throw error;
@@ -610,7 +665,6 @@ export const RecipeProvider = ({ children }) => {
         message: 'All recipes have been completely removed from the database! You now have a clean slate to build your perfect recipe collection.',
         totalReset: true
       };
-
     } catch (error) {
       console.error('❌ Error during complete reset:', error);
       return {
@@ -685,7 +739,6 @@ export const RecipeProvider = ({ children }) => {
     // Load user shared recipes set
     const userSharedData = JSON.parse(localStorage.getItem('user_shared_recipes') || '[]');
     setUserSharedRecipes(new Set(userSharedData));
-
   }, [user]);
 
   // UPDATED: Add recipe - Always save to Supabase
@@ -717,15 +770,42 @@ export const RecipeProvider = ({ children }) => {
 
       toast.success('✅ Recipe added to database successfully!');
       return { success: true, recipe: savedRecipe };
-
     } catch (error) {
       console.error('❌ Error adding recipe:', error);
       toast.error('Failed to save recipe to database. Please try again.');
-      return { 
-        success: false, 
-        message: 'Failed to save recipe to database. Please check your connection and try again.' 
-      };
+      return { success: false, message: 'Failed to save recipe to database. Please check your connection and try again.' };
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // ✅ NEW: Update recipe - Always update in Supabase
+  const updateRecipe = async (recipeId, updatedRecipe) => {
+    if (!user) {
+      return { success: false, message: 'Please sign in to update recipes' };
+    }
+
+    try {
+      setLoading(true);
+      console.log('🔄 Updating recipe in Supabase...');
+
+      // ALWAYS update in Supabase (no localStorage fallback)
+      const savedRecipe = await updateRecipeInSupabase(recipeId, updatedRecipe);
+
+      // Update local state
+      setRecipes(prev => prev.map(r => r.id === recipeId ? savedRecipe : r));
+
+      // Also update in saved recipes if it exists there
+      const updatedSaved = savedRecipes.map(r => r.id === recipeId ? { ...r, ...updatedRecipe } : r);
+      setSavedRecipes(updatedSaved);
+      localStorage.setItem('saved_recipes', JSON.stringify(updatedSaved));
+
+      toast.success('✅ Recipe updated successfully!');
+      return { success: true, recipe: savedRecipe };
+    } catch (error) {
+      console.error('❌ Error updating recipe:', error);
+      toast.error('Failed to update recipe in database. Please try again.');
+      return { success: false, message: 'Failed to update recipe in database. Please check your connection and try again.' };
     } finally {
       setLoading(false);
     }
@@ -760,15 +840,10 @@ export const RecipeProvider = ({ children }) => {
 
       toast.success('✅ Recipe deleted from database successfully!');
       return { success: true, message: 'Recipe deleted successfully!' };
-
     } catch (error) {
       console.error('❌ Error deleting recipe:', error);
       toast.error('Failed to delete recipe from database. Please try again.');
-      return { 
-        success: false, 
-        message: 'Failed to delete recipe from database. Please check your connection and try again.' 
-      };
-
+      return { success: false, message: 'Failed to delete recipe from database. Please check your connection and try again.' };
     } finally {
       setLoading(false);
     }
@@ -792,7 +867,6 @@ export const RecipeProvider = ({ children }) => {
     const updatedSaved = [...savedRecipes, recipe];
     setSavedRecipes(updatedSaved);
     localStorage.setItem('saved_recipes', JSON.stringify(updatedSaved));
-
     return { success: true, message: 'Recipe saved successfully!' };
   };
 
@@ -822,14 +896,10 @@ export const RecipeProvider = ({ children }) => {
       localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
 
       return result;
-
     } catch (error) {
       console.error('❌ Error sharing recipe:', error);
       toast.error('Failed to share recipe to community. Please try again.');
-      return {
-        success: false,
-        message: 'Failed to share recipe to community. Please check your connection and try again.'
-      };
+      return { success: false, message: 'Failed to share recipe to community. Please check your connection and try again.' };
     }
   };
 
@@ -849,14 +919,10 @@ export const RecipeProvider = ({ children }) => {
       // Use Supabase for approval
       const result = await approveRecipeInSupabase(recipe.id, adminUser);
       return result;
-
     } catch (error) {
       console.error('❌ Error approving recipe:', error);
       toast.error('Failed to approve recipe. Please try again.');
-      return { 
-        success: false, 
-        message: 'Failed to approve recipe. Please check your connection and try again.' 
-      };
+      return { success: false, message: 'Failed to approve recipe. Please check your connection and try again.' };
     }
   };
 
@@ -883,14 +949,10 @@ export const RecipeProvider = ({ children }) => {
       localStorage.setItem('user_shared_recipes', JSON.stringify([...updatedUserShared]));
 
       return result;
-
     } catch (error) {
       console.error('❌ Error rejecting recipe:', error);
       toast.error('Failed to reject recipe. Please try again.');
-      return { 
-        success: false, 
-        message: 'Failed to reject recipe. Please check your connection and try again.' 
-      };
+      return { success: false, message: 'Failed to reject recipe. Please check your connection and try again.' };
     }
   };
 
@@ -904,14 +966,10 @@ export const RecipeProvider = ({ children }) => {
       // Use Supabase for removal
       const result = await removeSharedRecipeFromSupabase(recipeId, adminUser);
       return result;
-
     } catch (error) {
       console.error('❌ Error removing shared recipe:', error);
       toast.error('Failed to remove recipe. Please try again.');
-      return { 
-        success: false, 
-        message: 'Failed to remove recipe. Please check your connection and try again.' 
-      };
+      return { success: false, message: 'Failed to remove recipe. Please check your connection and try again.' };
     }
   };
 
@@ -966,7 +1024,6 @@ export const RecipeProvider = ({ children }) => {
 
       const result = saveRecipe(newRecipe);
       return result;
-
     } catch (error) {
       return { success: false, message: 'Invalid recipe data' };
     }
@@ -974,7 +1031,6 @@ export const RecipeProvider = ({ children }) => {
 
   const emailShareRecipe = (recipe) => {
     const shareLink = generateShareableLink(recipe);
-
     const subject = `🍳 Check out this delicious recipe: ${recipe.title}`;
     const body = `Hi there! 👋
 
@@ -1044,6 +1100,7 @@ Shared via Meal Plan App`;
     loading,
     getAllUniqueRecipes,
     addRecipe,
+    updateRecipe, // ✅ NEW: Export update function
     deleteRecipe,
     canDeleteRecipe,
     saveRecipe,
