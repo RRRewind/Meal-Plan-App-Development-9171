@@ -38,7 +38,23 @@ const Recipes = () => {
     url: '' // NEW: Added URL field
   });
 
-  const { recipes, sharedRecipes, savedRecipes, getAllUniqueRecipes, saveRecipe, unsaveRecipe, deleteRecipe, canDeleteRecipe, isRecipeSaved, shareRecipe, emailShareRecipe, hasSharedRecipe, addRecipe, cleanupDuplicates } = useRecipes();
+  const {
+    recipes,
+    sharedRecipes,
+    savedRecipes,
+    getAllUniqueRecipes,
+    saveRecipe,
+    unsaveRecipe,
+    deleteRecipe,
+    canDeleteRecipe,
+    isRecipeSaved,
+    shareRecipe,
+    emailShareRecipe,
+    hasSharedRecipe,
+    addRecipe,
+    cleanupDuplicates
+  } = useRecipes();
+
   const { startCookingMode } = useCookingMode();
   const { addXP } = useGamification();
   const { user } = useAuth();
@@ -81,12 +97,10 @@ const Recipes = () => {
     if (userId === user?.id) {
       return user?.username || user?.name || 'You';
     }
-    
     const sharedRecipe = sharedRecipes.find(recipe => recipe.sharedByUserId === userId);
     if (sharedRecipe && sharedRecipe.sharedBy) {
       return sharedRecipe.sharedBy;
     }
-    
     return 'Unknown User';
   };
 
@@ -182,9 +196,31 @@ const Recipes = () => {
     }
   };
 
+  // ✅ UPDATED: Check if user can share recipe to community
+  const canShareRecipeToCommuity = (recipe) => {
+    if (!user) return false;
+    
+    // Admins can share any recipe
+    if (user.isAdmin) return true;
+    
+    // Regular users can only share recipes they created
+    // Check if this is their own created recipe
+    const isOwnRecipe = recipe.isUserCreated || 
+                       (recipe.sharedByUserId === user.id) ||
+                       (!recipe.shared && !recipe.isDefault);
+    
+    return isOwnRecipe;
+  };
+
   const handleShareRecipe = (recipe) => {
     if (!user) {
       toast.error('Please sign in to share recipes');
+      return;
+    }
+
+    // ✅ NEW: Check sharing permissions
+    if (!canShareRecipeToCommuity(recipe)) {
+      toast.error('You can only share recipes that you created');
       return;
     }
 
@@ -298,7 +334,6 @@ const Recipes = () => {
               {selectedFilter === 'my-recipes' && 'Recipes you\'ve created'}
             </p>
           </div>
-
           <div className="flex items-center space-x-3 mt-4 sm:mt-0">
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
@@ -309,7 +344,6 @@ const Recipes = () => {
               <SafeIcon icon={FiZap} />
               <span>Smart Cleanup</span>
             </motion.button>
-
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
@@ -384,8 +418,7 @@ const Recipes = () => {
                     <option key={option.id} value={option.id}>
                       {option.name}
                     </option>
-                  ))
-                }
+                  ))}
               </select>
 
               {/* Sort indicator for community recipes */}
@@ -478,7 +511,7 @@ const Recipes = () => {
                   No recipes found
                 </h3>
                 <p className="text-gray-600 font-medium mb-4">
-                  {searchTerm 
+                  {searchTerm
                     ? `No recipes match "${searchTerm}" in ${filters.find(f => f.id === selectedFilter)?.name}`
                     : `No recipes in ${filters.find(f => f.id === selectedFilter)?.name} yet`
                   }
@@ -505,6 +538,7 @@ const Recipes = () => {
                 {filteredRecipes.map((recipe, index) => {
                   const ratingStats = getRatingStats(recipe.id);
                   const canRate = canRateRecipe(recipe);
+                  const canShareToCommunity = canShareRecipeToCommuity(recipe);
 
                   return (
                     <motion.div
@@ -567,18 +601,22 @@ const Recipes = () => {
                                 <SafeIcon icon={FiMail} className="text-sm" />
                               </motion.button>
 
-                              <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={() => handleShareRecipe(recipe)}
-                                className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
-                                  hasSharedRecipe(recipe.id)
-                                    ? 'bg-green-500 text-white'
-                                    : 'bg-white/90 text-gray-600 hover:bg-white hover:text-primary-500'
-                                }`}
-                              >
-                                <SafeIcon icon={hasSharedRecipe(recipe.id) ? FiCheck : FiShare2} className="text-sm" />
-                              </motion.button>
+                              {/* ✅ UPDATED: Only show community share button if user can share */}
+                              {canShareToCommunity && (
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => handleShareRecipe(recipe)}
+                                  className={`p-2 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg ${
+                                    hasSharedRecipe(recipe.id)
+                                      ? 'bg-green-500 text-white'
+                                      : 'bg-white/90 text-gray-600 hover:bg-white hover:text-primary-500'
+                                  }`}
+                                  title={user.isAdmin ? 'Share to community (Admin)' : 'Share your recipe to community'}
+                                >
+                                  <SafeIcon icon={hasSharedRecipe(recipe.id) ? FiCheck : FiShare2} className="text-sm" />
+                                </motion.button>
+                              )}
 
                               {canUserDeleteRecipe(recipe) && (
                                 <motion.button
@@ -631,7 +669,7 @@ const Recipes = () => {
                             </motion.button>
                           )}
                         </div>
-                        
+
                         <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">
                           {recipe.description}
                         </p>
@@ -882,7 +920,6 @@ const Recipes = () => {
                         required
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Image URL
@@ -940,7 +977,6 @@ const Recipes = () => {
                         required
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Servings
@@ -953,7 +989,6 @@ const Recipes = () => {
                         required
                       />
                     </div>
-
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Difficulty
