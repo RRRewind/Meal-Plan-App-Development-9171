@@ -35,7 +35,7 @@ const Recipes = () => {
     steps: [''],
     tags: [],
     image: '',
-    url: '' // NEW: Added URL field
+    url: ''
   });
 
   const {
@@ -187,6 +187,7 @@ const Recipes = () => {
     }
   };
 
+  // ✅ RATING: Anyone can rate community recipes from other users
   const handleRateRecipe = (recipe) => {
     if (canRateRecipe(recipe)) {
       setSelectedRecipeForRating(recipe);
@@ -196,7 +197,7 @@ const Recipes = () => {
     }
   };
 
-  // ✅ UPDATED: Check if user can share recipe to community
+  // ✅ COMMUNITY SHARING: Only creators can share to community (or admins)
   const canShareRecipeToCommuity = (recipe) => {
     if (!user) return false;
     
@@ -204,7 +205,6 @@ const Recipes = () => {
     if (user.isAdmin) return true;
     
     // Regular users can only share recipes they created
-    // Check if this is their own created recipe
     const isOwnRecipe = recipe.isUserCreated || 
                        (recipe.sharedByUserId === user.id) ||
                        (!recipe.shared && !recipe.isDefault);
@@ -218,7 +218,7 @@ const Recipes = () => {
       return;
     }
 
-    // ✅ NEW: Check sharing permissions
+    // Check sharing permissions for community sharing
     if (!canShareRecipeToCommuity(recipe)) {
       toast.error('You can only share recipes that you created');
       return;
@@ -233,6 +233,7 @@ const Recipes = () => {
     }
   };
 
+  // ✅ EMAIL SHARING: Anyone can email ANY recipe (no restrictions)
   const handleEmailShareRecipe = (recipe) => {
     if (!user) {
       toast.error('Please sign in to share recipes');
@@ -291,7 +292,7 @@ const Recipes = () => {
         steps: [''],
         tags: [],
         image: '',
-        url: '' // Reset URL field
+        url: ''
       });
     } else {
       toast.error(result.message);
@@ -305,7 +306,7 @@ const Recipes = () => {
     return recipe.isUserCreated || recipe.sharedByUserId === user.id;
   };
 
-  // NEW: Handle recipe URL click
+  // Handle recipe URL click
   const handleRecipeUrlClick = (url) => {
     if (url) {
       // Ensure URL has protocol
@@ -578,13 +579,14 @@ const Recipes = () => {
                             <SafeIcon icon={FiHeart} className="text-sm" />
                           </motion.button>
 
-                          {/* Rating Button for Community Recipes */}
+                          {/* ✅ RATING BUTTON: Show for community recipes from other users */}
                           {canRate && (
                             <motion.button
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}
                               onClick={() => handleRateRecipe(recipe)}
                               className="p-2 bg-yellow-100 text-yellow-600 hover:bg-yellow-200 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
+                              title="Rate this community recipe"
                             >
                               <SafeIcon icon={FiStar} className="text-sm" />
                             </motion.button>
@@ -592,16 +594,18 @@ const Recipes = () => {
 
                           {user && (
                             <>
+                              {/* ✅ EMAIL BUTTON: Available for ALL recipes */}
                               <motion.button
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
                                 onClick={() => handleEmailShareRecipe(recipe)}
                                 className="p-2 bg-white/90 text-gray-600 hover:bg-white hover:text-blue-500 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
+                                title="Share via email - works for any recipe"
                               >
                                 <SafeIcon icon={FiMail} className="text-sm" />
                               </motion.button>
 
-                              {/* ✅ UPDATED: Only show community share button if user can share */}
+                              {/* ✅ COMMUNITY SHARE BUTTON: Only for recipe creators */}
                               {canShareToCommunity && (
                                 <motion.button
                                   whileHover={{ scale: 1.1 }}
@@ -656,7 +660,6 @@ const Recipes = () => {
                           <h3 className="font-bold text-xl text-gray-900 flex-1">
                             {recipe.title}
                           </h3>
-                          {/* NEW: Recipe URL Button */}
                           {recipe.url && (
                             <motion.button
                               whileHover={{ scale: 1.1 }}
@@ -674,7 +677,7 @@ const Recipes = () => {
                           {recipe.description}
                         </p>
 
-                        {/* Rating Display for Community Recipes */}
+                        {/* ✅ RATING DISPLAY: Show ratings for community recipes */}
                         {recipe.shared && (
                           <div className="mb-4">
                             <RatingDisplay stats={ratingStats} size="sm" />
@@ -733,7 +736,7 @@ const Recipes = () => {
           </>
         )}
 
-        {/* Rating Modal */}
+        {/* ✅ RATING MODAL: Available for community recipes */}
         <RatingModal
           recipe={selectedRecipeForRating}
           isOpen={showRatingModal}
@@ -875,7 +878,7 @@ const Recipes = () => {
           )}
         </AnimatePresence>
 
-        {/* Add Recipe Modal - NOW WITH URL FIELD */}
+        {/* Add Recipe Modal */}
         <AnimatePresence>
           {showAddModal && (
             <motion.div
@@ -933,7 +936,6 @@ const Recipes = () => {
                     </div>
                   </div>
 
-                  {/* NEW: Recipe URL Field */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
                       <SafeIcon icon={FiLink} className="mr-2 text-primary-500" />
