@@ -53,7 +53,7 @@ export const RecipeProvider = ({ children }) => {
         steps: recipe.steps || [],
         tags: recipe.tags || [],
         image: recipe.image_url,
-        url: recipe.recipe_url,
+        url: recipe.recipe_url || null,
         shared: true,
         sharedByUserId: recipe.shared_by_user_id,
         sharedBy: recipe.shared_by_username,
@@ -106,7 +106,7 @@ export const RecipeProvider = ({ children }) => {
         steps: recipe.steps || [],
         tags: recipe.tags || [],
         image: recipe.image_url,
-        url: recipe.recipe_url,
+        url: recipe.recipe_url || null,
         isUserCreated: true,
         createdAt: recipe.created_at,
         shared: recipe.is_shared
@@ -254,9 +254,13 @@ export const RecipeProvider = ({ children }) => {
         steps: cleanedRecipe.steps,
         tags: cleanedRecipe.tags,
         image_url: cleanedRecipe.image,
-        recipe_url: cleanedRecipe.url,
         is_shared: recipe.shared || false
       };
+
+      // Only add recipe_url if it's provided and the column exists
+      if (cleanedRecipe.url) {
+        recipeData.recipe_url = cleanedRecipe.url;
+      }
 
       const { data, error } = await supabase
         .from('user_recipes_mp2024')
@@ -283,7 +287,7 @@ export const RecipeProvider = ({ children }) => {
         steps: data.steps || [],
         tags: data.tags || [],
         image: data.image_url,
-        url: data.recipe_url,
+        url: data.recipe_url || null,
         isUserCreated: true,
         createdAt: data.created_at,
         shared: data.is_shared
@@ -327,9 +331,13 @@ export const RecipeProvider = ({ children }) => {
         ingredients: cleanedRecipe.ingredients,
         steps: cleanedRecipe.steps,
         tags: cleanedRecipe.tags,
-        image_url: cleanedRecipe.image,
-        recipe_url: cleanedRecipe.url
+        image_url: cleanedRecipe.image
       };
+
+      // Only add recipe_url if it's provided
+      if (cleanedRecipe.url) {
+        recipeData.recipe_url = cleanedRecipe.url;
+      }
 
       console.log('Recipe data being sent:', recipeData);
 
@@ -369,7 +377,7 @@ export const RecipeProvider = ({ children }) => {
         steps: data.steps || [],
         tags: data.tags || [],
         image: data.image_url,
-        url: data.recipe_url,
+        url: data.recipe_url || null,
         isUserCreated: true,
         createdAt: data.created_at,
         updatedAt: data.updated_at,
