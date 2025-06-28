@@ -11,7 +11,7 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { format, addDays } from 'date-fns';
 
-const { FiChef, FiCalendar, FiTrendingUp, FiStar, FiClock, FiPlay, FiAward, FiTarget, FiShoppingCart, FiBook, FiCookie } = FiIcons;
+const { FiChef, FiCalendar, FiTrendingUp, FiStar, FiClock, FiPlay, FiAward, FiTarget, FiShoppingCart, FiBook, FiCookie, FiExternalLink } = FiIcons;
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ const Dashboard = () => {
   const { recipes, savedRecipes } = useRecipes();
   const { mealPlan, getMealsForDay } = useMealPlan();
   const { startCookingMode } = useCookingMode();
-  const { badges } = useGamification();
+  const { addXP, badges } = useGamification();
 
   const today = new Date();
   const todayMeals = getMealsForDay(today);
@@ -75,6 +75,16 @@ const Dashboard = () => {
       case 'dinner': return '🍽️';
       case 'snacks': return '🍪';
       default: return '🍴';
+    }
+  };
+
+  // ✅ ENHANCED: Handle recipe URL click
+  const handleRecipeUrlClick = (url) => {
+    if (url) {
+      // Ensure URL has protocol
+      const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
+      window.open(formattedUrl, '_blank', 'noopener,noreferrer');
+      addXP(2, 'Recipe details viewed');
     }
   };
 
@@ -173,7 +183,21 @@ const Dashboard = () => {
                             {mealType}
                           </p>
                           {meal ? (
-                            <p className="text-sm text-gray-600">{meal.title}</p>
+                            <div className="flex items-center space-x-2">
+                              <p className="text-sm text-gray-600">{meal.title}</p>
+                              {/* ✅ ENHANCED: Recipe URL link for meals */}
+                              {meal.url && (
+                                <motion.button
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => handleRecipeUrlClick(meal.url)}
+                                  className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors duration-200"
+                                  title="View recipe details"
+                                >
+                                  <SafeIcon icon={FiExternalLink} className="text-xs" />
+                                </motion.button>
+                              )}
+                            </div>
                           ) : (
                             <p className="text-sm text-gray-400">No meal planned</p>
                           )}
@@ -210,7 +234,7 @@ const Dashboard = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Snack List */}
                     <div className="space-y-2">
                       {todayMeals.snacks.map((snack, index) => (
@@ -226,7 +250,21 @@ const Dashboard = () => {
                               {index + 1}
                             </span>
                             <div>
-                              <p className="font-medium text-gray-900 text-sm">{snack.title}</p>
+                              <div className="flex items-center space-x-2">
+                                <p className="font-medium text-gray-900 text-sm">{snack.title}</p>
+                                {/* ✅ ENHANCED: Recipe URL link for snacks */}
+                                {snack.url && (
+                                  <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={() => handleRecipeUrlClick(snack.url)}
+                                    className="p-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors duration-200"
+                                    title="View recipe details"
+                                  >
+                                    <SafeIcon icon={FiExternalLink} className="text-xs" />
+                                  </motion.button>
+                                )}
+                              </div>
                               <div className="flex items-center space-x-2 text-xs text-gray-500">
                                 <SafeIcon icon={FiClock} className="text-xs" />
                                 <span>{snack.cookTime}m</span>
@@ -266,7 +304,6 @@ const Dashboard = () => {
                     }
                     return dayMeals[key] ? count + 1 : count;
                   }, 0);
-
                   const isToday = index === 0;
 
                   return (

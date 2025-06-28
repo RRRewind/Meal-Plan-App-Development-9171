@@ -93,7 +93,7 @@ const Recipes = () => {
   // Filter and sort recipes based on selected filter, search term, and sort option
   const getFilteredAndSortedRecipes = () => {
     let recipesToFilter = [];
-    
+
     switch (selectedFilter) {
       case 'saved':
         recipesToFilter = savedRecipes;
@@ -169,7 +169,6 @@ const Recipes = () => {
   // ✅ NEW: Save edited recipe
   const handleSaveEdit = async (e) => {
     e.preventDefault();
-    
     if (!editingRecipe) return;
 
     try {
@@ -291,7 +290,7 @@ const Recipes = () => {
   const handleAddIngredient = (isEdit = false) => {
     const targetRecipe = isEdit ? editingRecipe : newRecipe;
     const setTargetRecipe = isEdit ? setEditingRecipe : setNewRecipe;
-    
+
     setTargetRecipe(prev => ({
       ...prev,
       ingredients: [...prev.ingredients, { name: '', amount: '' }]
@@ -301,7 +300,7 @@ const Recipes = () => {
   const handleAddStep = (isEdit = false) => {
     const targetRecipe = isEdit ? editingRecipe : newRecipe;
     const setTargetRecipe = isEdit ? setEditingRecipe : setNewRecipe;
-    
+
     setTargetRecipe(prev => ({
       ...prev,
       steps: [...prev.steps, '']
@@ -339,7 +338,7 @@ const Recipes = () => {
     return recipe.isUserCreated || recipe.sharedByUserId === user.id;
   };
 
-  // Handle recipe URL click
+  // Handle recipe URL click - ✅ ENHANCED: Always visible and functional
   const handleRecipeUrlClick = (url) => {
     if (url) {
       // Ensure URL has protocol
@@ -365,6 +364,7 @@ const Recipes = () => {
             required
           />
         </div>
+
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Image URL
@@ -421,6 +421,7 @@ const Recipes = () => {
             required
           />
         </div>
+
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Servings
@@ -433,6 +434,7 @@ const Recipes = () => {
             required
           />
         </div>
+
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Difficulty
@@ -700,6 +702,7 @@ const Recipes = () => {
                 <SafeIcon icon={FiPlus} className="text-xl" />
                 <span>Add Your First Recipe</span>
               </motion.button>
+
               <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
                 <div className="glass p-6 rounded-xl">
                   <SafeIcon icon={FiBookOpen} className="text-2xl text-primary-500 mb-3" />
@@ -753,8 +756,7 @@ const Recipes = () => {
                 <p className="text-gray-600 font-medium mb-4">
                   {searchTerm
                     ? `No recipes match "${searchTerm}" in ${filters.find(f => f.id === selectedFilter)?.name}`
-                    : `No recipes in ${filters.find(f => f.id === selectedFilter)?.name} yet`
-                  }
+                    : `No recipes in ${filters.find(f => f.id === selectedFilter)?.name} yet`}
                 </p>
                 {selectedFilter === 'my-recipes' && (
                   <motion.button
@@ -913,13 +915,14 @@ const Recipes = () => {
                           <h3 className="font-bold text-xl text-gray-900 flex-1">
                             {recipe.title}
                           </h3>
+                          {/* ✅ ENHANCED: Recipe URL link - ALWAYS VISIBLE when URL exists */}
                           {recipe.url && (
                             <motion.button
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}
                               onClick={() => handleRecipeUrlClick(recipe.url)}
-                              className="ml-2 p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200"
-                              title="View recipe details"
+                              className="ml-2 p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors duration-200 flex-shrink-0"
+                              title="View full recipe details"
                             >
                               <SafeIcon icon={FiExternalLink} className="text-sm" />
                             </motion.button>
@@ -1030,7 +1033,6 @@ const Recipes = () => {
                     <SafeIcon icon={FiX} className="text-2xl" />
                   </motion.button>
                 </div>
-
                 <RecipeForm
                   recipe={editingRecipe}
                   setRecipe={setEditingRecipe}
@@ -1205,7 +1207,6 @@ const Recipes = () => {
                     <SafeIcon icon={FiX} className="text-2xl" />
                   </motion.button>
                 </div>
-
                 <RecipeForm
                   recipe={newRecipe}
                   setRecipe={setNewRecipe}

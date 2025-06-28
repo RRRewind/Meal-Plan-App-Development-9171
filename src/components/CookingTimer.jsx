@@ -56,7 +56,7 @@ const CookingTimer = () => {
     setIsTimerComplete(false);
   };
 
-  // Handle recipe URL click
+  // ✅ ENHANCED: Handle recipe URL click
   const handleRecipeUrlClick = (url) => {
     if (url) {
       // Ensure URL has protocol
@@ -87,7 +87,11 @@ const CookingTimer = () => {
                 '0 10px 25px rgba(239, 68, 68, 0.3)'
               ]
             } : {}}
-            transition={isTimerComplete ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : {}}
+            transition={isTimerComplete ? {
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            } : {}}
             className={`rounded-2xl p-4 text-white shadow-2xl cursor-pointer ${
               isTimerComplete 
                 ? 'bg-gradient-to-r from-red-500 to-red-600' 
@@ -210,7 +214,11 @@ const CookingTimer = () => {
                 '0 10px 25px rgba(239, 68, 68, 0.3)'
               ]
             } : {}}
-            transition={isTimerComplete ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : {}}
+            transition={isTimerComplete ? {
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            } : {}}
             className={`rounded-2xl p-4 text-white shadow-2xl ${
               isTimerComplete 
                 ? 'bg-gradient-to-r from-red-500 to-red-600' 
@@ -347,7 +355,7 @@ const CookingTimer = () => {
                 <div>
                   <div className="flex items-center space-x-3">
                     <h3 className="font-bold text-lg">{currentRecipe.title}</h3>
-                    {/* ✅ NEW: Recipe URL Link in Header */}
+                    {/* ✅ ENHANCED: Recipe URL Link in Header */}
                     {currentRecipe.url && (
                       <motion.button
                         whileHover={{ scale: 1.1 }}
@@ -427,7 +435,7 @@ const CookingTimer = () => {
                     </div>
                   </div>
 
-                  {/* ✅ NEW: Recipe URL Link in Content Area */}
+                  {/* ✅ ENHANCED: Recipe URL Link in Content Area */}
                   {currentRecipe.url && (
                     <div className="mb-4">
                       <motion.button
@@ -494,8 +502,8 @@ const CookingTimer = () => {
                           isTimerComplete 
                             ? 'text-red-600 animate-pulse' 
                             : timeLeft > 0 
-                              ? 'text-primary-600' 
-                              : 'text-gray-400'
+                            ? 'text-primary-600' 
+                            : 'text-gray-400'
                         }`}>
                           {timeLeft > 0 || isTimerComplete ? formatTime(timeLeft) : '00:00'}
                         </div>
@@ -521,8 +529,8 @@ const CookingTimer = () => {
                               whileTap={{ scale: 0.9 }}
                               onClick={isTimerRunning ? pauseTimer : resumeTimer}
                               className={`p-2 rounded-lg transition-colors duration-200 ${
-                                isTimerRunning 
-                                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' 
+                                isTimerRunning
+                                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
                                   : 'bg-green-100 text-green-700 hover:bg-green-200'
                               }`}
                             >
