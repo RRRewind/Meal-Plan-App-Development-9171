@@ -13,33 +13,32 @@ const CookingTimer = () => {
   const [customSeconds, setCustomSeconds] = useState('');
   const [isTimerComplete, setIsTimerComplete] = useState(false);
 
-  const { 
-    isActive, 
-    currentRecipe, 
-    currentStep, 
-    timeLeft, 
-    isTimerRunning, 
+  const {
+    isActive,
+    currentRecipe,
+    currentStep,
+    timeLeft,
+    isTimerRunning,
     timer,
-    stopCookingMode, 
-    nextStep, 
-    prevStep, 
-    startTimer, 
-    pauseTimer, 
-    resumeTimer, 
-    resetTimer, 
-    formatTime 
+    stopCookingMode,
+    nextStep,
+    prevStep,
+    startTimer,
+    pauseTimer,
+    resumeTimer,
+    resetTimer,
+    formatTime
   } = useCookingMode();
-  
+
   const { addXP, incrementRecipesCooked } = useGamification();
 
-  // Monitor timer completion for completion state
+  // FIXED: Monitor timer completion for completion state
   useEffect(() => {
-    // FIXED: Only show completion if timer just finished (timeLeft is 0 but timer object still exists)
-    // This prevents showing alarm on page refresh when timer is already cleared
+    // Only show completion when timer actually finishes (was running and reached 0)
     if (timeLeft === 0 && timer && !isTimerRunning) {
-      // Timer just finished
+      // Check if timer just finished (timer exists but is no longer running)
       setIsTimerComplete(true);
-    } else if (timeLeft > 0 || !timer) {
+    } else {
       // Timer is running, paused, or no timer exists
       setIsTimerComplete(false);
     }
@@ -60,8 +59,8 @@ const CookingTimer = () => {
   // ENHANCED: Show different floating widgets based on cooking mode state
   if (!isActive || !currentRecipe) {
     // Show persistent timer indicator if there's an active timer but cooking mode is closed
-    // FIXED: Only show if timer exists (not just timeLeft > 0)
-    if ((timeLeft > 0 && timer) || (isTimerComplete && timer)) {
+    // FIXED: Only show if timer exists and either running or completed
+    if (timer && (timeLeft > 0 || isTimerComplete)) {
       return (
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
@@ -73,9 +72,9 @@ const CookingTimer = () => {
             animate={isTimerComplete ? {
               scale: [1, 1.1, 1],
               boxShadow: [
-                '0 10px 25px rgba(239, 68, 68, 0.3)',
-                '0 15px 35px rgba(239, 68, 68, 0.5)',
-                '0 10px 25px rgba(239, 68, 68, 0.3)'
+                '0 10px 25px rgba(239,68,68,0.3)',
+                '0 15px 35px rgba(239,68,68,0.5)',
+                '0 10px 25px rgba(239,68,68,0.3)'
               ]
             } : {}}
             transition={isTimerComplete ? {
@@ -106,7 +105,7 @@ const CookingTimer = () => {
                     ? 'text-red-100 font-bold animate-pulse' 
                     : 'text-orange-100'
                 }`}>
-                  {isTimerComplete ? 'Check Cooking!' : 'Background Timer'}
+                  {isTimerComplete ? 'Cooking Complete!' : 'Background Timer'}
                 </div>
               </div>
               <div className="flex items-center space-x-2">
@@ -157,7 +156,7 @@ const CookingTimer = () => {
     const mins = parseInt(customMinutes) || 0;
     const secs = parseInt(customSeconds) || 0;
     const totalMinutes = mins + (secs / 60);
-    
+
     if (totalMinutes > 0) {
       handleStartTimer(totalMinutes);
       setCustomMinutes('');
@@ -187,7 +186,7 @@ const CookingTimer = () => {
   if (isMinimized) {
     // If timer is active, show countdown-focused widget
     // FIXED: Only show if timer exists
-    if ((timeLeft > 0 && timer) || (isTimerComplete && timer)) {
+    if (timer && (timeLeft > 0 || isTimerComplete)) {
       return (
         <motion.div
           initial={{ scale: 0, opacity: 0, y: 100 }}
@@ -200,9 +199,9 @@ const CookingTimer = () => {
             animate={isTimerComplete ? {
               scale: [1, 1.1, 1],
               boxShadow: [
-                '0 10px 25px rgba(239, 68, 68, 0.3)',
-                '0 15px 35px rgba(239, 68, 68, 0.5)',
-                '0 10px 25px rgba(239, 68, 68, 0.3)'
+                '0 10px 25px rgba(239,68,68,0.3)',
+                '0 15px 35px rgba(239,68,68,0.5)',
+                '0 10px 25px rgba(239,68,68,0.3)'
               ]
             } : {}}
             transition={isTimerComplete ? {
@@ -226,7 +225,7 @@ const CookingTimer = () => {
                   ? 'text-red-100 animate-pulse font-bold' 
                   : 'text-orange-100'
               }`}>
-                {isTimerComplete ? 'Check Cooking!' : 'Active Timer'}
+                {isTimerComplete ? 'Cooking Complete!' : 'Active Timer'}
               </div>
             </div>
 
@@ -291,9 +290,7 @@ const CookingTimer = () => {
                 <SafeIcon icon={FiClock} className="text-white text-lg" />
               </div>
               <div>
-                <div className="font-bold text-lg">
-                  No Timer
-                </div>
+                <div className="font-bold text-lg">No Timer</div>
                 <div className="text-primary-100 text-sm">
                   Step {currentStep + 1}/{currentRecipe.steps.length}
                 </div>
@@ -311,7 +308,7 @@ const CookingTimer = () => {
                 <SafeIcon icon={FiX} className="text-sm" />
               </motion.button>
             </div>
-            
+
             {/* Mini Progress Bar */}
             <div className="mt-3">
               <div className="w-full bg-white/20 rounded-full h-1.5">
@@ -354,7 +351,6 @@ const CookingTimer = () => {
                   </div>
                 </div>
               </div>
-              
               <div className="flex items-center space-x-2">
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -365,7 +361,6 @@ const CookingTimer = () => {
                 >
                   <SafeIcon icon={FiMinus} className="text-xl" />
                 </motion.button>
-                
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
@@ -382,7 +377,7 @@ const CookingTimer = () => {
                 </motion.button>
               </div>
             </div>
-            
+
             {/* Progress Bar */}
             <div className="mt-3">
               <div className="w-full bg-white/20 rounded-full h-2">
@@ -403,9 +398,7 @@ const CookingTimer = () => {
                 {/* Current Step */}
                 <div className="lg:col-span-2">
                   <div className="mb-4">
-                    <h4 className="font-semibold text-gray-900 mb-3">
-                      Current Step:
-                    </h4>
+                    <h4 className="font-semibold text-gray-900 mb-3">Current Step:</h4>
                     <div className="bg-gradient-to-br from-primary-50 to-secondary-50 p-4 rounded-xl border border-primary-200">
                       <div className="flex items-start space-x-3">
                         <span className="flex-shrink-0 w-8 h-8 bg-primary-500 text-white rounded-full flex items-center justify-center font-bold">
@@ -459,17 +452,15 @@ const CookingTimer = () => {
                 <div className="space-y-6">
                   {/* Timer */}
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">
-                      Cooking Timer
-                    </h4>
+                    <h4 className="font-semibold text-gray-900 mb-3">Cooking Timer</h4>
                     <div className="bg-gray-50 rounded-xl p-4">
                       <div className="text-center mb-4">
                         <div className={`text-3xl font-bold ${
                           isTimerComplete 
                             ? 'text-red-600 animate-pulse' 
                             : timeLeft > 0 
-                              ? 'text-primary-600' 
-                              : 'text-gray-400'
+                            ? 'text-primary-600' 
+                            : 'text-gray-400'
                         }`}>
                           {timeLeft > 0 || isTimerComplete ? formatTime(timeLeft) : '00:00'}
                         </div>
@@ -479,7 +470,7 @@ const CookingTimer = () => {
                             transition={{ duration: 1, repeat: Infinity }}
                             className="text-sm text-red-600 mt-1 font-bold"
                           >
-                            ⏰ Check your cooking!
+                            🎉 Cooking Complete!
                           </motion.p>
                         )}
                         {timeLeft === 0 && !isTimerComplete && (
@@ -571,9 +562,7 @@ const CookingTimer = () => {
 
                   {/* Ingredients */}
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-3">
-                      Ingredients
-                    </h4>
+                    <h4 className="font-semibold text-gray-900 mb-3">Ingredients</h4>
                     <div className="bg-gray-50 rounded-xl p-4 max-h-48 overflow-y-auto">
                       <div className="space-y-2">
                         {currentRecipe.ingredients.map((ingredient, index) => (
