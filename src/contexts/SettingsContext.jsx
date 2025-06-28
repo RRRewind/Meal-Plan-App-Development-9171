@@ -51,7 +51,7 @@ export const SettingsProvider = ({ children }) => {
     return String(userObj.id || userObj.user_id || '');
   };
 
-  // Load user preferences with better error handling
+  // Load user preferences
   const loadPreferences = async () => {
     if (!user) return;
 
@@ -63,8 +63,7 @@ export const SettingsProvider = ({ children }) => {
 
     try {
       setLoading(true);
-      
-      // Only try Supabase for Supabase users
+
       if (user.supabaseUser) {
         console.log('Loading preferences for Supabase user:', userId);
         
@@ -81,6 +80,7 @@ export const SettingsProvider = ({ children }) => {
 
         if (data) {
           console.log('Loaded preferences from Supabase:', data);
+          
           const dietaryPreferences = ensureArray(data.dietary_preferences);
           const preferredCuisine = ensureArray(data.preferred_cuisine);
 
@@ -107,7 +107,7 @@ export const SettingsProvider = ({ children }) => {
           await createInitialPreferences();
         }
       } else {
-        // For demo/localStorage users, use local preferences
+        // For demo/admin users, use local preferences
         console.log('Using local preferences for demo user');
         setPreferences({
           ...defaultPreferences,
@@ -120,10 +120,8 @@ export const SettingsProvider = ({ children }) => {
           usernameChangeCount: 0
         });
       }
-
     } catch (error) {
       console.error('Error loading preferences:', error);
-      
       // Fallback to default preferences
       setPreferences({
         ...defaultPreferences,
@@ -137,7 +135,7 @@ export const SettingsProvider = ({ children }) => {
       });
       
       if (user.supabaseUser) {
-        toast.error('Using local preferences - database unavailable');
+        toast.error('Using default preferences - database unavailable');
       }
     } finally {
       setLoading(false);
@@ -156,7 +154,7 @@ export const SettingsProvider = ({ children }) => {
 
     try {
       console.log('Creating initial preferences for Supabase user:', userId);
-      
+
       const initialData = {
         user_id: userId,
         username: user.username || user.name || `user_${userId.slice(0, 8)}`,
@@ -209,10 +207,8 @@ export const SettingsProvider = ({ children }) => {
         lastUsernameChange: data.last_username_change,
         usernameChangeCount: data.username_change_count || 0
       });
-
     } catch (error) {
       console.error('Error creating initial preferences:', error);
-      
       // Fallback to local preferences
       setPreferences({
         ...defaultPreferences,
@@ -248,7 +244,7 @@ export const SettingsProvider = ({ children }) => {
     return getDaysUntilUsernameChange() === 0;
   };
 
-  // Update preferences with enhanced error handling
+  // Update preferences
   const updatePreferences = async (updates) => {
     if (!user || !preferences) {
       console.error('Cannot update preferences: no user or preferences');
@@ -370,11 +366,10 @@ export const SettingsProvider = ({ children }) => {
         }
 
         return { success: true, data: updatedPreferences };
-
       } else {
-        // For demo/localStorage users, update locally
+        // For demo/admin users, update locally
         console.log('Updating local preferences for demo user');
-
+        
         const updatedPreferences = {
           ...preferences,
           ...updates,
@@ -396,7 +391,6 @@ export const SettingsProvider = ({ children }) => {
         toast.success('✅ Settings saved locally!');
         return { success: true, data: updatedPreferences };
       }
-
     } catch (error) {
       console.error('Error updating preferences:', error);
       
@@ -416,7 +410,6 @@ export const SettingsProvider = ({ children }) => {
 
       toast.error('Failed to update preferences - please try again');
       return { success: false, error: error.message };
-
     } finally {
       setLoading(false);
     }
@@ -429,7 +422,7 @@ export const SettingsProvider = ({ children }) => {
     } else {
       setPreferences(null);
     }
-  }, [user?.id, user?.supabaseUser]); // Add supabaseUser to dependencies
+  }, [user?.id, user?.supabaseUser]);
 
   const value = {
     preferences,

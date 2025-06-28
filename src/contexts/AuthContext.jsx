@@ -21,48 +21,22 @@ export const AuthProvider = ({ children }) => {
   const ADMIN_EMAIL = 'admin@supertasty.recipes';
   const ADMIN_PASSWORD = 'admin123';
 
-  // Initialize auth state and listen for changes
+  // Initialize auth state
   useEffect(() => {
     let mounted = true;
 
-    // Get initial session
     const initializeAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('Error getting session:', error);
-          // Fallback to localStorage for demo users
-          const savedUser = localStorage.getItem('mealplan_user');
-          if (savedUser && mounted) {
-            setUser(JSON.parse(savedUser));
-          }
         } else if (session?.user && mounted) {
-          // User is authenticated via Supabase
           const supabaseUser = await createUserFromSupabaseAuth(session.user);
           setUser(supabaseUser);
-          localStorage.setItem('mealplan_user', JSON.stringify(supabaseUser));
-        } else {
-          // No Supabase session, check localStorage for demo users
-          const savedUser = localStorage.getItem('mealplan_user');
-          if (savedUser && mounted) {
-            const parsedUser = JSON.parse(savedUser);
-            // Verify this isn't a Supabase user by checking email format
-            if (!parsedUser.email?.includes('@') || parsedUser.email === ADMIN_EMAIL) {
-              setUser(parsedUser);
-            } else {
-              // This looks like a Supabase user but no session - clear it
-              localStorage.removeItem('mealplan_user');
-            }
-          }
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
-        // Fallback to localStorage
-        const savedUser = localStorage.getItem('mealplan_user');
-        if (savedUser && mounted) {
-          setUser(JSON.parse(savedUser));
-        }
       } finally {
         if (mounted) {
           setLoading(false);
@@ -82,16 +56,12 @@ export const AuthProvider = ({ children }) => {
         if (event === 'SIGNED_IN' && session?.user) {
           const supabaseUser = await createUserFromSupabaseAuth(session.user);
           setUser(supabaseUser);
-          localStorage.setItem('mealplan_user', JSON.stringify(supabaseUser));
           toast.success('Successfully signed in!');
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
-          localStorage.removeItem('mealplan_user');
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          // Update user data on token refresh
           const supabaseUser = await createUserFromSupabaseAuth(session.user);
           setUser(supabaseUser);
-          localStorage.setItem('mealplan_user', JSON.stringify(supabaseUser));
         }
       }
     );
@@ -118,7 +88,7 @@ export const AuthProvider = ({ children }) => {
       badges: ['new_chef'],
       isAdmin: authUser.email === ADMIN_EMAIL,
       emailVerified: authUser.email_confirmed_at !== null,
-      supabaseUser: true // Flag to identify Supabase users
+      supabaseUser: true
     };
 
     // Try to load additional user data from preferences
@@ -168,51 +138,25 @@ export const AuthProvider = ({ children }) => {
           badges: ['admin', 'master_chef', 'recipe_guardian'],
           isAdmin: true,
           emailVerified: true,
-          supabaseUser: false // Admin is not a Supabase user
+          supabaseUser: false
         };
         
-        localStorage.setItem('mealplan_user', JSON.stringify(adminUser));
         setUser(adminUser);
         toast.success('🛡️ Admin access granted!');
         return { success: true };
       }
 
-      // Try Supabase authentication first
+      // Try Supabase authentication
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        // If Supabase login fails, fall back to localStorage for demo users
-        console.log('Supabase login failed, checking localStorage:', error.message);
-        
-        const savedUsers = JSON.parse(localStorage.getItem('mealplan_users') || '[]');
-        const existingUser = savedUsers.find(u => u.email === email);
-        
-        if (!existingUser) {
-          return { success: false, error: 'Account not found' };
-        }
-
-        if (!existingUser.emailVerified) {
-          return { success: false, error: 'Please verify your email first' };
-        }
-
-        if (existingUser.password !== password) {
-          return { success: false, error: 'Invalid password' };
-        }
-
-        // Mark as non-Supabase user
-        existingUser.supabaseUser = false;
-        localStorage.setItem('mealplan_user', JSON.stringify(existingUser));
-        setUser(existingUser);
-        toast.success('Welcome back! (Demo mode)');
-        return { success: true };
+        return { success: false, error: error.message };
       }
 
-      // Supabase login successful - user will be set via onAuthStateChange
       return { success: true };
-
     } catch (error) {
       console.error('Login error:', error);
       toast.error('Login failed');
@@ -226,7 +170,6 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
 
-      // Try Supabase registration first
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -239,70 +182,13 @@ export const AuthProvider = ({ children }) => {
       });
 
       if (error) {
-        // If Supabase registration fails, fall back to localStorage
-        console.log('Supabase registration failed, using localStorage:', error.message);
-        
-        const savedUsers = JSON.parse(localStorage.getItem('mealplan_users') || '[]');
-        const existingUser = savedUsers.find(u => u.email === email);
-        
-        if (existingUser) {
-          return { success: false, error: 'Account already exists' };
-        }
-
-        const existingUsername = savedUsers.find(u => u.username === username);
-        if (existingUsername) {
-          return { success: false, error: 'Username already taken' };
-        }
-
-        // Create demo user
-        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const pendingUser = {
-          id: Date.now().toString(),
-          email,
-          name: username,
-          username,
-          password,
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
-          joinDate: new Date().toISOString(),
-          level: 1,
-          xp: 0,
-          streakDays: 0,
-          recipesCooked: 0,
-          badges: ['new_chef'],
-          isAdmin: false,
-          emailVerified: false,
-          verificationCode,
-          supabaseUser: false
-        };
-
-        setPendingVerification(pendingUser);
-        
-        // Show verification code for demo
-        toast.success(`Demo Mode: Your verification code is ${verificationCode}`, {
-          duration: 10000,
-          style: {
-            background: '#10b981',
-            color: '#fff',
-            fontSize: '16px',
-            fontWeight: 'bold'
-          }
-        });
-
-        return {
-          success: true,
-          requiresVerification: true,
-          verificationCode,
-          message: 'Account created! Check the green notification above for your verification code.'
-        };
+        return { success: false, error: error.message };
       }
 
-      // Supabase registration successful
       if (data.user && !data.user.email_confirmed_at) {
-        // Email confirmation required
         toast.success('Registration successful! Please check your email to verify your account.', {
           duration: 8000
         });
-        
         return {
           success: true,
           requiresVerification: true,
@@ -310,9 +196,7 @@ export const AuthProvider = ({ children }) => {
         };
       }
 
-      // Auto-confirmed (shouldn't happen with email confirmation enabled)
       return { success: true };
-
     } catch (error) {
       console.error('Registration error:', error);
       toast.error('Registration failed');
@@ -322,86 +206,8 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const verifyEmail = async (verificationCode) => {
-    try {
-      if (!pendingVerification) {
-        return { success: false, error: 'No pending verification' };
-      }
-
-      // For demo users (localStorage)
-      if (!pendingVerification.supabaseUser) {
-        if (pendingVerification.verificationCode !== verificationCode) {
-          return { success: false, error: 'Invalid verification code' };
-        }
-
-        const verifiedUser = { ...pendingVerification, emailVerified: true };
-        delete verifiedUser.verificationCode;
-
-        const savedUsers = JSON.parse(localStorage.getItem('mealplan_users') || '[]');
-        savedUsers.push(verifiedUser);
-        localStorage.setItem('mealplan_users', JSON.stringify(savedUsers));
-
-        localStorage.setItem('mealplan_user', JSON.stringify(verifiedUser));
-        setUser(verifiedUser);
-        setPendingVerification(null);
-
-        toast.success('✅ Email verified! Account created successfully!');
-        return { success: true };
-      }
-
-      // For Supabase users, verification is handled automatically
-      return { success: false, error: 'Supabase email verification is handled automatically' };
-
-    } catch (error) {
-      console.error('Verification error:', error);
-      toast.error('Verification failed');
-      return { success: false, error: error.message };
-    }
-  };
-
-  const resendVerificationCode = async () => {
-    if (!pendingVerification) return { success: false };
-
-    if (!pendingVerification.supabaseUser) {
-      // For demo users
-      const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-      const updatedPending = { ...pendingVerification, verificationCode: newCode };
-      setPendingVerification(updatedPending);
-
-      toast.success(`Demo Mode: Your new verification code is ${newCode}`, {
-        duration: 10000,
-        style: {
-          background: '#10b981',
-          color: '#fff',
-          fontSize: '16px',
-          fontWeight: 'bold'
-        }
-      });
-
-      return { success: true };
-    }
-
-    // For Supabase users
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: pendingVerification.email
-      });
-
-      if (error) throw error;
-
-      toast.success('Verification email resent! Please check your inbox.');
-      return { success: true };
-    } catch (error) {
-      console.error('Resend error:', error);
-      toast.error('Failed to resend verification email');
-      return { success: false };
-    }
-  };
-
   const logout = async () => {
     try {
-      // Sign out from Supabase if user is a Supabase user
       if (user?.supabaseUser) {
         const { error } = await supabase.auth.signOut();
         if (error) {
@@ -409,19 +215,12 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      // Clear local storage and state
-      localStorage.removeItem('mealplan_user');
       setUser(null);
       setPendingVerification(null);
-      
       toast.success('Logged out successfully');
-      
-      // Force redirect to landing page
       window.location.href = '/';
     } catch (error) {
       console.error('Logout error:', error);
-      // Still clear local state even if Supabase logout fails
-      localStorage.removeItem('mealplan_user');
       setUser(null);
       setPendingVerification(null);
       window.location.href = '/';
@@ -431,35 +230,18 @@ export const AuthProvider = ({ children }) => {
   const updateUser = (updates) => {
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
-    localStorage.setItem('mealplan_user', JSON.stringify(updatedUser));
+  };
 
-    // Also update in users list for demo users
-    if (!updatedUser.supabaseUser) {
-      const savedUsers = JSON.parse(localStorage.getItem('mealplan_users') || '[]');
-      const userIndex = savedUsers.findIndex(u => u.id === updatedUser.id);
-      if (userIndex >= 0) {
-        savedUsers[userIndex] = updatedUser;
-        localStorage.setItem('mealplan_users', JSON.stringify(savedUsers));
-      }
-    }
+  // Stub functions for compatibility
+  const verifyEmail = async () => {
+    return { success: false, error: 'Email verification is handled automatically by Supabase' };
+  };
+
+  const resendVerificationCode = async () => {
+    return { success: false, error: 'Email verification is handled automatically by Supabase' };
   };
 
   const skipEmailVerification = () => {
-    if (pendingVerification && !pendingVerification.supabaseUser) {
-      const verifiedUser = { ...pendingVerification, emailVerified: true };
-      delete verifiedUser.verificationCode;
-
-      const savedUsers = JSON.parse(localStorage.getItem('mealplan_users') || '[]');
-      savedUsers.push(verifiedUser);
-      localStorage.setItem('mealplan_users', JSON.stringify(savedUsers));
-
-      localStorage.setItem('mealplan_user', JSON.stringify(verifiedUser));
-      setUser(verifiedUser);
-      setPendingVerification(null);
-
-      toast.success('✅ Demo mode: Account verified automatically!');
-      return { success: true };
-    }
     return { success: false };
   };
 
