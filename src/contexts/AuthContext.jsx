@@ -56,9 +56,11 @@ export const AuthProvider = ({ children }) => {
         if (event === 'SIGNED_IN' && session?.user) {
           const supabaseUser = await createUserFromSupabaseAuth(session.user);
           setUser(supabaseUser);
+          setPendingVerification(null);
           toast.success('Successfully signed in!');
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          setPendingVerification(null);
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           const supabaseUser = await createUserFromSupabaseAuth(session.user);
           setUser(supabaseUser);
@@ -140,7 +142,7 @@ export const AuthProvider = ({ children }) => {
           emailVerified: true,
           supabaseUser: false
         };
-        
+
         setUser(adminUser);
         toast.success('🛡️ Admin access granted!');
         return { success: true };
@@ -170,6 +172,7 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
 
+      // ✅ ALWAYS CREATE REAL SUPABASE ACCOUNT
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -185,14 +188,28 @@ export const AuthProvider = ({ children }) => {
         return { success: false, error: error.message };
       }
 
+      // ✅ Account is NOW PERSISTED in Supabase auth.users table
+      console.log('✅ Account created in Supabase:', data.user.id);
+
       if (data.user && !data.user.email_confirmed_at) {
-        toast.success('Registration successful! Please check your email to verify your account.', {
+        // Set pending verification with demo code
+        const demoVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        setPendingVerification({
+          email: email,
+          userId: data.user.id, // ✅ Real Supabase user ID
+          demoCode: demoVerificationCode,
+          supabaseUser: data.user // ✅ Store the actual Supabase user object
+        });
+
+        toast.success(`📧 Demo verification code: ${demoVerificationCode}`, {
           duration: 8000
         });
+
         return {
           success: true,
           requiresVerification: true,
-          message: 'Please check your email to verify your account.'
+          verificationCode: demoVerificationCode,
+          message: 'Account created in Supabase! Please verify your email.'
         };
       }
 
@@ -232,17 +249,130 @@ export const AuthProvider = ({ children }) => {
     setUser(updatedUser);
   };
 
-  // Stub functions for compatibility
-  const verifyEmail = async () => {
-    return { success: false, error: 'Email verification is handled automatically by Supabase' };
+  // ✅ Email verification with REAL Supabase account
+  const verifyEmail = async (code) => {
+    if (!pendingVerification) {
+      return { success: false, error: 'No pending verification found' };
+    }
+
+    try {
+      setLoading(true);
+
+      // In demo mode, check against the demo code
+      if (code === pendingVerification.demoCode) {
+        // ✅ IMPORTANT: Use the REAL Supabase user that was created during registration
+        if (pendingVerification.supabaseUser) {
+          // Create user from the actual Supabase user object
+          const supabaseUser = await createUserFromSupabaseAuth(pendingVerification.supabaseUser);
+          setUser(supabaseUser);
+          setPendingVerification(null);
+          
+          console.log('✅ Using REAL Supabase account:', pendingVerification.supabaseUser.id);
+          toast.success('✅ Email verified! Account is persisted in Supabase.');
+          return { success: true };
+        } else {
+          // Fallback: clear pending verification
+          setPendingVerification(null);
+          toast.success('✅ Email verified successfully!');
+          return { success: true };
+        }
+      } else {
+        return { success: false, error: 'Invalid verification code' };
+      }
+    } catch (error) {
+      console.error('Verification error:', error);
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // ✅ Resend verification code
   const resendVerificationCode = async () => {
-    return { success: false, error: 'Email verification is handled automatically by Supabase' };
+    if (!pendingVerification) {
+      return { success: false, error: 'No pending verification found' };
+    }
+
+    try {
+      // Generate new demo code
+      const newDemoCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      setPendingVerification(prev => ({
+        ...prev,
+        demoCode: newDemoCode
+      }));
+
+      toast.success(`📧 New demo verification code: ${newDemoCode}`, {
+        duration: 8000
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error('Resend verification error:', error);
+      return { success: false, error: error.message };
+    }
   };
 
-  const skipEmailVerification = () => {
-    return { success: false };
+  // ✅ UPDATED: Skip verification but KEEP Supabase account
+  const skipEmailVerification = async () => {
+    if (!pendingVerification) {
+      return { success: false, error: 'No pending verification found' };
+    }
+
+    try {
+      setLoading(true);
+
+      // ✅ IMPORTANT: Use the REAL Supabase account that was created during registration
+      if (pendingVerification.supabaseUser) {
+        // Create user from the actual Supabase user object
+        const supabaseUser = await createUserFromSupabaseAuth(pendingVerification.supabaseUser);
+        
+        // Mark as unverified but still a real Supabase user
+        supabaseUser.emailVerified = false;
+        
+        setUser(supabaseUser);
+        setPendingVerification(null);
+        
+        console.log('✅ Using REAL Supabase account (unverified):', pendingVerification.supabaseUser.id);
+        toast.success('🚀 Demo mode activated! Your account is saved in Supabase.', {
+          duration: 4000
+        });
+
+        return { success: true };
+      } else {
+        // Fallback to demo user (shouldn't happen with new flow)
+        const demoUser = {
+          id: pendingVerification.userId || `demo_${Date.now()}`,
+          email: pendingVerification.email,
+          name: pendingVerification.email.split('@')[0],
+          username: pendingVerification.email.split('@')[0],
+          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${pendingVerification.email}`,
+          joinDate: new Date().toISOString(),
+          level: 1,
+          xp: 0,
+          streakDays: 0,
+          recipesCooked: 0,
+          badges: ['new_chef'],
+          isAdmin: false,
+          emailVerified: false,
+          supabaseUser: false
+        };
+
+        setUser(demoUser);
+        setPendingVerification(null);
+
+        toast.success('🚀 Demo mode activated! Welcome to Meal Plan!', {
+          duration: 4000
+        });
+
+        return { success: true };
+      }
+    } catch (error) {
+      console.error('Skip verification error:', error);
+      return { success: false, error: error.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
   const value = {

@@ -5,7 +5,7 @@ import { useGamification } from '../contexts/GamificationContext';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 
-const { FiClock, FiPlay, FiPause, FiSquare, FiChevronLeft, FiChevronRight, FiX, FiCheck, FiMinus, FiPlus, FiBell, FiMaximize2 } = FiIcons;
+const { FiClock, FiPlay, FiPause, FiSquare, FiChevronLeft, FiChevronRight, FiX, FiCheck, FiMinus, FiPlus, FiBell, FiMaximize2, FiExternalLink, FiLink } = FiIcons;
 
 const CookingTimer = () => {
   const [isMinimized, setIsMinimized] = useState(false);
@@ -56,6 +56,16 @@ const CookingTimer = () => {
     setIsTimerComplete(false);
   };
 
+  // Handle recipe URL click
+  const handleRecipeUrlClick = (url) => {
+    if (url) {
+      // Ensure URL has protocol
+      const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
+      window.open(formattedUrl, '_blank', 'noopener,noreferrer');
+      addXP(2, 'Recipe details viewed');
+    }
+  };
+
   // ENHANCED: Show different floating widgets based on cooking mode state
   if (!isActive || !currentRecipe) {
     // Show persistent timer indicator if there's an active timer but cooking mode is closed
@@ -72,16 +82,12 @@ const CookingTimer = () => {
             animate={isTimerComplete ? {
               scale: [1, 1.1, 1],
               boxShadow: [
-                '0 10px 25px rgba(239,68,68,0.3)',
-                '0 15px 35px rgba(239,68,68,0.5)',
-                '0 10px 25px rgba(239,68,68,0.3)'
+                '0 10px 25px rgba(239, 68, 68, 0.3)',
+                '0 15px 35px rgba(239, 68, 68, 0.5)',
+                '0 10px 25px rgba(239, 68, 68, 0.3)'
               ]
             } : {}}
-            transition={isTimerComplete ? {
-              duration: 1.5,
-              repeat: Infinity,
-              ease: "easeInOut"
-            } : {}}
+            transition={isTimerComplete ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : {}}
             className={`rounded-2xl p-4 text-white shadow-2xl cursor-pointer ${
               isTimerComplete 
                 ? 'bg-gradient-to-r from-red-500 to-red-600' 
@@ -156,7 +162,7 @@ const CookingTimer = () => {
     const mins = parseInt(customMinutes) || 0;
     const secs = parseInt(customSeconds) || 0;
     const totalMinutes = mins + (secs / 60);
-
+    
     if (totalMinutes > 0) {
       handleStartTimer(totalMinutes);
       setCustomMinutes('');
@@ -199,16 +205,12 @@ const CookingTimer = () => {
             animate={isTimerComplete ? {
               scale: [1, 1.1, 1],
               boxShadow: [
-                '0 10px 25px rgba(239,68,68,0.3)',
-                '0 15px 35px rgba(239,68,68,0.5)',
-                '0 10px 25px rgba(239,68,68,0.3)'
+                '0 10px 25px rgba(239, 68, 68, 0.3)',
+                '0 15px 35px rgba(239, 68, 68, 0.5)',
+                '0 10px 25px rgba(239, 68, 68, 0.3)'
               ]
             } : {}}
-            transition={isTimerComplete ? {
-              duration: 1.5,
-              repeat: Infinity,
-              ease: "easeInOut"
-            } : {}}
+            transition={isTimerComplete ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : {}}
             className={`rounded-2xl p-4 text-white shadow-2xl ${
               isTimerComplete 
                 ? 'bg-gradient-to-r from-red-500 to-red-600' 
@@ -343,7 +345,21 @@ const CookingTimer = () => {
                   <SafeIcon icon={FiClock} className="text-white" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg">{currentRecipe.title}</h3>
+                  <div className="flex items-center space-x-3">
+                    <h3 className="font-bold text-lg">{currentRecipe.title}</h3>
+                    {/* ✅ NEW: Recipe URL Link in Header */}
+                    {currentRecipe.url && (
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => handleRecipeUrlClick(currentRecipe.url)}
+                        className="p-2 bg-white/20 rounded-lg hover:bg-white/30 transition-colors duration-200"
+                        title="View full recipe details"
+                      >
+                        <SafeIcon icon={FiExternalLink} className="text-white text-sm" />
+                      </motion.button>
+                    )}
+                  </div>
                   <div className="flex items-center space-x-2 text-primary-100">
                     <span>Step {currentStep + 1} of {currentRecipe.steps.length}</span>
                     <span>•</span>
@@ -411,6 +427,25 @@ const CookingTimer = () => {
                     </div>
                   </div>
 
+                  {/* ✅ NEW: Recipe URL Link in Content Area */}
+                  {currentRecipe.url && (
+                    <div className="mb-4">
+                      <motion.button
+                        whileHover={{ scale: 1.02, y: -2 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleRecipeUrlClick(currentRecipe.url)}
+                        className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-4 rounded-xl hover:from-blue-100 hover:to-indigo-100 transition-all duration-200 flex items-center justify-center space-x-3 group"
+                      >
+                        <SafeIcon icon={FiLink} className="text-blue-600 text-lg" />
+                        <div className="text-center">
+                          <p className="font-semibold text-blue-900">View Full Recipe Details</p>
+                          <p className="text-sm text-blue-600">Open complete recipe instructions</p>
+                        </div>
+                        <SafeIcon icon={FiExternalLink} className="text-blue-600 group-hover:scale-110 transition-transform duration-200" />
+                      </motion.button>
+                    </div>
+                  )}
+
                   {/* Navigation */}
                   <div className="flex items-center justify-between">
                     <motion.button
@@ -459,8 +494,8 @@ const CookingTimer = () => {
                           isTimerComplete 
                             ? 'text-red-600 animate-pulse' 
                             : timeLeft > 0 
-                            ? 'text-primary-600' 
-                            : 'text-gray-400'
+                              ? 'text-primary-600' 
+                              : 'text-gray-400'
                         }`}>
                           {timeLeft > 0 || isTimerComplete ? formatTime(timeLeft) : '00:00'}
                         </div>
@@ -486,8 +521,8 @@ const CookingTimer = () => {
                               whileTap={{ scale: 0.9 }}
                               onClick={isTimerRunning ? pauseTimer : resumeTimer}
                               className={`p-2 rounded-lg transition-colors duration-200 ${
-                                isTimerRunning
-                                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                isTimerRunning 
+                                  ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200' 
                                   : 'bg-green-100 text-green-700 hover:bg-green-200'
                               }`}
                             >

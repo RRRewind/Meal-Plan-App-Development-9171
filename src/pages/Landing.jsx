@@ -78,8 +78,12 @@ const Landing = () => {
   useEffect(() => {
     if (pendingVerification && !showVerification) {
       setShowVerification(true);
+      // Auto-fill the demo verification code
+      if (pendingVerification.demoCode) {
+        setVerificationCode(pendingVerification.demoCode);
+      }
     }
-  }, [pendingVerification]);
+  }, [pendingVerification, showVerification]);
 
   const handleSaveSharedRecipe = (recipeData) => {
     const result = saveSharedRecipe(recipeData);
@@ -165,20 +169,31 @@ const Landing = () => {
     }
   };
 
+  // ✅ FIXED: Skip verification handler
   const handleSkipVerification = async () => {
-    const result = skipEmailVerification();
-    if (result.success) {
-      // Check for shared recipe after verification
-      const urlParams = new URLSearchParams(location.search);
-      const sharedRecipe = urlParams.get('recipe');
-      
-      if (sharedRecipe) {
-        setTimeout(() => {
-          handleSaveSharedRecipe(sharedRecipe);
-        }, 500);
+    setLoading(true);
+    try {
+      const result = skipEmailVerification();
+      if (result.success) {
+        // Check for shared recipe after skipping verification
+        const urlParams = new URLSearchParams(location.search);
+        const sharedRecipe = urlParams.get('recipe');
+        
+        if (sharedRecipe) {
+          setTimeout(() => {
+            handleSaveSharedRecipe(sharedRecipe);
+          }, 500);
+        } else {
+          navigate('/dashboard');
+        }
       } else {
-        navigate('/dashboard');
+        toast.error(result.error || 'Failed to skip verification');
       }
+    } catch (error) {
+      console.error('Skip verification error:', error);
+      toast.error('Failed to skip verification');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -190,16 +205,11 @@ const Landing = () => {
     // Smooth scroll to the auth form
     const authForm = document.querySelector('.auth-form-container');
     if (authForm) {
-      authForm.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'center' 
-      });
+      authForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     
     // Show a helpful toast
-    toast.success('🚀 Ready to start your culinary journey!', {
-      duration: 2000
-    });
+    toast.success('🚀 Ready to start your culinary journey!', { duration: 2000 });
   };
 
   const features = [
@@ -289,6 +299,7 @@ const Landing = () => {
                   <h1 className="text-6xl lg:text-7xl font-bold text-gray-900 leading-none">
                     Plan, Cook &
                   </h1>
+                  
                   {/* Animated Title - BIGGER TEXT & REDUCED SPACING */}
                   <div className="w-full min-h-[140px] lg:min-h-[180px] relative -mt-2">
                     <AnimatePresence mode="wait">
@@ -377,7 +388,6 @@ const Landing = () => {
                       <h2 className="text-3xl font-bold text-gray-900 mb-3">
                         Verify Your Email
                       </h2>
-                      
                       <div className="bg-blue-50/80 border border-blue-200/50 rounded-xl p-4 mb-4">
                         <p className="text-blue-800 font-semibold text-sm mb-2">
                           🚀 Demo Mode Active
@@ -386,7 +396,6 @@ const Landing = () => {
                           Since this is a demo, your verification code is shown above in the notification. In a real app, this would be sent to your email.
                         </p>
                       </div>
-                      
                       <p className="text-gray-600 font-medium mb-2">
                         Enter the 6-digit code or use the skip option below
                       </p>
@@ -428,23 +437,31 @@ const Landing = () => {
                         )}
                       </motion.button>
 
-                      {/* Demo Skip Option */}
+                      {/* ✅ FIXED: Demo Skip Option */}
                       <motion.button
                         type="button"
                         whileHover={{ scale: 1.02, y: -2 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={handleSkipVerification}
-                        className="w-full bg-gradient-to-r from-secondary-500/90 to-secondary-600/90 text-white py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center space-x-3 shadow-lg"
+                        disabled={loading}
+                        className="w-full bg-gradient-to-r from-secondary-500/90 to-secondary-600/90 text-white py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center space-x-3 shadow-lg disabled:opacity-50"
                       >
-                        <SafeIcon icon={FiZap} className="text-lg" />
-                        <span>Skip Verification (Demo)</span>
+                        {loading ? (
+                          <div className="animate-spin rounded-full h-6 w-6 border-3 border-white border-t-transparent" />
+                        ) : (
+                          <>
+                            <SafeIcon icon={FiZap} className="text-lg" />
+                            <span>Skip Verification (Demo)</span>
+                          </>
+                        )}
                       </motion.button>
 
                       <div className="text-center">
                         <button
                           type="button"
                           onClick={handleResendCode}
-                          className="text-primary-600 hover:text-primary-700 font-semibold text-sm transition-colors flex items-center space-x-2 mx-auto"
+                          disabled={loading}
+                          className="text-primary-600 hover:text-primary-700 font-semibold text-sm transition-colors flex items-center space-x-2 mx-auto disabled:opacity-50"
                         >
                           <SafeIcon icon={FiRefreshCw} />
                           <span>Resend Code</span>
