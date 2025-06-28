@@ -89,7 +89,10 @@ export const RecipeProvider = ({ children }) => {
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading user recipes:', error);
+        throw error;
+      }
 
       // Transform Supabase data to app format
       const transformedRecipes = data.map(recipe => ({
@@ -114,6 +117,7 @@ export const RecipeProvider = ({ children }) => {
     } catch (error) {
       console.error('❌ Error loading user recipes:', error);
       setRecipes([]);
+      toast.error('Failed to load your recipes');
     } finally {
       setLoading(false);
     }
@@ -133,7 +137,10 @@ export const RecipeProvider = ({ children }) => {
         .eq('user_id', userId)
         .order('saved_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading saved recipes:', error);
+        throw error;
+      }
 
       // Transform saved recipes data
       const transformedSaved = data.map(saved => ({
@@ -155,6 +162,65 @@ export const RecipeProvider = ({ children }) => {
     return normalize(recipe1.title) === normalize(recipe2.title);
   };
 
+  // Validate recipe data
+  const validateRecipeData = (recipe) => {
+    const errors = [];
+
+    if (!recipe.title || !recipe.title.trim()) {
+      errors.push('Recipe title is required');
+    }
+
+    if (!recipe.description || !recipe.description.trim()) {
+      errors.push('Recipe description is required');
+    }
+
+    if (!recipe.ingredients || recipe.ingredients.length === 0) {
+      errors.push('At least one ingredient is required');
+    } else {
+      const validIngredients = recipe.ingredients.filter(ing => ing.name && ing.name.trim());
+      if (validIngredients.length === 0) {
+        errors.push('At least one valid ingredient is required');
+      }
+    }
+
+    if (!recipe.steps || recipe.steps.length === 0) {
+      errors.push('At least one cooking step is required');
+    } else {
+      const validSteps = recipe.steps.filter(step => step && step.trim());
+      if (validSteps.length === 0) {
+        errors.push('At least one valid cooking step is required');
+      }
+    }
+
+    if (!recipe.cookTime || parseInt(recipe.cookTime) <= 0) {
+      errors.push('Cook time must be greater than 0');
+    }
+
+    if (!recipe.servings || parseInt(recipe.servings) <= 0) {
+      errors.push('Servings must be greater than 0');
+    }
+
+    return errors;
+  };
+
+  // Clean recipe data for database
+  const cleanRecipeData = (recipe) => {
+    return {
+      title: String(recipe.title || '').trim(),
+      description: String(recipe.description || '').trim(),
+      cookTime: parseInt(recipe.cookTime) || 0,
+      servings: parseInt(recipe.servings) || 1,
+      difficulty: recipe.difficulty || 'Easy',
+      ingredients: Array.isArray(recipe.ingredients) ? 
+        recipe.ingredients.filter(ing => ing.name && ing.name.trim()) : [],
+      steps: Array.isArray(recipe.steps) ? 
+        recipe.steps.filter(step => step && step.trim()) : [],
+      tags: Array.isArray(recipe.tags) ? recipe.tags : [],
+      image: recipe.image || null,
+      url: recipe.url || null
+    };
+  };
+
   // Save recipe to Supabase
   const saveRecipeToSupabase = async (recipe) => {
     if (!user) {
@@ -166,21 +232,29 @@ export const RecipeProvider = ({ children }) => {
       throw new Error('Invalid user ID');
     }
 
+    // Validate and clean data
+    const cleanedRecipe = cleanRecipeData(recipe);
+    const validationErrors = validateRecipeData(cleanedRecipe);
+    
+    if (validationErrors.length > 0) {
+      throw new Error(validationErrors.join(', '));
+    }
+
     try {
       console.log(`🔄 Saving recipe to Supabase for user: ${userId}`);
 
       const recipeData = {
         user_id: userId,
-        title: recipe.title,
-        description: recipe.description,
-        cook_time: parseInt(recipe.cookTime) || 0,
-        servings: parseInt(recipe.servings) || 1,
-        difficulty: recipe.difficulty || 'Easy',
-        ingredients: recipe.ingredients || [],
-        steps: recipe.steps || [],
-        tags: recipe.tags || [],
-        image_url: recipe.image || null,
-        recipe_url: recipe.url || null,
+        title: cleanedRecipe.title,
+        description: cleanedRecipe.description,
+        cook_time: cleanedRecipe.cookTime,
+        servings: cleanedRecipe.servings,
+        difficulty: cleanedRecipe.difficulty,
+        ingredients: cleanedRecipe.ingredients,
+        steps: cleanedRecipe.steps,
+        tags: cleanedRecipe.tags,
+        image_url: cleanedRecipe.image,
+        recipe_url: cleanedRecipe.url,
         is_shared: recipe.shared || false
       };
 
@@ -192,7 +266,7 @@ export const RecipeProvider = ({ children }) => {
 
       if (error) {
         console.error('❌ Supabase insert error:', error);
-        throw error;
+        throw new Error(`Database error: ${error.message}`);
       }
 
       console.log('✅ Recipe saved to Supabase successfully');
@@ -233,34 +307,12 @@ export const RecipeProvider = ({ children }) => {
       throw new Error('Invalid user ID');
     }
 
-    // Clean and validate the data
-    const cleanedRecipe = {
-      title: String(updatedRecipe.title || '').trim(),
-      description: String(updatedRecipe.description || '').trim(),
-      cookTime: parseInt(updatedRecipe.cookTime) || 0,
-      servings: parseInt(updatedRecipe.servings) || 1,
-      difficulty: updatedRecipe.difficulty || 'Easy',
-      ingredients: Array.isArray(updatedRecipe.ingredients) ? 
-        updatedRecipe.ingredients.filter(ing => ing.name && ing.name.trim()) : [],
-      steps: Array.isArray(updatedRecipe.steps) ? 
-        updatedRecipe.steps.filter(step => step && step.trim()) : [],
-      tags: Array.isArray(updatedRecipe.tags) ? updatedRecipe.tags : [],
-      image: updatedRecipe.image || null,
-      url: updatedRecipe.url || null
-    };
-
-    // Validate required fields
-    if (!cleanedRecipe.title) {
-      throw new Error('Recipe title is required');
-    }
-    if (!cleanedRecipe.description) {
-      throw new Error('Recipe description is required');
-    }
-    if (cleanedRecipe.ingredients.length === 0) {
-      throw new Error('At least one ingredient is required');
-    }
-    if (cleanedRecipe.steps.length === 0) {
-      throw new Error('At least one cooking step is required');
+    // Validate and clean data
+    const cleanedRecipe = cleanRecipeData(updatedRecipe);
+    const validationErrors = validateRecipeData(cleanedRecipe);
+    
+    if (validationErrors.length > 0) {
+      throw new Error(validationErrors.join(', '));
     }
 
     try {
@@ -276,29 +328,34 @@ export const RecipeProvider = ({ children }) => {
         steps: cleanedRecipe.steps,
         tags: cleanedRecipe.tags,
         image_url: cleanedRecipe.image,
-        recipe_url: cleanedRecipe.url,
-        updated_at: new Date().toISOString()
+        recipe_url: cleanedRecipe.url
       };
+
+      console.log('Recipe data being sent:', recipeData);
 
       // Update the recipe
       const { data, error } = await supabase
         .from('user_recipes_mp2024')
         .update(recipeData)
         .eq('id', recipeId)
-        .eq('user_id', userId)
         .select()
         .single();
 
       if (error) {
         console.error('❌ Supabase update error:', error);
-        throw error;
+        
+        if (error.code === 'PGRST116') {
+          throw new Error('Recipe not found or you do not have permission to edit it');
+        }
+        
+        throw new Error(`Database error: ${error.message}`);
       }
 
       if (!data) {
         throw new Error('Recipe not found or you do not have permission to edit it');
       }
 
-      console.log('✅ Recipe updated in Supabase successfully');
+      console.log('✅ Recipe updated in Supabase successfully:', data);
 
       // Transform back to app format
       const transformedRecipe = {
@@ -322,12 +379,7 @@ export const RecipeProvider = ({ children }) => {
       return transformedRecipe;
     } catch (error) {
       console.error('❌ Error updating recipe in Supabase:', error);
-      
-      if (error.code === 'PGRST116') {
-        throw new Error('Recipe not found or you do not have permission to edit it');
-      } else {
-        throw new Error('Failed to update recipe. Please try again.');
-      }
+      throw error;
     }
   };
 
@@ -348,10 +400,12 @@ export const RecipeProvider = ({ children }) => {
       const { error } = await supabase
         .from('user_recipes_mp2024')
         .delete()
-        .eq('id', recipeId)
-        .eq('user_id', userId);
+        .eq('id', recipeId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Supabase delete error:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
 
       console.log('✅ Recipe deleted from Supabase successfully');
       return true;
@@ -386,19 +440,9 @@ export const RecipeProvider = ({ children }) => {
       return { success: false, message: 'Please sign in to add recipes' };
     }
 
-    // Check for duplicates before adding
-    const allExistingRecipes = [...recipes, ...savedRecipes];
-    const isDuplicate = allExistingRecipes.some(existingRecipe =>
-      areRecipesIdentical(recipe, existingRecipe)
-    );
-
-    if (isDuplicate) {
-      return { success: false, message: 'This recipe already exists in your collection' };
-    }
-
     try {
       setLoading(true);
-      console.log('🔄 Adding recipe...');
+      console.log('🔄 Adding recipe...', recipe);
 
       const savedRecipe = await saveRecipeToSupabase(recipe);
 
@@ -409,8 +453,9 @@ export const RecipeProvider = ({ children }) => {
       return { success: true, recipe: savedRecipe };
     } catch (error) {
       console.error('❌ Error adding recipe:', error);
-      toast.error('Failed to save recipe. Please try again.');
-      return { success: false, message: 'Failed to save recipe. Please try again.' };
+      const errorMessage = error.message || 'Failed to save recipe. Please try again.';
+      toast.error(errorMessage);
+      return { success: false, message: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -419,62 +464,28 @@ export const RecipeProvider = ({ children }) => {
   // Update recipe
   const updateRecipe = async (recipeId, updatedRecipe) => {
     if (!user) {
+      toast.error('Please sign in to update recipes');
       return { success: false, message: 'Please sign in to update recipes' };
-    }
-
-    // Validate the recipe data
-    if (!updatedRecipe.title || !updatedRecipe.title.trim()) {
-      return { success: false, message: 'Recipe title is required' };
-    }
-
-    if (!updatedRecipe.description || !updatedRecipe.description.trim()) {
-      return { success: false, message: 'Recipe description is required' };
-    }
-
-    if (!updatedRecipe.ingredients || updatedRecipe.ingredients.length === 0) {
-      return { success: false, message: 'At least one ingredient is required' };
-    }
-
-    if (!updatedRecipe.steps || updatedRecipe.steps.length === 0) {
-      return { success: false, message: 'At least one cooking step is required' };
-    }
-
-    // Filter out empty ingredients and steps
-    const cleanedRecipe = {
-      ...updatedRecipe,
-      ingredients: updatedRecipe.ingredients.filter(ing => ing.name && ing.name.trim()),
-      steps: updatedRecipe.steps.filter(step => step && step.trim())
-    };
-
-    if (cleanedRecipe.ingredients.length === 0) {
-      return { success: false, message: 'At least one valid ingredient is required' };
-    }
-
-    if (cleanedRecipe.steps.length === 0) {
-      return { success: false, message: 'At least one valid cooking step is required' };
     }
 
     try {
       setLoading(true);
-      console.log('🔄 Updating recipe...', { recipeId, cleanedRecipe });
+      console.log('🔄 Updating recipe...', { recipeId, updatedRecipe });
 
-      const savedRecipe = await updateRecipeInSupabase(recipeId, cleanedRecipe);
+      const savedRecipe = await updateRecipeInSupabase(recipeId, updatedRecipe);
 
       // Update local state
       setRecipes(prev => prev.map(r => r.id === recipeId ? savedRecipe : r));
 
       // Also update in saved recipes if it exists there
-      const updatedSaved = savedRecipes.map(r => r.id === recipeId ? { ...r, ...cleanedRecipe } : r);
-      setSavedRecipes(updatedSaved);
+      setSavedRecipes(prev => prev.map(r => r.id === recipeId ? { ...r, ...savedRecipe } : r));
 
       toast.success('✅ Recipe updated successfully!');
       return { success: true, recipe: savedRecipe };
     } catch (error) {
       console.error('❌ Error updating recipe:', error);
-      
       const errorMessage = error.message || 'Failed to update recipe. Please try again.';
       toast.error(errorMessage);
-      
       return { success: false, message: errorMessage };
     } finally {
       setLoading(false);
@@ -484,19 +495,18 @@ export const RecipeProvider = ({ children }) => {
   // Delete recipe
   const deleteRecipe = async (recipeId) => {
     if (!user) {
+      toast.error('Please sign in to delete recipes');
       return { success: false, message: 'Please sign in to delete recipes' };
     }
 
     try {
       setLoading(true);
-      console.log('🔄 Deleting recipe...');
+      console.log('🔄 Deleting recipe...', recipeId);
 
       await deleteRecipeFromSupabase(recipeId);
 
       // Update local state
       setRecipes(prev => prev.filter(r => r.id !== recipeId));
-
-      // Remove from saved recipes
       setSavedRecipes(prev => prev.filter(r => r.id !== recipeId && r.originalSharedId !== recipeId));
 
       // Remove from user shared set
@@ -508,8 +518,9 @@ export const RecipeProvider = ({ children }) => {
       return { success: true, message: 'Recipe deleted successfully!' };
     } catch (error) {
       console.error('❌ Error deleting recipe:', error);
-      toast.error('Failed to delete recipe. Please try again.');
-      return { success: false, message: 'Failed to delete recipe. Please try again.' };
+      const errorMessage = error.message || 'Failed to delete recipe. Please try again.';
+      toast.error(errorMessage);
+      return { success: false, message: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -547,7 +558,10 @@ export const RecipeProvider = ({ children }) => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error saving recipe:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
 
       // Update local state
       setSavedRecipes(prev => [recipe, ...prev]);
@@ -555,7 +569,8 @@ export const RecipeProvider = ({ children }) => {
       return { success: true, message: 'Recipe saved successfully!' };
     } catch (error) {
       console.error('❌ Error saving recipe:', error);
-      return { success: false, message: 'Failed to save recipe' };
+      const errorMessage = error.message || 'Failed to save recipe';
+      return { success: false, message: errorMessage };
     }
   };
 
@@ -573,12 +588,16 @@ export const RecipeProvider = ({ children }) => {
         .eq('user_id', userId)
         .eq('recipe_id', recipeId);
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error unsaving recipe:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
 
       // Update local state
       setSavedRecipes(prev => prev.filter(r => r.id !== recipeId));
     } catch (error) {
       console.error('❌ Error unsaving recipe:', error);
+      toast.error('Failed to remove recipe from saved list');
     }
   };
 
