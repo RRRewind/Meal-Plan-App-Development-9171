@@ -80,7 +80,6 @@ export const RatingProvider = ({ children }) => {
     }
 
     setLoading(true);
-
     try {
       const ratingData = {
         recipe_id: recipeId,
@@ -125,7 +124,6 @@ export const RatingProvider = ({ children }) => {
 
       toast.success(existingRating ? '⭐ Rating updated!' : '⭐ Rating submitted!');
       return { success: true };
-
     } catch (error) {
       console.error('Error submitting rating:', error);
       toast.error('Failed to submit rating');
@@ -138,7 +136,7 @@ export const RatingProvider = ({ children }) => {
   // Get rating statistics for a recipe
   const getRatingStats = (recipeId) => {
     const recipeRatings = ratings[recipeId] || [];
-
+    
     if (recipeRatings.length === 0) {
       return {
         average: 0,
@@ -178,11 +176,21 @@ export const RatingProvider = ({ children }) => {
     return userRatings[recipeId] || null;
   };
 
-  // Check if user can rate a recipe (only community recipes)
+  // ✅ FIXED: Improved canRateRecipe function to be more stable
   const canRateRecipe = (recipe) => {
     if (!user || !recipe) return false;
+    
     // Only allow rating community recipes (shared recipes)
-    return recipe.shared && recipe.sharedByUserId !== getSafeUserId(user);
+    if (!recipe.shared) return false;
+    
+    // Users cannot rate their own recipes
+    const userId = getSafeUserId(user);
+    if (!userId) return false;
+    
+    // Check if this is the user's own recipe
+    if (recipe.sharedByUserId === userId) return false;
+    
+    return true;
   };
 
   // Sort recipes by smart score (intelligent combination of rating and review count)

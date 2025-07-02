@@ -211,14 +211,26 @@ const Recipes = () => {
     }
   };
 
-  // ✅ RATING: Anyone can rate community recipes from other users
+  // ✅ FIXED: Improved rating handler with better state management
   const handleRateRecipe = (recipe) => {
-    if (canRateRecipe(recipe)) {
-      setSelectedRecipeForRating(recipe);
-      setShowRatingModal(true);
-    } else {
+    // Double-check the recipe can be rated to prevent issues
+    if (!canRateRecipe(recipe)) {
       toast.error('You can only rate community recipes from other users');
+      return;
     }
+
+    // Only set state if we can actually rate this recipe
+    setSelectedRecipeForRating(recipe);
+    setShowRatingModal(true);
+  };
+
+  // ✅ FIXED: Better modal close handler
+  const handleCloseRatingModal = () => {
+    setShowRatingModal(false);
+    // Small delay to prevent flickering
+    setTimeout(() => {
+      setSelectedRecipeForRating(null);
+    }, 150);
   };
 
   // ✅ COMMUNITY SHARING: Only creators can share to community (or admins)
@@ -992,14 +1004,11 @@ const Recipes = () => {
           </>
         )}
 
-        {/* ✅ RATING MODAL: Available for community recipes */}
+        {/* ✅ FIXED: Rating Modal with improved close handler */}
         <RatingModal
           recipe={selectedRecipeForRating}
           isOpen={showRatingModal}
-          onClose={() => {
-            setShowRatingModal(false);
-            setSelectedRecipeForRating(null);
-          }}
+          onClose={handleCloseRatingModal}
         />
 
         {/* ✅ NEW: Edit Recipe Modal */}

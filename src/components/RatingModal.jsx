@@ -11,11 +11,16 @@ const RatingModal = ({ recipe, isOpen, onClose }) => {
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [review, setReview] = useState('');
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { submitRating, getUserRating, loading } = useRating();
 
+  // ✅ FIXED: Better initialization and cleanup
   useEffect(() => {
     if (isOpen && recipe) {
+      // Reset state when modal opens
+      setIsSubmitting(false);
+      setHoverRating(0);
+      
       const userRating = getUserRating(recipe.id);
       if (userRating) {
         setRating(userRating.rating);
@@ -27,33 +32,63 @@ const RatingModal = ({ recipe, isOpen, onClose }) => {
     }
   }, [isOpen, recipe, getUserRating]);
 
+  // ✅ FIXED: Clear state when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setRating(0);
+      setHoverRating(0);
+      setReview('');
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (rating === 0) return;
+    if (rating === 0 || isSubmitting) return;
 
-    const result = await submitRating(recipe.id, rating, review);
-    if (result.success) {
-      onClose();
+    setIsSubmitting(true);
+    try {
+      const result = await submitRating(recipe.id, rating, review);
+      if (result.success) {
+        // Close modal after successful submission
+        onClose();
+      }
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleStarClick = (starRating) => {
-    setRating(starRating);
+    if (!isSubmitting) {
+      setRating(starRating);
+    }
   };
 
   const handleStarHover = (starRating) => {
-    setHoverRating(starRating);
+    if (!isSubmitting) {
+      setHoverRating(starRating);
+    }
   };
 
   const handleStarLeave = () => {
-    setHoverRating(0);
+    if (!isSubmitting) {
+      setHoverRating(0);
+    }
+  };
+
+  const handleClose = () => {
+    if (!isSubmitting) {
+      onClose();
+    }
   };
 
   const displayRating = hoverRating || rating;
 
   const ratingLabels = {
     1: 'Poor',
-    2: 'Fair',
+    2: 'Fair', 
     3: 'Good',
     4: 'Very Good',
     5: 'Excellent'
@@ -71,7 +106,7 @@ const RatingModal = ({ recipe, isOpen, onClose }) => {
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
         style={{ zIndex: 99999 }}
-        onClick={onClose}
+        onClick={handleClose}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
@@ -87,8 +122,9 @@ const RatingModal = ({ recipe, isOpen, onClose }) => {
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl"
+              onClick={handleClose}
+              disabled={isSubmitting}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl disabled:opacity-50"
             >
               <SafeIcon icon={FiX} className="text-xl" />
             </motion.button>
@@ -115,7 +151,8 @@ const RatingModal = ({ recipe, isOpen, onClose }) => {
                     onClick={() => handleStarClick(star)}
                     onMouseEnter={() => handleStarHover(star)}
                     onMouseLeave={handleStarLeave}
-                    className="p-1"
+                    disabled={isSubmitting}
+                    className="p-1 disabled:opacity-50"
                   >
                     <SafeIcon
                       icon={FiStar}
@@ -150,7 +187,8 @@ const RatingModal = ({ recipe, isOpen, onClose }) => {
                 placeholder="Share your thoughts about this recipe..."
                 rows={4}
                 maxLength={500}
-                className="w-full px-4 py-3 input-modern rounded-xl font-medium resize-none"
+                disabled={isSubmitting}
+                className="w-full px-4 py-3 input-modern rounded-xl font-medium resize-none disabled:opacity-50"
               />
               <p className="text-xs text-gray-500 mt-1">
                 {review.length}/500 characters
@@ -163,8 +201,9 @@ const RatingModal = ({ recipe, isOpen, onClose }) => {
                 type="button"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={onClose}
-                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200"
+                onClick={handleClose}
+                disabled={isSubmitting}
+                className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
               >
                 Cancel
               </motion.button>
@@ -172,10 +211,10 @@ const RatingModal = ({ recipe, isOpen, onClose }) => {
                 type="submit"
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
-                disabled={rating === 0 || loading}
+                disabled={rating === 0 || isSubmitting || loading}
                 className="flex-1 px-6 py-3 btn-gradient text-white rounded-xl font-bold disabled:opacity-50 transition-all duration-200 shadow-lg"
               >
-                {loading ? (
+                {isSubmitting || loading ? (
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent mx-auto" />
                 ) : (
                   <span>{existingRating ? 'Update' : 'Submit'} Rating</span>
