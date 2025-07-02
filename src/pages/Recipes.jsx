@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRecipes } from '../contexts/RecipeContext';
 import { useCookingMode } from '../contexts/CookingModeContext';
@@ -22,8 +22,14 @@ const Recipes = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCleanupModal, setShowCleanupModal] = useState(false);
-  const [showRatingModal, setShowRatingModal] = useState(false);
-  const [selectedRecipeForRating, setSelectedRecipeForRating] = useState(null);
+  
+  // ✅ FIXED: Separate rating modal state management
+  const [ratingModalState, setRatingModalState] = useState({
+    isOpen: false,
+    recipe: null,
+    isClosing: false
+  });
+  
   const [editingRecipe, setEditingRecipe] = useState(null);
   const [cleanupResult, setCleanupResult] = useState(null);
   const [recipeToDelete, setRecipeToDelete] = useState(null);
@@ -44,7 +50,7 @@ const Recipes = () => {
   const { startCookingMode } = useCookingMode();
   const { addXP } = useGamification();
   const { user } = useAuth();
-  const { loadRatings, getRatingStats, canRateRecipe, sortRecipesByRating } = useRating();
+  const { loadRatings, getRatingStats, sortRecipesByRating } = useRating();
 
   // Get all unique recipes for empty state check only
   const allRecipes = getAllUniqueRecipes();
@@ -77,6 +83,23 @@ const Recipes = () => {
     { id: 'recent', name: 'Most Recent' },
     { id: 'rating', name: 'Highest Rated', onlyFor: 'community' }
   ];
+
+  // ✅ FIXED: Stable canRateRecipe function with useCallback
+  const canRateRecipe = useCallback((recipe) => {
+    if (!user || !recipe) return false;
+    
+    // Only allow rating community recipes (shared recipes)
+    if (!recipe.shared) return false;
+    
+    // Users cannot rate their own recipes
+    const userId = String(user.id || user.user_id || '');
+    if (!userId) return false;
+    
+    // Check if this is the user's own recipe
+    if (String(recipe.sharedByUserId) === userId) return false;
+    
+    return true;
+  }, [user]);
 
   // Helper function to get username by user ID
   const getUsernameById = (userId) => {
@@ -211,27 +234,42 @@ const Recipes = () => {
     }
   };
 
-  // ✅ FIXED: Improved rating handler with better state management
-  const handleRateRecipe = (recipe) => {
+  // ✅ COMPLETELY FIXED: Rating modal handlers with better state management
+  const handleRateRecipe = useCallback((recipe) => {
     // Double-check the recipe can be rated to prevent issues
     if (!canRateRecipe(recipe)) {
       toast.error('You can only rate community recipes from other users');
       return;
     }
 
-    // Only set state if we can actually rate this recipe
-    setSelectedRecipeForRating(recipe);
-    setShowRatingModal(true);
-  };
+    console.log('Opening rating modal for recipe:', recipe.title);
+    
+    // Set state atomically to prevent flickering
+    setRatingModalState({
+      isOpen: true,
+      recipe: recipe,
+      isClosing: false
+    });
+  }, [canRateRecipe]);
 
-  // ✅ FIXED: Better modal close handler
-  const handleCloseRatingModal = () => {
-    setShowRatingModal(false);
-    // Small delay to prevent flickering
+  // ✅ FIXED: Better modal close handler with proper cleanup
+  const handleCloseRatingModal = useCallback(() => {
+    console.log('Closing rating modal');
+    
+    setRatingModalState(prev => ({
+      ...prev,
+      isClosing: true
+    }));
+
+    // Close after a tiny delay to ensure smooth animation
     setTimeout(() => {
-      setSelectedRecipeForRating(null);
-    }, 150);
-  };
+      setRatingModalState({
+        isOpen: false,
+        recipe: null,
+        isClosing: false
+      });
+    }, 100);
+  }, []);
 
   // ✅ COMMUNITY SHARING: Only creators can share to community (or admins)
   const canShareRecipeToCommuity = (recipe) => {
@@ -1004,10 +1042,10 @@ const Recipes = () => {
           </>
         )}
 
-        {/* ✅ FIXED: Rating Modal with improved close handler */}
+        {/* ✅ COMPLETELY FIXED: Rating Modal with stable state management */}
         <RatingModal
-          recipe={selectedRecipeForRating}
-          isOpen={showRatingModal}
+          recipe={ratingModalState.recipe}
+          isOpen={ratingModalState.isOpen && !ratingModalState.isClosing}
           onClose={handleCloseRatingModal}
         />
 
