@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRating } from '../contexts/RatingContext';
 import SafeIcon from '../common/SafeIcon';
@@ -15,6 +15,9 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   
+  // Add ref for textarea focus
+  const textareaRef = useRef(null);
+  
   const { submitRating, getUserRating } = useRating();
 
   // Load existing rating
@@ -30,6 +33,19 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
       }
     }
   }, [recipe, getUserRating]);
+
+  // Focus textarea when edit form opens
+  useEffect(() => {
+    if (showEditForm && textareaRef.current) {
+      // Small delay to ensure the component is fully rendered
+      setTimeout(() => {
+        textareaRef.current.focus();
+        // Place cursor at end of text
+        const length = textareaRef.current.value.length;
+        textareaRef.current.setSelectionRange(length, length);
+      }, 100);
+    }
+  }, [showEditForm]);
 
   const existingRating = getUserRating(recipe?.id);
   const displayRating = hoverRating || rating;
@@ -95,6 +111,34 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
   const handleEditReview = () => {
     setShowEditForm(true);
     setIsExpanded(true);
+  };
+
+  // Handle review text change
+  const handleReviewChange = (e) => {
+    setReview(e.target.value);
+  };
+
+  // Handle form cancel
+  const handleCancel = () => {
+    setShowEditForm(false);
+    if (!existingRating) {
+      setIsExpanded(false);
+    }
+    // Reset review to original value if canceling
+    if (existingRating) {
+      setReview(existingRating.review || '');
+    }
+  };
+
+  // Handle close expanded view
+  const handleClose = () => {
+    setIsExpanded(false);
+    setShowEditForm(false);
+    setHoverRating(0);
+    // Reset review to original value if closing
+    if (existingRating) {
+      setReview(existingRating.review || '');
+    }
   };
 
   if (!canRate && !existingRating) {
@@ -187,11 +231,7 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                onClick={() => {
-                  setIsExpanded(false);
-                  setShowEditForm(false);
-                  setHoverRating(0);
-                }}
+                onClick={handleClose}
                 className="p-1 text-gray-400 hover:text-gray-600 rounded"
               >
                 <SafeIcon icon={FiX} className="text-sm" />
@@ -240,13 +280,20 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
                     Review (Optional)
                   </label>
                   <textarea
+                    ref={textareaRef}
                     value={review}
-                    onChange={(e) => setReview(e.target.value)}
+                    onChange={handleReviewChange}
                     placeholder="Share your thoughts about this recipe..."
                     rows={3}
                     maxLength={200}
                     disabled={isSubmitting}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:border-yellow-400 focus:outline-none disabled:opacity-50"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm resize-none focus:border-yellow-400 focus:outline-none disabled:opacity-50 bg-white"
+                    style={{
+                      minHeight: '80px',
+                      lineHeight: '1.4'
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     {review.length}/200 characters
@@ -275,12 +322,7 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
                     type="button"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      setShowEditForm(false);
-                      if (!existingRating) {
-                        setIsExpanded(false);
-                      }
-                    }}
+                    onClick={handleCancel}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors duration-200 text-sm"
                   >
                     Cancel
