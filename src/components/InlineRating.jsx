@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRating } from '../contexts/RatingContext';
 import SafeIcon from '../common/SafeIcon';
@@ -15,39 +15,51 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   
-  // Add ref for textarea focus
-  const textareaRef = useRef(null);
+  // Use refs to track state without triggering re-renders
+  const initializedRecipeRef = useRef(null);
+  const reviewInputRef = useRef(null);
+  const isUserTypingRef = useRef(false);
   
   const { submitRating, getUserRating } = useRating();
 
-  // Load existing rating
+  // Memoize the existing rating to prevent unnecessary re-computations
+  const existingRating = useCallback(() => {
+    return getUserRating(recipe?.id);
+  }, [getUserRating, recipe?.id]);
+
+  // Initialize rating data only when recipe changes (not on every render)
   useEffect(() => {
-    if (recipe) {
-      const userRating = getUserRating(recipe.id);
+    if (recipe?.id && initializedRecipeRef.current !== recipe.id) {
+      initializedRecipeRef.current = recipe.id;
+      
+      const userRating = existingRating();
       if (userRating) {
         setRating(userRating.rating);
-        setReview(userRating.review || '');
+        // Only set review if user is not currently typing
+        if (!isUserTypingRef.current) {
+          setReview(userRating.review || '');
+        }
       } else {
         setRating(0);
-        setReview('');
+        if (!isUserTypingRef.current) {
+          setReview('');
+        }
       }
     }
-  }, [recipe, getUserRating]);
+  }, [recipe?.id, existingRating]);
 
   // Focus textarea when edit form opens
   useEffect(() => {
-    if (showEditForm && textareaRef.current) {
-      // Small delay to ensure the component is fully rendered
+    if (showEditForm && reviewInputRef.current) {
       setTimeout(() => {
-        textareaRef.current.focus();
-        // Place cursor at end of text
-        const length = textareaRef.current.value.length;
-        textareaRef.current.setSelectionRange(length, length);
+        reviewInputRef.current.focus();
+        const length = reviewInputRef.current.value.length;
+        reviewInputRef.current.setSelectionRange(length, length);
       }, 100);
     }
   }, [showEditForm]);
 
-  const existingRating = getUserRating(recipe?.id);
+  const currentExistingRating = existingRating();
   const displayRating = hoverRating || rating;
 
   const ratingLabels = {
@@ -65,12 +77,12 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
     setIsSubmitting(true);
 
     try {
-      // Submit rating immediately on star click
       const result = await submitRating(recipe.id, starRating, review);
       if (result.success) {
         toast.success(`⭐ Rated ${starRating} star${starRating !== 1 ? 's' : ''}!`);
         setIsExpanded(false);
         setShowEditForm(false);
+        isUserTypingRef.current = false;
       }
     } catch (error) {
       console.error('Error submitting rating:', error);
@@ -91,6 +103,7 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
         toast.success('⭐ Review updated!');
         setShowEditForm(false);
         setIsExpanded(false);
+        isUserTypingRef.current = false;
       }
     } catch (error) {
       console.error('Error submitting review:', error);
@@ -109,39 +122,76 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
   };
 
   const handleEditReview = () => {
+    const currentRating = existingRating();
+    if (currentRating && currentRating.review) {
+      setReview(currentRating.review);
+    }
     setShowEditForm(true);
     setIsExpanded(true);
+    isUserTypingRef.current = false;
   };
 
-  // Handle review text change
-  const handleReviewChange = (e) => {
+  // Completely isolated review change handler
+  const handleReviewChange = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Mark that user is actively typing
+    isUserTypingRef.current = true;
+    
+    const newValue = e.target.value;
+    setReview(newValue);
+    
+    // Clear the typing flag after a delay
+    setTimeout(() => {
+      isUserTypingRef.current = false;
+    }, 1000);
+  }, []);
+
+  // Handle input events
+  const handleTextareaInput = useCallback((e) => {
+    isUserTypingRef.current = true;
     setReview(e.target.value);
-  };
+  }, []);
 
-  // Handle form cancel
+  // Handle focus events
+  const handleTextareaFocus = useCallback(() => {
+    isUserTypingRef.current = true;
+  }, []);
+
+  // Handle blur events
+  const handleTextareaBlur = useCallback(() => {
+    setTimeout(() => {
+      isUserTypingRef.current = false;
+    }, 500);
+  }, []);
+
   const handleCancel = () => {
     setShowEditForm(false);
-    if (!existingRating) {
+    isUserTypingRef.current = false;
+    
+    if (!currentExistingRating) {
       setIsExpanded(false);
-    }
-    // Reset review to original value if canceling
-    if (existingRating) {
-      setReview(existingRating.review || '');
+      setReview('');
+    } else {
+      setReview(currentExistingRating.review || '');
     }
   };
 
-  // Handle close expanded view
   const handleClose = () => {
     setIsExpanded(false);
     setShowEditForm(false);
     setHoverRating(0);
-    // Reset review to original value if closing
-    if (existingRating) {
-      setReview(existingRating.review || '');
+    isUserTypingRef.current = false;
+    
+    if (currentExistingRating) {
+      setReview(currentExistingRating.review || '');
+    } else {
+      setReview('');
     }
   };
 
-  if (!canRate && !existingRating) {
+  if (!canRate && !currentExistingRating) {
     return null;
   }
 
@@ -161,17 +211,17 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
                 key={star}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                onClick={() => existingRating ? handleExpand() : handleStarClick(star)}
-                onMouseEnter={() => !existingRating && setHoverRating(star)}
-                onMouseLeave={() => !existingRating && setHoverRating(0)}
+                onClick={() => currentExistingRating ? handleExpand() : handleStarClick(star)}
+                onMouseEnter={() => !currentExistingRating && setHoverRating(star)}
+                onMouseLeave={() => !currentExistingRating && setHoverRating(0)}
                 className="transition-colors duration-200"
                 disabled={isSubmitting}
               >
                 <SafeIcon
                   icon={FiStar}
                   className={`text-lg ${
-                    existingRating
-                      ? star <= existingRating.rating
+                    currentExistingRating
+                      ? star <= currentExistingRating.rating
                         ? 'text-yellow-400 fill-current'
                         : 'text-gray-300'
                       : star <= displayRating
@@ -184,10 +234,10 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
           </div>
 
           {/* Rating Info */}
-          {existingRating ? (
+          {currentExistingRating ? (
             <div className="flex items-center space-x-2">
               <span className="text-sm font-semibold text-gray-700">
-                Your rating: {existingRating.rating}/5
+                Your rating: {currentExistingRating.rating}/5
               </span>
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -226,7 +276,7 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
           >
             <div className="flex items-center justify-between mb-4">
               <h4 className="font-semibold text-gray-900">
-                {existingRating ? 'Update Your Rating' : 'Rate This Recipe'}
+                {currentExistingRating ? 'Update Your Rating' : 'Rate This Recipe'}
               </h4>
               <motion.button
                 whileHover={{ scale: 1.1 }}
@@ -273,16 +323,19 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
             </div>
 
             {/* Review Form (only if editing or adding review) */}
-            {(showEditForm || !existingRating) && (
+            {(showEditForm || !currentExistingRating) && (
               <form onSubmit={handleReviewSubmit} className="space-y-3">
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-2">
                     Review (Optional)
                   </label>
                   <textarea
-                    ref={textareaRef}
+                    ref={reviewInputRef}
                     value={review}
                     onChange={handleReviewChange}
+                    onInput={handleTextareaInput}
+                    onFocus={handleTextareaFocus}
+                    onBlur={handleTextareaBlur}
                     placeholder="Share your thoughts about this recipe..."
                     rows={3}
                     maxLength={200}
@@ -292,8 +345,6 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
                       minHeight: '80px',
                       lineHeight: '1.4'
                     }}
-                    onClick={(e) => e.stopPropagation()}
-                    onFocus={(e) => e.stopPropagation()}
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     {review.length}/200 characters
@@ -332,10 +383,10 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
             )}
 
             {/* Existing Review Display */}
-            {existingRating?.review && !showEditForm && (
+            {currentExistingRating?.review && !showEditForm && (
               <div className="mt-3 p-3 bg-white rounded-lg border">
                 <p className="text-sm text-gray-700 italic">
-                  "{existingRating.review}"
+                  "{currentExistingRating.review}"
                 </p>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -352,7 +403,7 @@ const InlineRating = ({ recipe, canRate, className = "" }) => {
             {!showEditForm && (
               <div className="mt-3 flex justify-center">
                 <span className="text-xs text-gray-500">
-                  {existingRating ? 'Click stars to update rating' : 'Click stars above to rate instantly'}
+                  {currentExistingRating ? 'Click stars to update rating' : 'Click stars above to rate instantly'}
                 </span>
               </div>
             )}
