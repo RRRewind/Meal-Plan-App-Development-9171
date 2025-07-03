@@ -8,7 +8,7 @@ import { useRating } from '../contexts/RatingContext';
 import Layout from '../components/Layout';
 import SafeIcon from '../common/SafeIcon';
 import RatingDisplay from '../components/RatingDisplay';
-import RatingModal from '../components/RatingModal';
+import InlineRating from '../components/InlineRating';
 import * as FiIcons from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -22,10 +22,6 @@ const Recipes = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCleanupModal, setShowCleanupModal] = useState(false);
-  
-  // ✅ SIMPLIFIED: Simple rating modal state
-  const [showRatingModal, setShowRatingModal] = useState(false);
-  const [ratingRecipe, setRatingRecipe] = useState(null);
   
   const [editingRecipe, setEditingRecipe] = useState(null);
   const [cleanupResult, setCleanupResult] = useState(null);
@@ -229,26 +225,6 @@ const Recipes = () => {
         toast.error('Failed to delete recipe');
       }
     }
-  };
-
-  // ✅ COMPLETELY SIMPLIFIED: Rating modal handlers
-  const handleRateRecipe = (recipe) => {
-    // Check if the recipe can be rated
-    if (!canRateRecipe(recipe)) {
-      toast.error('You can only rate community recipes from other users');
-      return;
-    }
-
-    console.log('Opening rating modal for recipe:', recipe.title);
-    setRatingRecipe(recipe);
-    setShowRatingModal(true);
-  };
-
-  // ✅ SIMPLIFIED: Modal close handler
-  const handleCloseRatingModal = () => {
-    console.log('Closing rating modal');
-    setShowRatingModal(false);
-    setRatingRecipe(null);
   };
 
   // ✅ COMMUNITY SHARING: Only creators can share to community (or admins)
@@ -851,19 +827,6 @@ const Recipes = () => {
                             <SafeIcon icon={FiHeart} className="text-sm" />
                           </motion.button>
 
-                          {/* ✅ RATING BUTTON: Show for community recipes from other users */}
-                          {canRate && (
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={() => handleRateRecipe(recipe)}
-                              className="p-2 bg-yellow-100 text-yellow-600 hover:bg-yellow-200 rounded-full backdrop-blur-sm transition-colors duration-200 shadow-lg"
-                              title="Rate this community recipe"
-                            >
-                              <SafeIcon icon={FiStar} className="text-sm" />
-                            </motion.button>
-                          )}
-
                           {user && (
                             <>
                               {/* ✅ NEW: EDIT BUTTON: Show for recipe owners */}
@@ -963,11 +926,20 @@ const Recipes = () => {
                           {recipe.description}
                         </p>
 
-                        {/* ✅ RATING DISPLAY: Show ratings for community recipes */}
+                        {/* ✅ RATING DISPLAY: Show community rating stats */}
                         {recipe.shared && (
                           <div className="mb-4">
                             <RatingDisplay stats={ratingStats} size="sm" />
                           </div>
+                        )}
+
+                        {/* ✅ NEW: INLINE RATING SYSTEM for community recipes */}
+                        {recipe.shared && (
+                          <InlineRating 
+                            recipe={recipe} 
+                            canRate={canRate}
+                            className="mb-4"
+                          />
                         )}
 
                         {/* Recipe Stats */}
@@ -1021,13 +993,6 @@ const Recipes = () => {
             )}
           </>
         )}
-
-        {/* ✅ SIMPLIFIED: Rating Modal */}
-        <RatingModal
-          recipe={ratingRecipe}
-          isOpen={showRatingModal}
-          onClose={handleCloseRatingModal}
-        />
 
         {/* ✅ NEW: Edit Recipe Modal */}
         <AnimatePresence>
