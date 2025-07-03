@@ -23,12 +23,9 @@ const Recipes = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCleanupModal, setShowCleanupModal] = useState(false);
   
-  // ✅ FIXED: Separate rating modal state management
-  const [ratingModalState, setRatingModalState] = useState({
-    isOpen: false,
-    recipe: null,
-    isClosing: false
-  });
+  // ✅ SIMPLIFIED: Simple rating modal state
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [ratingRecipe, setRatingRecipe] = useState(null);
   
   const [editingRecipe, setEditingRecipe] = useState(null);
   const [cleanupResult, setCleanupResult] = useState(null);
@@ -234,42 +231,25 @@ const Recipes = () => {
     }
   };
 
-  // ✅ COMPLETELY FIXED: Rating modal handlers with better state management
-  const handleRateRecipe = useCallback((recipe) => {
-    // Double-check the recipe can be rated to prevent issues
+  // ✅ COMPLETELY SIMPLIFIED: Rating modal handlers
+  const handleRateRecipe = (recipe) => {
+    // Check if the recipe can be rated
     if (!canRateRecipe(recipe)) {
       toast.error('You can only rate community recipes from other users');
       return;
     }
 
     console.log('Opening rating modal for recipe:', recipe.title);
-    
-    // Set state atomically to prevent flickering
-    setRatingModalState({
-      isOpen: true,
-      recipe: recipe,
-      isClosing: false
-    });
-  }, [canRateRecipe]);
+    setRatingRecipe(recipe);
+    setShowRatingModal(true);
+  };
 
-  // ✅ FIXED: Better modal close handler with proper cleanup
-  const handleCloseRatingModal = useCallback(() => {
+  // ✅ SIMPLIFIED: Modal close handler
+  const handleCloseRatingModal = () => {
     console.log('Closing rating modal');
-    
-    setRatingModalState(prev => ({
-      ...prev,
-      isClosing: true
-    }));
-
-    // Close after a tiny delay to ensure smooth animation
-    setTimeout(() => {
-      setRatingModalState({
-        isOpen: false,
-        recipe: null,
-        isClosing: false
-      });
-    }, 100);
-  }, []);
+    setShowRatingModal(false);
+    setRatingRecipe(null);
+  };
 
   // ✅ COMMUNITY SHARING: Only creators can share to community (or admins)
   const canShareRecipeToCommuity = (recipe) => {
@@ -1042,10 +1022,10 @@ const Recipes = () => {
           </>
         )}
 
-        {/* ✅ COMPLETELY FIXED: Rating Modal with stable state management */}
+        {/* ✅ SIMPLIFIED: Rating Modal */}
         <RatingModal
-          recipe={ratingModalState.recipe}
-          isOpen={ratingModalState.isOpen && !ratingModalState.isClosing}
+          recipe={ratingRecipe}
+          isOpen={showRatingModal}
           onClose={handleCloseRatingModal}
         />
 
