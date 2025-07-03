@@ -21,14 +21,14 @@ const ProfileDropdown = () => {
   
   const buttonRef = useRef(null);
   const dropdownRef = useRef(null);
+  
   const { user, logout } = useAuth();
   const { preferences, loading, updatePreferences, getDaysUntilUsernameChange } = useSettings();
 
   // Detect mobile device
   useEffect(() => {
     const checkMobile = () => {
-      const isMobileDevice = window.innerWidth <= 768 || 
-                           /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isMobileDevice = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       setIsMobile(isMobileDevice);
     };
 
@@ -79,14 +79,16 @@ const ProfileDropdown = () => {
     }
   };
 
-  // Close dropdown when clicking outside
+  // ✅ FIXED: Improved click outside handler to prevent flickering
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Only close if clicking outside both button and dropdown
       if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target) &&
+        isOpen &&
         buttonRef.current &&
-        !buttonRef.current.contains(event.target)
+        dropdownRef.current &&
+        !buttonRef.current.contains(event.target) &&
+        !dropdownRef.current.contains(event.target)
       ) {
         setIsOpen(false);
       }
@@ -104,16 +106,19 @@ const ProfileDropdown = () => {
       }
     };
 
+    // ✅ FIXED: Only add event listeners when dropdown is open
     if (isOpen) {
       updateDropdownPosition();
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('touchstart', handleClickOutside);
+      
+      // Use capture phase for more reliable detection
+      document.addEventListener('mousedown', handleClickOutside, true);
+      document.addEventListener('touchstart', handleClickOutside, true);
       
       if (!isMobile) {
         window.addEventListener('scroll', handleScroll, true);
         window.addEventListener('resize', handleResize);
       }
-      
+
       // Prevent body scroll on mobile when dropdown is open
       if (isMobile) {
         document.body.style.overflow = 'hidden';
@@ -121,8 +126,8 @@ const ProfileDropdown = () => {
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside, true);
+      document.removeEventListener('touchstart', handleClickOutside, true);
       window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', handleResize);
       
@@ -194,8 +199,11 @@ const ProfileDropdown = () => {
     setIsOpen(false);
   };
 
-  const handleToggleDropdown = () => {
-    setIsOpen(!isOpen);
+  // ✅ FIXED: Stable toggle handler
+  const handleToggleDropdown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsOpen(prev => !prev);
   };
 
   const tabs = [
@@ -223,31 +231,16 @@ const ProfileDropdown = () => {
 
           <motion.div
             ref={dropdownRef}
-            initial={{ 
-              opacity: 0, 
-              y: isMobile ? 100 : 10, 
-              scale: isMobile ? 0.95 : 0.95 
-            }}
-            animate={{ 
-              opacity: 1, 
-              y: 0, 
-              scale: 1 
-            }}
-            exit={{ 
-              opacity: 0, 
-              y: isMobile ? 100 : 10, 
-              scale: 0.95 
-            }}
-            transition={{ 
-              duration: 0.2,
-              ease: "easeOut"
-            }}
+            initial={{ opacity: 0, y: isMobile ? 100 : 10, scale: isMobile ? 0.95 : 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: isMobile ? 100 : 10, scale: 0.95 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
             className={`
               glass rounded-3xl shadow-2xl border border-white/20 z-[99999]
               ${isMobile 
                 ? 'fixed bottom-0 left-4 right-4 max-h-[85vh] mb-4' 
                 : 'fixed w-96 max-h-[80vh]'
-              }
+              } 
               flex flex-col
             `}
             style={!isMobile ? {
@@ -260,10 +253,10 @@ const ProfileDropdown = () => {
             <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-4 text-white flex-shrink-0 rounded-t-3xl">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-3">
-                  <img 
-                    src={user.avatar} 
-                    alt={user.name} 
-                    className="w-12 h-12 rounded-full border-2 border-white/20" 
+                  <img
+                    src={user.avatar}
+                    alt={user.name}
+                    className="w-12 h-12 rounded-full border-2 border-white/20"
                   />
                   <div className="flex-1">
                     <h3 className="font-bold text-lg">{user.name}</h3>
@@ -275,7 +268,7 @@ const ProfileDropdown = () => {
                     </span>
                   )}
                 </div>
-                
+
                 {/* Mobile close button */}
                 {isMobile && (
                   <motion.button
@@ -325,9 +318,9 @@ const ProfileDropdown = () => {
 
             {/* Content Area - Optimized scrolling */}
             <div 
-              className="flex-1 overflow-y-auto"
+              className="flex-1 overflow-y-auto" 
               style={{ 
-                minHeight: 0,
+                minHeight: 0, 
                 WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
               }}
             >

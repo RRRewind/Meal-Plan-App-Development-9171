@@ -29,7 +29,7 @@ const Landing = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Animated phrases that will cycle through - UPDATED: Removed 4 phrases
+  // Animated phrases that will cycle through
   const animatedPhrases = [
     "Level Up",
     "Build Skills", 
@@ -52,12 +52,10 @@ const Landing = () => {
     // Check for shared recipe in URL
     const urlParams = new URLSearchParams(location.search);
     const sharedRecipe = urlParams.get('recipe');
-    
     if (sharedRecipe) {
       try {
         const recipeData = JSON.parse(decodeURIComponent(sharedRecipe));
         setSharedRecipeData(recipeData);
-        
         if (user) {
           // User is already logged in, save immediately
           handleSaveSharedRecipe(sharedRecipe);
@@ -105,6 +103,13 @@ const Landing = () => {
       if (isLogin) {
         result = await login(formData.email, formData.password);
       } else {
+        // ✅ FIXED: Validate username for signup
+        if (!formData.username || formData.username.trim().length < 3) {
+          toast.error('Username is required and must be at least 3 characters');
+          setLoading(false);
+          return;
+        }
+
         result = await register(formData.username, formData.email, formData.password);
       }
 
@@ -119,7 +124,6 @@ const Landing = () => {
           // Check for shared recipe after login
           const urlParams = new URLSearchParams(location.search);
           const sharedRecipe = urlParams.get('recipe');
-          
           if (sharedRecipe) {
             setTimeout(() => {
               handleSaveSharedRecipe(sharedRecipe);
@@ -146,7 +150,6 @@ const Landing = () => {
         // Check for shared recipe after verification
         const urlParams = new URLSearchParams(location.search);
         const sharedRecipe = urlParams.get('recipe');
-        
         if (sharedRecipe) {
           setTimeout(() => {
             handleSaveSharedRecipe(sharedRecipe);
@@ -169,7 +172,6 @@ const Landing = () => {
     }
   };
 
-  // ✅ FIXED: Skip verification handler
   const handleSkipVerification = async () => {
     setLoading(true);
     try {
@@ -178,7 +180,6 @@ const Landing = () => {
         // Check for shared recipe after skipping verification
         const urlParams = new URLSearchParams(location.search);
         const sharedRecipe = urlParams.get('recipe');
-        
         if (sharedRecipe) {
           setTimeout(() => {
             handleSaveSharedRecipe(sharedRecipe);
@@ -201,13 +202,11 @@ const Landing = () => {
   const handleGetStartedFree = () => {
     // Switch to signup mode
     setIsLogin(false);
-    
     // Smooth scroll to the auth form
     const authForm = document.querySelector('.auth-form-container');
     if (authForm) {
       authForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-    
     // Show a helpful toast
     toast.success('🚀 Ready to start your culinary journey!', { duration: 2000 });
   };
@@ -294,13 +293,11 @@ const Landing = () => {
                   Smart Meal Planning Made Easy
                 </motion.div>
 
-                {/* UPDATED: Reduced spacing and bigger animated text */}
                 <div className="space-y-1">
                   <h1 className="text-6xl lg:text-7xl font-bold text-gray-900 leading-none">
                     Plan, Cook &
                   </h1>
-                  
-                  {/* Animated Title - BIGGER TEXT & REDUCED SPACING */}
+                  {/* Animated Title */}
                   <div className="w-full min-h-[140px] lg:min-h-[180px] relative -mt-2">
                     <AnimatePresence mode="wait">
                       <motion.h1
@@ -437,7 +434,6 @@ const Landing = () => {
                         )}
                       </motion.button>
 
-                      {/* ✅ FIXED: Demo Skip Option */}
                       <motion.button
                         type="button"
                         whileHover={{ scale: 1.02, y: -2 }}
@@ -490,13 +486,13 @@ const Landing = () => {
                   >
                     <div className="text-center mb-8">
                       <h2 className="text-3xl font-bold text-gray-900 mb-3">
-                        {sharedRecipeData 
+                        {sharedRecipeData
                           ? (isLogin ? 'Sign in to save recipe!' : 'Join to save recipe!')
                           : (isLogin ? 'Welcome Back!' : 'Join Meal Plan')
                         }
                       </h2>
                       <p className="text-gray-600 font-medium">
-                        {sharedRecipeData 
+                        {sharedRecipeData
                           ? `Save "${sharedRecipeData.title}" to your collection`
                           : (isLogin ? 'Sign in to continue your culinary journey' : 'Start your cooking adventure today')
                         }
@@ -507,7 +503,7 @@ const Landing = () => {
                       {!isLogin && (
                         <div>
                           <label className="block text-sm font-semibold text-gray-700 mb-3">
-                            Username
+                            Username <span className="text-red-500">*</span>
                           </label>
                           <UsernameInput
                             value={formData.username}
@@ -515,6 +511,9 @@ const Landing = () => {
                             showAvailability={true}
                             className="text-lg"
                           />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Required • 3-30 characters • Letters, numbers, and underscores only
+                          </p>
                         </div>
                       )}
 
@@ -577,7 +576,7 @@ const Landing = () => {
                         ) : (
                           <>
                             <span>
-                              {sharedRecipeData 
+                              {sharedRecipeData
                                 ? (isLogin ? 'Sign In & Save Recipe' : 'Create Account & Save Recipe')
                                 : (isLogin ? 'Sign In' : 'Create Account')
                               }
