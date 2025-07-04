@@ -20,8 +20,32 @@ const ShoppingList = () => {
   const { getAllIngredients } = useMealPlan();
   const { addXP, addShoppingProgressXP, isActionOnCooldown, getCooldownTimeRemaining, formatCooldownTime } = useGamification();
 
-  const mealIngredients = getAllIngredients();
-  const allItems = [...mealIngredients, ...customItems];
+  // ✅ ENHANCED: Additional filtering at component level for extra safety
+  const mealIngredients = getAllIngredients().filter(ingredient => {
+    if (!ingredient) return false;
+    if (!ingredient.name || typeof ingredient.name !== 'string') return false;
+    if (!ingredient.name.trim()) return false;
+    if (ingredient.name.trim().length === 0) return false;
+    
+    // Skip obviously invalid entries
+    const name = ingredient.name.trim().toLowerCase();
+    if (name === '' || name === ' ' || name === 'undefined' || name === 'null') {
+      return false;
+    }
+    
+    return true;
+  });
+
+  // ✅ ENHANCED: Filter custom items as well
+  const validCustomItems = customItems.filter(item => {
+    if (!item) return false;
+    if (!item.name || typeof item.name !== 'string') return false;
+    if (!item.name.trim()) return false;
+    if (item.name.trim().length === 0) return false;
+    return true;
+  });
+
+  const allItems = [...mealIngredients, ...validCustomItems];
   const checkedCount = Array.from(checkedItems).length;
   const totalCount = allItems.length;
   const progress = totalCount > 0 ? (checkedCount / totalCount) * 100 : 0;
@@ -141,15 +165,14 @@ const ShoppingList = () => {
     return 'other'; // Default category
   };
 
-  // 📊 GROUP ITEMS BY CATEGORY - ✅ FIXED: Only show categories with valid items
+  // 📊 GROUP ITEMS BY CATEGORY - ✅ TRIPLE FILTERED: Only valid items
   const categorizedItems = () => {
     const categories = {};
 
-    // ✅ FIXED: Process meal ingredients with proper validation
+    // ✅ Process meal ingredients with triple validation
     mealIngredients.forEach((ingredient, index) => {
-      // Validate ingredient has required properties
+      // Final validation check
       if (!ingredient || !ingredient.name || typeof ingredient.name !== 'string' || !ingredient.name.trim()) {
-        console.warn('Invalid ingredient found:', ingredient);
         return; // Skip invalid ingredients
       }
 
@@ -172,14 +195,8 @@ const ShoppingList = () => {
       });
     });
 
-    // ✅ FIXED: Process custom items with proper validation
-    customItems.forEach(item => {
-      // Validate custom item has required properties
-      if (!item || !item.name || typeof item.name !== 'string' || !item.name.trim()) {
-        console.warn('Invalid custom item found:', item);
-        return; // Skip invalid items
-      }
-
+    // ✅ Process custom items with validation
+    validCustomItems.forEach(item => {
       const category = categorizeItem(item.name);
       
       // Initialize category if it doesn't exist
@@ -198,26 +215,31 @@ const ShoppingList = () => {
       });
     });
 
-    // ✅ FIXED: Only return categories that actually have valid items
+    // ✅ Only return categories that have valid items
     const validCategories = {};
     Object.entries(categories).forEach(([categoryId, category]) => {
       if (category.items && category.items.length > 0) {
-        // Double-check all items are valid
-        const validItems = category.items.filter(item => 
-          item && item.name && typeof item.name === 'string' && item.name.trim()
-        );
-        
-        if (validItems.length > 0) {
-          validCategories[categoryId] = {
-            ...category,
-            items: validItems
-          };
-        }
+        validCategories[categoryId] = category;
       }
     });
 
     return validCategories;
   };
+
+  // ✅ ENHANCED: Clean up custom items on state change
+  useEffect(() => {
+    const cleanedCustomItems = customItems.filter(item => {
+      if (!item) return false;
+      if (!item.name || typeof item.name !== 'string') return false;
+      if (!item.name.trim()) return false;
+      return true;
+    });
+
+    if (cleanedCustomItems.length !== customItems.length) {
+      console.log('🧹 Cleaned up invalid custom items');
+      setCustomItems(cleanedCustomItems);
+    }
+  }, [customItems]);
 
   // 🎉 CONFETTI CELEBRATION: Trigger when shopping is completed
   useEffect(() => {
@@ -387,7 +409,7 @@ const ShoppingList = () => {
   };
 
   const handleClearCompleted = () => {
-    const completedCustomItems = customItems.filter(item => checkedItems.has(item.id));
+    const completedCustomItems = validCustomItems.filter(item => checkedItems.has(item.id));
     setCustomItems(prev => prev.filter(item => !checkedItems.has(item.id)));
     setCheckedItems(new Set());
 
@@ -829,7 +851,7 @@ const ShoppingList = () => {
             </div>
 
             <div className={`glass rounded-xl p-6 text-center shadow-lg card-hover ${isCompleted ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : ''}`}>
-              <div className={`text-3xl font-bold mb-1 ${isCompleted ? 'text-green-600' : 'text-accent-600'}`}>{customItems.length}</div>
+              <div className={`text-3xl font-bold mb-1 ${isCompleted ? 'text-green-600' : 'text-accent-600'}`}>{validCustomItems.length}</div>
               <div className="text-sm text-gray-600 font-semibold">Custom Items</div>
             </div>
 

@@ -72,11 +72,51 @@ const parseIngredientAmount = (amount) => {
   return { value, unit, original: amount };
 };
 
+// ✅ ENHANCED: Function to validate ingredient data
+const isValidIngredient = (ingredient) => {
+  if (!ingredient) return false;
+  if (!ingredient.name || typeof ingredient.name !== 'string') return false;
+  if (!ingredient.name.trim()) return false;
+  if (ingredient.name.trim().length === 0) return false;
+  
+  // Additional checks for meaningful ingredients
+  const name = ingredient.name.trim().toLowerCase();
+  
+  // Skip obviously invalid entries
+  if (name === '' || name === ' ' || name === 'undefined' || name === 'null') {
+    return false;
+  }
+  
+  return true;
+};
+
+// ✅ ENHANCED: Function to validate and clean ingredient
+const cleanIngredient = (ingredient) => {
+  if (!isValidIngredient(ingredient)) return null;
+  
+  return {
+    ...ingredient,
+    name: ingredient.name.trim(),
+    amount: ingredient.amount && typeof ingredient.amount === 'string' 
+      ? ingredient.amount.trim() 
+      : ingredient.amount || '1 piece'
+  };
+};
+
 // Function to combine ingredients with the same name and compatible units
 const combineIngredients = (ingredients) => {
+  // ✅ FIRST: Filter out all invalid ingredients
+  const validIngredients = ingredients
+    .map(cleanIngredient)
+    .filter(ingredient => ingredient !== null);
+
+  if (validIngredients.length === 0) {
+    return [];
+  }
+
   const grouped = {};
 
-  ingredients.forEach(ingredient => {
+  validIngredients.forEach(ingredient => {
     const key = ingredient.name.toLowerCase().trim();
     const parsed = parseIngredientAmount(ingredient.amount);
 
@@ -107,7 +147,10 @@ const combineIngredients = (ingredients) => {
     if (item.hasIncompatibleUnits || item.amounts.length === 1) {
       // If units are incompatible or only one amount, show all amounts
       const amountStr = item.amounts.map(a => a.original).join(' + ');
-      return { name: item.name, amount: amountStr };
+      return {
+        name: item.name,
+        amount: amountStr
+      };
     } else {
       // If units are compatible, show combined amount
       const hasToTaste = item.amounts.some(a => a.unit === 'to taste');
@@ -121,7 +164,10 @@ const combineIngredients = (ingredients) => {
         combinedAmount += combinedAmount ? ' + to taste' : 'to taste';
       }
 
-      return { name: item.name, amount: combinedAmount || '1 piece' };
+      return {
+        name: item.name,
+        amount: combinedAmount || '1 piece'
+      };
     }
   });
 };
@@ -149,10 +195,9 @@ export const MealPlanProvider = ({ children }) => {
 
   const addMealToDay = (date, mealType, recipe, snackIndex = null) => {
     const dateStr = format(new Date(date), 'yyyy-MM-dd');
-    
     setMealPlan(prev => {
       const updatedPlan = { ...prev };
-      
+
       if (!updatedPlan[dateStr]) {
         updatedPlan[dateStr] = {};
       }
@@ -162,7 +207,6 @@ export const MealPlanProvider = ({ children }) => {
         if (!updatedPlan[dateStr].snacks) {
           updatedPlan[dateStr].snacks = [];
         }
-        
         if (snackIndex !== null) {
           // Replace specific snack
           updatedPlan[dateStr].snacks[snackIndex] = recipe;
@@ -182,16 +226,14 @@ export const MealPlanProvider = ({ children }) => {
 
   const removeMealFromDay = (date, mealType, snackIndex = null) => {
     const dateStr = format(new Date(date), 'yyyy-MM-dd');
-    
     setMealPlan(prev => {
       const updatedPlan = { ...prev };
-      
+
       if (updatedPlan[dateStr]) {
         if (mealType === 'snacks' && snackIndex !== null) {
           // Remove specific snack
           if (updatedPlan[dateStr].snacks) {
             updatedPlan[dateStr].snacks.splice(snackIndex, 1);
-            
             // Clean up empty snacks array
             if (updatedPlan[dateStr].snacks.length === 0) {
               delete updatedPlan[dateStr].snacks;
@@ -218,6 +260,7 @@ export const MealPlanProvider = ({ children }) => {
     return mealPlan[dateStr] || {};
   };
 
+  // ✅ ENHANCED: Get all ingredients with proper validation and filtering
   const getAllIngredients = () => {
     const allIngredients = [];
 
@@ -226,23 +269,30 @@ export const MealPlanProvider = ({ children }) => {
       // Handle regular meals
       ['breakfast', 'lunch', 'dinner'].forEach(mealType => {
         const meal = dayMeals[mealType];
-        if (meal && meal.ingredients) {
-          allIngredients.push(...meal.ingredients);
+        if (meal && meal.ingredients && Array.isArray(meal.ingredients)) {
+          // ✅ FILTER: Only add valid ingredients
+          const validMealIngredients = meal.ingredients.filter(isValidIngredient);
+          allIngredients.push(...validMealIngredients);
         }
       });
 
       // Handle snacks array
       if (dayMeals.snacks && Array.isArray(dayMeals.snacks)) {
         dayMeals.snacks.forEach(snack => {
-          if (snack && snack.ingredients) {
-            allIngredients.push(...snack.ingredients);
+          if (snack && snack.ingredients && Array.isArray(snack.ingredients)) {
+            // ✅ FILTER: Only add valid ingredients
+            const validSnackIngredients = snack.ingredients.filter(isValidIngredient);
+            allIngredients.push(...validSnackIngredients);
           }
         });
       }
     });
 
+    // ✅ FINAL FILTER: Remove any ingredients that somehow made it through
+    const filteredIngredients = allIngredients.filter(isValidIngredient);
+
     // Combine ingredients intelligently
-    return combineIngredients(allIngredients);
+    return combineIngredients(filteredIngredients);
   };
 
   const value = {
