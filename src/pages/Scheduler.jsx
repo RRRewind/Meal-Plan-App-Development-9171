@@ -22,7 +22,7 @@ const Scheduler = () => {
   const { mealPlan, addMealToDay, removeMealFromDay, getMealsForDay } = useMealPlan();
   const { recipes, sharedRecipes } = useRecipes();
   const { startCookingMode } = useCookingMode();
-  const { addXP } = useGamification();
+  const { addXP, addMealPlanningXP } = useGamification();
 
   // Listen for window resize
   React.useEffect(() => {
@@ -103,8 +103,15 @@ const Scheduler = () => {
       }
 
       addMealToDay(selectedDate, selectedMealType, recipe);
-      addXP(10, 'Meal planned');
-      toast.success(`${recipe.title} added to ${selectedMealType}!`);
+      
+      // 🎯 NEW: Award generous XP for meal planning
+      const xpAwarded = addMealPlanningXP(selectedMealType);
+      
+      // Always show success message for adding meal
+      if (!xpAwarded) {
+        toast.success(`${recipe.title} added to ${selectedMealType}!`);
+      }
+      
       setShowRecipeModal(false);
       setSelectedMealType(null);
     }
@@ -185,8 +192,8 @@ const Scheduler = () => {
             <div
               key={index}
               className={`flex-shrink-0 text-center p-3 rounded-xl transition-all duration-200 ${
-                isToday(day)
-                  ? 'bg-primary-500 text-white shadow-lg scale-105'
+                isToday(day) 
+                  ? 'bg-primary-500 text-white shadow-lg scale-105' 
                   : 'bg-gray-50 text-gray-700'
               }`}
               style={{ minWidth: '80px' }}
@@ -206,7 +213,7 @@ const Scheduler = () => {
       {availableDays.map((day, dayIndex) => {
         const dayMeals = getMealsForDay(day);
         const isPastDay = isBefore(day, today);
-        
+
         return (
           <motion.div
             key={dayIndex}
@@ -219,8 +226,8 @@ const Scheduler = () => {
           >
             {/* Day Header */}
             <div className={`p-4 text-white ${
-              isToday(day)
-                ? 'bg-gradient-to-r from-primary-500 to-secondary-500'
+              isToday(day) 
+                ? 'bg-gradient-to-r from-primary-500 to-secondary-500' 
                 : 'bg-gradient-to-r from-gray-600 to-gray-700'
             }`}>
               <h3 className="font-bold text-xl">
@@ -366,7 +373,9 @@ const Scheduler = () => {
             <p className="font-semibold text-gray-900">
               {format(day, 'EEE')}
             </p>
-            <p className={`text-sm ${isToday(day) ? 'text-primary-600 font-bold' : 'text-gray-600'}`}>
+            <p className={`text-sm ${
+              isToday(day) ? 'text-primary-600 font-bold' : 'text-gray-600'
+            }`}>
               {format(day, 'MMM d')}
             </p>
           </div>
@@ -407,7 +416,9 @@ const Scheduler = () => {
                 <div
                   key={`${mealType.id}-${dayIndex}`}
                   className={`p-3 border-r border-gray-200 last:border-r-0 min-h-24 ${
-                    isPastDay ? 'bg-gray-50 opacity-50' : 'hover:bg-gray-50'
+                    isPastDay 
+                      ? 'bg-gray-50 opacity-50' 
+                      : 'hover:bg-gray-50'
                   } transition-colors duration-200`}
                 >
                   <div className="space-y-2">
@@ -502,10 +513,10 @@ const Scheduler = () => {
                 Meal Scheduler
               </h1>
               <p className="text-gray-600">
-                Plan your meals for the week ahead
+                Plan your meals for the week ahead - earn XP for each meal planned!
               </p>
             </div>
-            
+
             {/* Desktop Week Navigation */}
             {!isMobile && (
               <div className="flex items-center space-x-4">
@@ -517,6 +528,7 @@ const Scheduler = () => {
                 >
                   <SafeIcon icon={FiChevronLeft} />
                 </motion.button>
+                
                 <div className="text-center">
                   <p className="font-semibold text-gray-900">
                     {format(currentWeek, 'MMMM yyyy')}
@@ -525,6 +537,7 @@ const Scheduler = () => {
                     Week of {format(currentWeek, 'MMM d')}
                   </p>
                 </div>
+                
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -581,11 +594,7 @@ const Scheduler = () => {
                   </motion.button>
                 </div>
 
-                <div className={`grid gap-4 ${
-                  isMobile 
-                    ? 'grid-cols-1' 
-                    : 'md:grid-cols-2 lg:grid-cols-3'
-                }`}>
+                <div className={`grid gap-4 ${isMobile ? 'grid-cols-1' : 'md:grid-cols-2 lg:grid-cols-3'}`}>
                   {allRecipes.map((recipe) => (
                     <motion.div
                       key={recipe.id}
@@ -593,9 +602,7 @@ const Scheduler = () => {
                       className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
                       onClick={() => handleAddMeal(recipe)}
                     >
-                      <div className={`bg-gradient-to-br from-primary-50/60 to-secondary-50/60 relative overflow-hidden ${
-                        isMobile ? 'aspect-video' : 'aspect-video'
-                      }`}>
+                      <div className={`bg-gradient-to-br from-primary-50/60 to-secondary-50/60 relative overflow-hidden ${isMobile ? 'aspect-video' : 'aspect-video'}`}>
                         {recipe.image ? (
                           <img
                             src={recipe.image}
@@ -608,6 +615,7 @@ const Scheduler = () => {
                           </div>
                         )}
                       </div>
+                      
                       <div className="p-4">
                         <h3 className={`font-semibold text-gray-900 mb-2 ${isMobile ? 'text-base' : ''}`}>
                           {recipe.title}

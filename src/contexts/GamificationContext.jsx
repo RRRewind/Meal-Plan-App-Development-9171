@@ -16,6 +16,7 @@ export const GamificationProvider = ({ children }) => {
   const { user, updateUser } = useAuth();
   const [achievements, setAchievements] = useState([]);
   const [xpCooldowns, setXpCooldowns] = useState({});
+  const [dailyProgress, setDailyProgress] = useState({});
 
   const badges = {
     new_chef: { name: 'New Chef', icon: '👨‍🍳', description: 'Welcome to Meal Plan!' },
@@ -26,13 +27,17 @@ export const GamificationProvider = ({ children }) => {
     recipe_collector: { name: 'Recipe Collector', icon: '📚', description: 'Saved 20 recipes' },
     social_chef: { name: 'Social Chef', icon: '🤝', description: 'Shared 5 recipes' },
     shopping_guru: { name: 'Shopping Guru', icon: '🛒', description: 'Completed 10 shopping lists' },
-    daily_grinder: { name: 'Daily Grinder', icon: '⏰', description: 'Earned XP for 7 consecutive days' }
+    daily_grinder: { name: 'Daily Grinder', icon: '⏰', description: 'Earned XP for 7 consecutive days' },
+    planning_pro: { name: 'Planning Pro', icon: '🎯', description: 'Planned all meals for a day' },
+    shopping_champion: { name: 'Shopping Champion', icon: '🏆', description: 'Checked off 100+ items' }
   };
 
-  // Load XP cooldowns from localStorage on mount
+  // Load XP cooldowns and daily progress from localStorage on mount
   useEffect(() => {
     if (user?.id) {
       const savedCooldowns = localStorage.getItem(`xp_cooldowns_${user.id}`);
+      const savedProgress = localStorage.getItem(`daily_progress_${user.id}`);
+      
       if (savedCooldowns) {
         try {
           const cooldowns = JSON.parse(savedCooldowns);
@@ -57,8 +62,56 @@ export const GamificationProvider = ({ children }) => {
           setXpCooldowns({});
         }
       }
+
+      if (savedProgress) {
+        try {
+          const progress = JSON.parse(savedProgress);
+          const today = new Date().toDateString();
+          
+          // Reset daily progress if it's a new day
+          if (progress.date !== today) {
+            const resetProgress = {
+              date: today,
+              mealsPlanned: { breakfast: false, lunch: false, dinner: false, snacks: false },
+              itemsChecked: 0,
+              shoppingMilestones: 0
+            };
+            setDailyProgress(resetProgress);
+            localStorage.setItem(`daily_progress_${user.id}`, JSON.stringify(resetProgress));
+          } else {
+            setDailyProgress(progress);
+          }
+        } catch (error) {
+          console.error('Error loading daily progress:', error);
+          initializeDailyProgress();
+        }
+      } else {
+        initializeDailyProgress();
+      }
     }
   }, [user?.id]);
+
+  // Initialize daily progress for new day
+  const initializeDailyProgress = () => {
+    const today = new Date().toDateString();
+    const initialProgress = {
+      date: today,
+      mealsPlanned: { breakfast: false, lunch: false, dinner: false, snacks: false },
+      itemsChecked: 0,
+      shoppingMilestones: 0
+    };
+    setDailyProgress(initialProgress);
+    if (user?.id) {
+      localStorage.setItem(`daily_progress_${user.id}`, JSON.stringify(initialProgress));
+    }
+  };
+
+  // Save daily progress to localStorage whenever it changes
+  useEffect(() => {
+    if (user?.id && Object.keys(dailyProgress).length > 0) {
+      localStorage.setItem(`daily_progress_${user.id}`, JSON.stringify(dailyProgress));
+    }
+  }, [dailyProgress, user?.id]);
 
   // Save XP cooldowns to localStorage whenever they change
   useEffect(() => {
@@ -110,7 +163,7 @@ export const GamificationProvider = ({ children }) => {
 
   // 🎯 ENHANCED XP SYSTEM: Add XP with rate limiting
   const addXP = (amount, reason, actionKey = null) => {
-    if (!user) return;
+    if (!user) return false;
 
     // Create action key for rate limiting
     const rateLimitKey = actionKey || reason.toLowerCase().replace(/[^a-z0-9]/g, '_');
@@ -174,6 +227,170 @@ export const GamificationProvider = ({ children }) => {
 
     checkAchievements();
     return true; // Indicate XP was successfully awarded
+  };
+
+  // 🍽️ NEW: Award XP for meal planning (once per meal type per day)
+  const addMealPlanningXP = (mealType) => {
+    if (!user || !dailyProgress.mealsPlanned) return false;
+
+    const today = new Date().toDateString();
+    
+    // Reset progress if it's a new day
+    if (dailyProgress.date !== today) {
+      initializeDailyProgress();
+      return false;
+    }
+
+    // Check if this meal type was already planned today
+    if (dailyProgress.mealsPlanned[mealType]) {
+      toast.error(`Already earned XP for ${mealType} today! Try again tomorrow.`, {
+        duration: 3000,
+        style: {
+          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+          color: 'white',
+          fontSize: '14px',
+          fontWeight: 'bold'
+        }
+      });
+      return false;
+    }
+
+    // Award XP and mark meal as planned
+    const amount = 10; // 10 XP per meal planned
+    const newXP = user.xp + amount;
+    const newLevel = Math.floor(newXP / 100) + 1;
+    const leveledUp = newLevel > user.level;
+
+    updateUser({
+      xp: newXP,
+      level: newLevel
+    });
+
+    // Update daily progress
+    setDailyProgress(prev => ({
+      ...prev,
+      mealsPlanned: {
+        ...prev.mealsPlanned,
+        [mealType]: true
+      }
+    }));
+
+    // Check if all meals are planned for bonus
+    const updatedMeals = { ...dailyProgress.mealsPlanned, [mealType]: true };
+    const allMealsPlanned = Object.values(updatedMeals).every(planned => planned);
+    
+    if (allMealsPlanned) {
+      // Bonus XP for planning all meals
+      const bonusXP = 20;
+      updateUser(prev => ({ ...prev, xp: prev.xp + bonusXP }));
+      toast.success(`🎯 Daily Planning Complete! +${amount + bonusXP} XP total!`, {
+        duration: 4000,
+        style: {
+          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+          color: 'white',
+          fontSize: '16px',
+          fontWeight: 'bold'
+        }
+      });
+      addBadge('planning_pro', 'badge_planning_pro');
+    } else {
+      // Regular meal planning XP
+      if (leveledUp) {
+        toast.success(`🎉 Level Up! You're now level ${newLevel}!`, {
+          duration: 5000,
+          style: {
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: 'white',
+            fontSize: '16px',
+            fontWeight: 'bold'
+          }
+        });
+      } else {
+        toast.success(`+${amount} XP - ${mealType} planned!`, {
+          duration: 2000,
+          style: {
+            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+            color: 'white',
+            fontSize: '14px',
+            fontWeight: 'bold'
+          }
+        });
+      }
+    }
+
+    checkAchievements();
+    return true;
+  };
+
+  // 🛒 NEW: Award XP for shopping progress (every 10 items checked)
+  const addShoppingProgressXP = () => {
+    // ✅ FIXED: Properly check if dailyProgress.itemsChecked exists
+    if (!user || typeof dailyProgress.itemsChecked === 'undefined') return false;
+
+    const today = new Date().toDateString();
+    
+    // Reset progress if it's a new day
+    if (dailyProgress.date !== today) {
+      initializeDailyProgress();
+      return false;
+    }
+
+    // Increment items checked
+    const newItemsChecked = (dailyProgress.itemsChecked || 0) + 1;
+    const newMilestone = Math.floor(newItemsChecked / 10);
+    const currentMilestone = dailyProgress.shoppingMilestones || 0;
+
+    // Update daily progress
+    setDailyProgress(prev => ({
+      ...prev,
+      itemsChecked: newItemsChecked,
+      shoppingMilestones: newMilestone
+    }));
+
+    // Award XP if we hit a new milestone (every 10 items)
+    if (newMilestone > currentMilestone) {
+      const amount = 15; // 15 XP per 10 items checked
+      const newXP = user.xp + amount;
+      const newLevel = Math.floor(newXP / 100) + 1;
+      const leveledUp = newLevel > user.level;
+
+      updateUser({
+        xp: newXP,
+        level: newLevel
+      });
+
+      if (leveledUp) {
+        toast.success(`🎉 Level Up! You're now level ${newLevel}!`, {
+          duration: 5000,
+          style: {
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: 'white',
+            fontSize: '16px',
+            fontWeight: 'bold'
+          }
+        });
+      } else {
+        toast.success(`🛒 Shopping Streak! +${amount} XP for ${newItemsChecked} items checked!`, {
+          duration: 3000,
+          style: {
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: 'white',
+            fontSize: '14px',
+            fontWeight: 'bold'
+          }
+        });
+      }
+
+      // Special milestone badges
+      if (newItemsChecked >= 100) {
+        addBadge('shopping_champion', 'badge_shopping_champion');
+      }
+
+      checkAchievements();
+      return true;
+    }
+
+    return false; // No milestone reached
   };
 
   // 🏆 ENHANCED: Add badge with cooldown check
@@ -273,7 +490,12 @@ export const GamificationProvider = ({ children }) => {
 
   // 📊 Get XP statistics and cooldown info
   const getXPStats = () => {
-    if (!user?.id) return { totalActions: 0, todayActions: 0, availableActions: 0 };
+    if (!user?.id) return { 
+      totalActions: 0, 
+      todayActions: 0, 
+      availableActions: 0,
+      dailyProgress: {}
+    };
     
     const now = Date.now();
     const oneDayAgo = now - (24 * 60 * 60 * 1000);
@@ -285,7 +507,8 @@ export const GamificationProvider = ({ children }) => {
       totalActions: totalCooldowns,
       todayActions: recentActions.length,
       activeCooldowns: Object.keys(xpCooldowns).filter(action => isActionOnCooldown(action)).length,
-      xpCooldowns: xpCooldowns
+      xpCooldowns: xpCooldowns,
+      dailyProgress: dailyProgress
     };
   };
 
@@ -299,7 +522,11 @@ export const GamificationProvider = ({ children }) => {
     isActionOnCooldown,
     getCooldownTimeRemaining,
     formatCooldownTime,
-    getXPStats
+    getXPStats,
+    // NEW: Generous XP functions
+    addMealPlanningXP,
+    addShoppingProgressXP,
+    dailyProgress
   };
 
   return (

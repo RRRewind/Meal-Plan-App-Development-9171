@@ -17,7 +17,7 @@ const ShoppingList = () => {
   const [wasCompleted, setWasCompleted] = useState(false);
   const [viewMode, setViewMode] = useState('categories'); // 'categories' or 'list'
   const { getAllIngredients } = useMealPlan();
-  const { addXP, isActionOnCooldown, getCooldownTimeRemaining, formatCooldownTime } = useGamification();
+  const { addXP, addShoppingProgressXP, isActionOnCooldown, getCooldownTimeRemaining, formatCooldownTime } = useGamification();
 
   const mealIngredients = getAllIngredients();
   const allItems = [...mealIngredients, ...customItems];
@@ -167,7 +167,7 @@ const ShoppingList = () => {
     return 'other'; // Default category
   };
 
-  // 📊 GROUP ITEMS BY CATEGORY
+  // 📊 GROUP ITEMS BY CATEGORY - ✅ FIXED: Only show categories with items
   const categorizedItems = () => {
     const categories = {};
     
@@ -202,7 +202,7 @@ const ShoppingList = () => {
       });
     });
     
-    // Filter out empty categories
+    // ✅ FIXED: Filter out empty categories - only return categories that have items
     return Object.fromEntries(
       Object.entries(categories).filter(([_, category]) => category.items.length > 0)
     );
@@ -357,11 +357,11 @@ const ShoppingList = () => {
       } else {
         updated.add(itemKey);
         
-        // Rate-limited XP for checking items
-        const xpAwarded = addXP(1, 'Item checked off', 'item_checked');
+        // 🛒 NEW: Award XP for shopping progress (every 10 items)
+        const progressXPAwarded = addShoppingProgressXP();
         
-        // 🎉 MINI CELEBRATION: Small confetti for individual items (only if XP awarded)
-        if (xpAwarded && Math.random() > 0.7) { // 30% chance for mini celebration
+        // 🎉 MINI CELEBRATION: Small confetti for individual items (only if progress XP awarded)
+        if (progressXPAwarded && Math.random() > 0.7) { // 30% chance for mini celebration
           confetti({
             particleCount: 20,
             spread: 30,
@@ -483,7 +483,7 @@ const ShoppingList = () => {
                 }`}>
                   {isCompleted 
                     ? 'Congratulations! All items have been checked off!' 
-                    : 'Organized by grocery store aisles for efficient shopping'
+                    : 'Organized by grocery store aisles - earn XP every 10 items checked!'
                   }
                 </p>
               </div>
@@ -708,20 +708,18 @@ const ShoppingList = () => {
                         }`}
                       >
                         <div className="flex items-center space-x-4">
-                          <XPCooldownWarning action="item_checked">
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={() => handleToggleItem(item.key)}
-                              className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
-                                item.isChecked
-                                  ? 'bg-green-500 border-green-500 text-white shadow-lg'
-                                  : 'border-gray-300 hover:border-primary-500 hover:shadow-md'
-                              }`}
-                            >
-                              {item.isChecked && <SafeIcon icon={FiCheck} className="text-sm" />}
-                            </motion.button>
-                          </XPCooldownWarning>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleToggleItem(item.key)}
+                            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
+                              item.isChecked
+                                ? 'bg-green-500 border-green-500 text-white shadow-lg'
+                                : 'border-gray-300 hover:border-primary-500 hover:shadow-md'
+                            }`}
+                          >
+                            {item.isChecked && <SafeIcon icon={FiCheck} className="text-sm" />}
+                          </motion.button>
                           <div className={`${
                             item.isChecked ? 'line-through text-gray-500' : 'text-gray-900'
                           } transition-all duration-200`}>
@@ -768,20 +766,18 @@ const ShoppingList = () => {
                         }`}
                       >
                         <div className="flex items-center space-x-4">
-                          <XPCooldownWarning action="item_checked">
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={() => handleToggleItem(itemKey)}
-                              className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
-                                isChecked
-                                  ? 'bg-green-500 border-green-500 text-white shadow-lg'
-                                  : 'border-gray-300 hover:border-primary-500 hover:shadow-md'
-                              }`}
-                            >
-                              {isChecked && <SafeIcon icon={FiCheck} className="text-sm" />}
-                            </motion.button>
-                          </XPCooldownWarning>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleToggleItem(itemKey)}
+                            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
+                              isChecked
+                                ? 'bg-green-500 border-green-500 text-white shadow-lg'
+                                : 'border-gray-300 hover:border-primary-500 hover:shadow-md'
+                            }`}
+                          >
+                            {isChecked && <SafeIcon icon={FiCheck} className="text-sm" />}
+                          </motion.button>
                           <div className={`${
                             isChecked ? 'line-through text-gray-500' : 'text-gray-900'
                           } transition-all duration-200`}>
@@ -891,7 +887,7 @@ const ShoppingList = () => {
               <div className={`text-3xl font-bold mb-1 ${
                 isCompleted ? 'text-green-600' : 'text-purple-600'
               }`}>{Object.keys(categorizedItems()).length}</div>
-              <div className="text-sm text-gray-600 font-semibold">Categories</div>
+              <div className="text-sm text-gray-600 font-semibold">Active Categories</div>
             </div>
           </motion.div>
         )}
