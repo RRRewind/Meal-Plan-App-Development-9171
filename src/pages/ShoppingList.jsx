@@ -16,6 +16,7 @@ const ShoppingList = () => {
   const [checkedItems, setCheckedItems] = useState(new Set());
   const [wasCompleted, setWasCompleted] = useState(false);
   const [viewMode, setViewMode] = useState('categories'); // 'categories' or 'list'
+
   const { getAllIngredients } = useMealPlan();
   const { addXP, addShoppingProgressXP, isActionOnCooldown, getCooldownTimeRemaining, formatCooldownTime } = useGamification();
 
@@ -37,15 +38,9 @@ const ShoppingList = () => {
       textColor: 'text-green-700',
       keywords: [
         // Vegetables
-        'tomato', 'onion', 'garlic', 'potato', 'carrot', 'celery', 'bell pepper', 'pepper',
-        'broccoli', 'cauliflower', 'spinach', 'lettuce', 'cabbage', 'cucumber', 'zucchini',
-        'mushroom', 'corn', 'peas', 'green bean', 'asparagus', 'kale', 'arugula', 'basil',
-        'cilantro', 'parsley', 'dill', 'mint', 'rosemary', 'thyme', 'oregano', 'sage',
-        'ginger', 'jalapeño', 'serrano', 'habanero', 'chili', 'avocado', 'lime', 'lemon',
+        'tomato', 'onion', 'garlic', 'potato', 'carrot', 'celery', 'bell pepper', 'pepper', 'broccoli', 'cauliflower', 'spinach', 'lettuce', 'cabbage', 'cucumber', 'zucchini', 'mushroom', 'corn', 'peas', 'green bean', 'asparagus', 'kale', 'arugula', 'basil', 'cilantro', 'parsley', 'dill', 'mint', 'rosemary', 'thyme', 'oregano', 'sage', 'ginger', 'jalapeño', 'serrano', 'habanero', 'chili', 'avocado', 'lime', 'lemon',
         // Fruits
-        'apple', 'banana', 'orange', 'grape', 'strawberry', 'blueberry', 'raspberry',
-        'blackberry', 'pineapple', 'mango', 'papaya', 'kiwi', 'peach', 'pear', 'plum',
-        'cherry', 'watermelon', 'cantaloupe', 'honeydew', 'coconut'
+        'apple', 'banana', 'orange', 'grape', 'strawberry', 'blueberry', 'raspberry', 'blackberry', 'pineapple', 'mango', 'papaya', 'kiwi', 'peach', 'pear', 'plum', 'cherry', 'watermelon', 'cantaloupe', 'honeydew', 'coconut'
       ]
     },
     meat: {
@@ -56,11 +51,7 @@ const ShoppingList = () => {
       borderColor: 'border-red-300',
       textColor: 'text-red-700',
       keywords: [
-        'chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'bacon', 'ham', 'sausage',
-        'ground beef', 'ground turkey', 'ground chicken', 'steak', 'roast', 'chop',
-        'breast', 'thigh', 'wing', 'drumstick', 'salmon', 'tuna', 'cod', 'halibut',
-        'tilapia', 'shrimp', 'crab', 'lobster', 'scallop', 'mussel', 'clam', 'oyster',
-        'fish', 'seafood', 'meat'
+        'chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'bacon', 'ham', 'sausage', 'ground beef', 'ground turkey', 'ground chicken', 'steak', 'roast', 'chop', 'breast', 'thigh', 'wing', 'drumstick', 'salmon', 'tuna', 'cod', 'halibut', 'tilapia', 'shrimp', 'crab', 'lobster', 'scallop', 'mussel', 'clam', 'oyster', 'fish', 'seafood', 'meat'
       ]
     },
     dairy: {
@@ -71,10 +62,7 @@ const ShoppingList = () => {
       borderColor: 'border-blue-300',
       textColor: 'text-blue-700',
       keywords: [
-        'milk', 'cheese', 'yogurt', 'butter', 'cream', 'sour cream', 'cottage cheese',
-        'ricotta', 'mozzarella', 'cheddar', 'parmesan', 'swiss', 'goat cheese', 'feta',
-        'brie', 'camembert', 'blue cheese', 'cream cheese', 'egg', 'heavy cream',
-        'half and half', 'buttermilk', 'ice cream', 'frozen yogurt'
+        'milk', 'cheese', 'yogurt', 'butter', 'cream', 'sour cream', 'cottage cheese', 'ricotta', 'mozzarella', 'cheddar', 'parmesan', 'swiss', 'goat cheese', 'feta', 'brie', 'camembert', 'blue cheese', 'cream cheese', 'egg', 'heavy cream', 'half and half', 'buttermilk', 'ice cream', 'frozen yogurt'
       ]
     },
     pantry: {
@@ -85,15 +73,7 @@ const ShoppingList = () => {
       borderColor: 'border-amber-300',
       textColor: 'text-amber-700',
       keywords: [
-        'rice', 'pasta', 'noodle', 'quinoa', 'oats', 'flour', 'sugar', 'salt', 'pepper',
-        'olive oil', 'vegetable oil', 'coconut oil', 'vinegar', 'soy sauce', 'hot sauce',
-        'ketchup', 'mustard', 'mayonnaise', 'ranch', 'italian dressing', 'balsamic',
-        'honey', 'maple syrup', 'vanilla', 'cinnamon', 'paprika', 'cumin', 'chili powder',
-        'garlic powder', 'onion powder', 'black pepper', 'red pepper', 'bay leaf',
-        'canned tomato', 'tomato sauce', 'tomato paste', 'chicken broth', 'beef broth',
-        'vegetable broth', 'coconut milk', 'canned beans', 'black beans', 'kidney beans',
-        'chickpeas', 'lentils', 'peanut butter', 'jelly', 'jam', 'cereal', 'crackers',
-        'bread', 'tortilla', 'pita', 'bagel', 'english muffin'
+        'rice', 'pasta', 'noodle', 'quinoa', 'oats', 'flour', 'sugar', 'salt', 'pepper', 'olive oil', 'vegetable oil', 'coconut oil', 'vinegar', 'soy sauce', 'hot sauce', 'ketchup', 'mustard', 'mayonnaise', 'ranch', 'italian dressing', 'balsamic', 'honey', 'maple syrup', 'vanilla', 'cinnamon', 'paprika', 'cumin', 'chili powder', 'garlic powder', 'onion powder', 'black pepper', 'red pepper', 'bay leaf', 'canned tomato', 'tomato sauce', 'tomato paste', 'chicken broth', 'beef broth', 'vegetable broth', 'coconut milk', 'canned beans', 'black beans', 'kidney beans', 'chickpeas', 'lentils', 'peanut butter', 'jelly', 'jam', 'cereal', 'crackers', 'bread', 'tortilla', 'pita', 'bagel', 'english muffin'
       ]
     },
     frozen: {
@@ -104,10 +84,7 @@ const ShoppingList = () => {
       borderColor: 'border-cyan-300',
       textColor: 'text-cyan-700',
       keywords: [
-        'frozen', 'ice cream', 'frozen yogurt', 'frozen vegetable', 'frozen fruit',
-        'frozen meal', 'frozen pizza', 'frozen chicken', 'frozen fish', 'frozen shrimp',
-        'frozen berries', 'frozen peas', 'frozen corn', 'frozen broccoli', 'frozen spinach',
-        'ice', 'popsicle', 'frozen waffle', 'frozen bagel', 'frozen bread'
+        'frozen', 'ice cream', 'frozen yogurt', 'frozen vegetable', 'frozen fruit', 'frozen meal', 'frozen pizza', 'frozen chicken', 'frozen fish', 'frozen shrimp', 'frozen berries', 'frozen peas', 'frozen corn', 'frozen broccoli', 'frozen spinach', 'ice', 'popsicle', 'frozen waffle', 'frozen bagel', 'frozen bread'
       ]
     },
     beverages: {
@@ -118,10 +95,7 @@ const ShoppingList = () => {
       borderColor: 'border-purple-300',
       textColor: 'text-purple-700',
       keywords: [
-        'water', 'juice', 'soda', 'coffee', 'tea', 'beer', 'wine', 'energy drink',
-        'sports drink', 'coconut water', 'almond milk', 'soy milk', 'oat milk',
-        'orange juice', 'apple juice', 'cranberry juice', 'grape juice', 'lemonade',
-        'sparkling water', 'tonic water', 'club soda', 'kombucha'
+        'water', 'juice', 'soda', 'coffee', 'tea', 'beer', 'wine', 'energy drink', 'sports drink', 'coconut water', 'almond milk', 'soy milk', 'oat milk', 'orange juice', 'apple juice', 'cranberry juice', 'grape juice', 'lemonade', 'sparkling water', 'tonic water', 'club soda', 'kombucha'
       ]
     },
     snacks: {
@@ -132,9 +106,7 @@ const ShoppingList = () => {
       borderColor: 'border-orange-300',
       textColor: 'text-orange-700',
       keywords: [
-        'chips', 'cookie', 'candy', 'chocolate', 'nuts', 'almonds', 'peanuts', 'cashews',
-        'walnuts', 'pecans', 'pistachios', 'trail mix', 'granola', 'granola bar',
-        'protein bar', 'crackers', 'pretzels', 'popcorn', 'gum', 'mints'
+        'chips', 'cookie', 'candy', 'chocolate', 'nuts', 'almonds', 'peanuts', 'cashews', 'walnuts', 'pecans', 'pistachios', 'trail mix', 'granola', 'granola bar', 'protein bar', 'crackers', 'pretzels', 'popcorn', 'gum', 'mints'
       ]
     },
     other: {
@@ -150,7 +122,9 @@ const ShoppingList = () => {
 
   // 🏷️ CATEGORIZE ITEMS: Smart categorization based on keywords
   const categorizeItem = (itemName) => {
-    const name = itemName.toLowerCase();
+    if (!itemName || typeof itemName !== 'string') return 'other';
+    
+    const name = itemName.toLowerCase().trim();
     
     for (const [categoryId, category] of Object.entries(groceryCategories)) {
       if (categoryId === 'other') continue; // Skip 'other' category for now
@@ -167,22 +141,29 @@ const ShoppingList = () => {
     return 'other'; // Default category
   };
 
-  // 📊 GROUP ITEMS BY CATEGORY - ✅ FIXED: Only show categories with items
+  // 📊 GROUP ITEMS BY CATEGORY - ✅ FIXED: Only show categories with valid items
   const categorizedItems = () => {
     const categories = {};
-    
-    // Initialize categories
-    Object.keys(groceryCategories).forEach(categoryId => {
-      categories[categoryId] = {
-        ...groceryCategories[categoryId],
-        items: []
-      };
-    });
-    
-    // Categorize meal ingredients
+
+    // ✅ FIXED: Process meal ingredients with proper validation
     mealIngredients.forEach((ingredient, index) => {
+      // Validate ingredient has required properties
+      if (!ingredient || !ingredient.name || typeof ingredient.name !== 'string' || !ingredient.name.trim()) {
+        console.warn('Invalid ingredient found:', ingredient);
+        return; // Skip invalid ingredients
+      }
+
       const category = categorizeItem(ingredient.name);
       const itemKey = `meal-${ingredient.name}-${index}`;
+      
+      // Initialize category if it doesn't exist
+      if (!categories[category]) {
+        categories[category] = {
+          ...groceryCategories[category],
+          items: []
+        };
+      }
+      
       categories[category].items.push({
         ...ingredient,
         key: itemKey,
@@ -190,10 +171,25 @@ const ShoppingList = () => {
         isChecked: checkedItems.has(itemKey)
       });
     });
-    
-    // Categorize custom items
+
+    // ✅ FIXED: Process custom items with proper validation
     customItems.forEach(item => {
+      // Validate custom item has required properties
+      if (!item || !item.name || typeof item.name !== 'string' || !item.name.trim()) {
+        console.warn('Invalid custom item found:', item);
+        return; // Skip invalid items
+      }
+
       const category = categorizeItem(item.name);
+      
+      // Initialize category if it doesn't exist
+      if (!categories[category]) {
+        categories[category] = {
+          ...groceryCategories[category],
+          items: []
+        };
+      }
+      
       categories[category].items.push({
         ...item,
         key: item.id,
@@ -201,11 +197,26 @@ const ShoppingList = () => {
         isChecked: checkedItems.has(item.id)
       });
     });
-    
-    // ✅ FIXED: Filter out empty categories - only return categories that have items
-    return Object.fromEntries(
-      Object.entries(categories).filter(([_, category]) => category.items.length > 0)
-    );
+
+    // ✅ FIXED: Only return categories that actually have valid items
+    const validCategories = {};
+    Object.entries(categories).forEach(([categoryId, category]) => {
+      if (category.items && category.items.length > 0) {
+        // Double-check all items are valid
+        const validItems = category.items.filter(item => 
+          item && item.name && typeof item.name === 'string' && item.name.trim()
+        );
+        
+        if (validItems.length > 0) {
+          validCategories[categoryId] = {
+            ...category,
+            items: validItems
+          };
+        }
+      }
+    });
+
+    return validCategories;
   };
 
   // 🎉 CONFETTI CELEBRATION: Trigger when shopping is completed
@@ -213,11 +224,11 @@ const ShoppingList = () => {
     if (isCompleted && !wasCompleted && totalCount > 0) {
       triggerConfettiCelebration();
       setWasCompleted(true);
-      
+
       // Special completion rewards with rate limiting
       const xpAwarded = addXP(50, '🎉 Shopping list completed!', 'shopping_completed');
       if (xpAwarded) {
-        toast.success('🎉 Shopping complete! All items checked off!', { 
+        toast.success('🎉 Shopping complete! All items checked off!', {
           duration: 4000,
           style: {
             background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -331,7 +342,7 @@ const ShoppingList = () => {
       };
       setCustomItems(prev => [...prev, item]);
       setNewItem('');
-      
+
       // Rate-limited XP for adding items
       const xpAwarded = addXP(2, 'Item added to shopping list', 'item_added');
       if (xpAwarded) {
@@ -356,10 +367,10 @@ const ShoppingList = () => {
         updated.delete(itemKey);
       } else {
         updated.add(itemKey);
-        
+
         // 🛒 NEW: Award XP for shopping progress (every 10 items)
         const progressXPAwarded = addShoppingProgressXP();
-        
+
         // 🎉 MINI CELEBRATION: Small confetti for individual items (only if progress XP awarded)
         if (progressXPAwarded && Math.random() > 0.7) { // 30% chance for mini celebration
           confetti({
@@ -379,12 +390,12 @@ const ShoppingList = () => {
     const completedCustomItems = customItems.filter(item => checkedItems.has(item.id));
     setCustomItems(prev => prev.filter(item => !checkedItems.has(item.id)));
     setCheckedItems(new Set());
-    
+
     if (completedCustomItems.length > 0) {
       const xpAwarded = addXP(5, 'Cleared completed items', 'items_cleared');
       if (xpAwarded) {
         toast.success(`🎉 Cleared ${completedCustomItems.length} completed items`);
-        
+
         // 🎊 SMALL CELEBRATION: For clearing items
         confetti({
           particleCount: 50,
@@ -401,7 +412,7 @@ const ShoppingList = () => {
     const listText = allItems
       .map(item => `• ${item.name} - ${item.amount}`)
       .join('\n');
-    
+
     navigator.clipboard.writeText(listText).then(() => {
       toast.success('📋 Shopping list copied to clipboard!');
       addXP(5, 'Shopping list exported', 'list_exported');
@@ -415,7 +426,7 @@ const ShoppingList = () => {
       const listText = allItems
         .map(item => `• ${item.name} - ${item.amount}`)
         .join('\n');
-      
+
       navigator.share({
         title: 'My Smart Shopping List',
         text: `Shopping List (${allItems.length} items):\n\n${listText}\n\nGenerated by Meal Plan App 🍳`
@@ -432,9 +443,9 @@ const ShoppingList = () => {
   const XPCooldownWarning = ({ action, children }) => {
     const onCooldown = isActionOnCooldown(action);
     const remainingTime = getCooldownTimeRemaining(action);
-    
+
     if (!onCooldown) return children;
-    
+
     return (
       <div className="relative group">
         {children}
@@ -454,11 +465,7 @@ const ShoppingList = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className={`${
-            isCompleted 
-              ? 'bg-gradient-to-r from-green-500 via-green-600 to-emerald-500' 
-              : 'bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-500'
-          } rounded-3xl p-8 text-white shadow-2xl glow-effect transition-all duration-1000`}>
+          <div className={`${isCompleted ? 'bg-gradient-to-r from-green-500 via-green-600 to-emerald-500' : 'bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-500'} rounded-3xl p-8 text-white shadow-2xl glow-effect transition-all duration-1000`}>
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-4xl font-bold mb-3 flex items-center">
@@ -476,24 +483,16 @@ const ShoppingList = () => {
                   )}
                   {isCompleted ? 'Shopping Complete! 🎉' : 'Smart Shopping List'}
                 </h1>
-                <p className={`text-lg font-medium ${
-                  isCompleted 
-                    ? 'text-green-100' 
-                    : 'text-primary-100'
-                }`}>
-                  {isCompleted 
-                    ? 'Congratulations! All items have been checked off!' 
-                    : 'Organized by grocery store aisles - earn XP every 10 items checked!'
-                  }
+                <p className={`text-lg font-medium ${isCompleted ? 'text-green-100' : 'text-primary-100'}`}>
+                  {isCompleted ? 'Congratulations! All items have been checked off!' : 'Organized by grocery store aisles - earn XP every 10 items checked!'}
                 </p>
               </div>
+
               <div className="hidden md:block text-right">
                 <div className="text-4xl font-bold mb-1">
                   {checkedCount}/{totalCount}
                 </div>
-                <div className={`text-sm font-semibold ${
-                  isCompleted ? 'text-green-100' : 'text-primary-100'
-                }`}>
+                <div className={`text-sm font-semibold ${isCompleted ? 'text-green-100' : 'text-primary-100'}`}>
                   Items completed
                 </div>
                 {isCompleted ? (
@@ -513,31 +512,19 @@ const ShoppingList = () => {
             {/* Enhanced Progress Bar with Celebration */}
             <div className="mt-8">
               <div className="flex items-center justify-between mb-3">
-                <span className={`text-sm font-medium ${
-                  isCompleted ? 'text-green-100' : 'text-primary-100'
-                }`}>
+                <span className={`text-sm font-medium ${isCompleted ? 'text-green-100' : 'text-primary-100'}`}>
                   Shopping Progress
                 </span>
-                <span className={`text-sm font-bold ${
-                  isCompleted ? 'text-green-100' : 'text-primary-100'
-                }`}>
+                <span className={`text-sm font-bold ${isCompleted ? 'text-green-100' : 'text-primary-100'}`}>
                   {Math.round(progress)}%
                 </span>
               </div>
-              <div className={`w-full rounded-full h-3 shadow-inner ${
-                isCompleted 
-                  ? 'bg-green-400/30' 
-                  : 'bg-primary-400/30'
-              }`}>
+              <div className={`w-full rounded-full h-3 shadow-inner ${isCompleted ? 'bg-green-400/30' : 'bg-primary-400/30'}`}>
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{ width: `${progress}%` }}
                   transition={{ duration: 0.8, ease: "easeOut" }}
-                  className={`rounded-full h-3 shadow-lg ${
-                    isCompleted
-                      ? 'bg-gradient-to-r from-yellow-300 via-green-300 to-emerald-300'
-                      : 'bg-gradient-to-r from-yellow-300 to-white'
-                  }`}
+                  className={`rounded-full h-3 shadow-lg ${isCompleted ? 'bg-gradient-to-r from-yellow-300 via-green-300 to-emerald-300' : 'bg-gradient-to-r from-yellow-300 to-white'}`}
                 />
               </div>
               {isCompleted && (
@@ -590,11 +577,7 @@ const ShoppingList = () => {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setViewMode('categories')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 ${
-                    viewMode === 'categories' 
-                      ? 'bg-white text-primary-600 shadow-md' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 ${viewMode === 'categories' ? 'bg-white text-primary-600 shadow-md' : 'text-gray-600 hover:text-gray-900'}`}
                 >
                   <SafeIcon icon={FiGrid} />
                   <span>Categories</span>
@@ -602,11 +585,7 @@ const ShoppingList = () => {
                 <motion.button
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setViewMode('list')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 ${
-                    viewMode === 'list' 
-                      ? 'bg-white text-primary-600 shadow-md' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 ${viewMode === 'list' ? 'bg-white text-primary-600 shadow-md' : 'text-gray-600 hover:text-gray-900'}`}
                 >
                   <SafeIcon icon={FiList} />
                   <span>List</span>
@@ -703,30 +682,23 @@ const ShoppingList = () => {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: (categoryIndex * 0.1) + (itemIndex * 0.03) }}
-                        className={`px-6 py-4 flex items-center justify-between hover:bg-gray-50/50 transition-all duration-200 ${
-                          item.isChecked ? 'bg-green-50/80' : ''
-                        }`}
+                        className={`px-6 py-4 flex items-center justify-between hover:bg-gray-50/50 transition-all duration-200 ${item.isChecked ? 'bg-green-50/80' : ''}`}
                       >
                         <div className="flex items-center space-x-4">
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                             onClick={() => handleToggleItem(item.key)}
-                            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
-                              item.isChecked
-                                ? 'bg-green-500 border-green-500 text-white shadow-lg'
-                                : 'border-gray-300 hover:border-primary-500 hover:shadow-md'
-                            }`}
+                            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${item.isChecked ? 'bg-green-500 border-green-500 text-white shadow-lg' : 'border-gray-300 hover:border-primary-500 hover:shadow-md'}`}
                           >
                             {item.isChecked && <SafeIcon icon={FiCheck} className="text-sm" />}
                           </motion.button>
-                          <div className={`${
-                            item.isChecked ? 'line-through text-gray-500' : 'text-gray-900'
-                          } transition-all duration-200`}>
+                          <div className={`${item.isChecked ? 'line-through text-gray-500' : 'text-gray-900'} transition-all duration-200`}>
                             <p className="font-semibold text-lg">{item.name}</p>
                             <p className="text-sm text-gray-600 font-medium">{item.amount}</p>
                           </div>
                         </div>
+
                         {item.isCustom && (
                           <motion.button
                             whileHover={{ scale: 1.1 }}
@@ -755,32 +727,25 @@ const ShoppingList = () => {
                   {allItems.map((item, index) => {
                     const itemKey = item.id || `meal-${item.name}-${index}`;
                     const isChecked = checkedItems.has(itemKey);
+
                     return (
                       <motion.div
                         key={itemKey}
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.03 }}
-                        className={`px-6 py-4 flex items-center justify-between hover:bg-gray-50/50 transition-all duration-200 ${
-                          isChecked ? 'bg-green-50/80' : ''
-                        }`}
+                        className={`px-6 py-4 flex items-center justify-between hover:bg-gray-50/50 transition-all duration-200 ${isChecked ? 'bg-green-50/80' : ''}`}
                       >
                         <div className="flex items-center space-x-4">
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                             onClick={() => handleToggleItem(itemKey)}
-                            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
-                              isChecked
-                                ? 'bg-green-500 border-green-500 text-white shadow-lg'
-                                : 'border-gray-300 hover:border-primary-500 hover:shadow-md'
-                            }`}
+                            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${isChecked ? 'bg-green-500 border-green-500 text-white shadow-lg' : 'border-gray-300 hover:border-primary-500 hover:shadow-md'}`}
                           >
                             {isChecked && <SafeIcon icon={FiCheck} className="text-sm" />}
                           </motion.button>
-                          <div className={`${
-                            isChecked ? 'line-through text-gray-500' : 'text-gray-900'
-                          } transition-all duration-200`}>
+                          <div className={`${isChecked ? 'line-through text-gray-500' : 'text-gray-900'} transition-all duration-200`}>
                             <p className="font-semibold text-lg">{item.name}</p>
                             <div className="flex items-center space-x-3">
                               <p className="text-sm text-gray-600 font-medium">{item.amount}</p>
@@ -791,6 +756,7 @@ const ShoppingList = () => {
                             </div>
                           </div>
                         </div>
+
                         {item.isCustom && (
                           <motion.button
                             whileHover={{ scale: 1.1 }}
@@ -836,18 +802,12 @@ const ShoppingList = () => {
             transition={{ delay: 0.3 }}
             className="mt-8 grid grid-cols-2 lg:grid-cols-5 gap-6"
           >
-            <div className={`glass rounded-xl p-6 text-center shadow-lg card-hover ${
-              isCompleted ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : ''
-            }`}>
-              <div className={`text-3xl font-bold mb-1 ${
-                isCompleted ? 'text-green-600' : 'text-primary-600'
-              }`}>{totalCount}</div>
+            <div className={`glass rounded-xl p-6 text-center shadow-lg card-hover ${isCompleted ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : ''}`}>
+              <div className={`text-3xl font-bold mb-1 ${isCompleted ? 'text-green-600' : 'text-primary-600'}`}>{totalCount}</div>
               <div className="text-sm text-gray-600 font-semibold">Total Items</div>
             </div>
 
-            <div className={`glass rounded-xl p-6 text-center shadow-lg card-hover ${
-              isCompleted ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : ''
-            }`}>
+            <div className={`glass rounded-xl p-6 text-center shadow-lg card-hover ${isCompleted ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : ''}`}>
               <div className="text-3xl font-bold text-green-600 mb-1 flex items-center justify-center">
                 {checkedCount}
                 {isCompleted && (
@@ -863,30 +823,18 @@ const ShoppingList = () => {
               <div className="text-sm text-gray-600 font-semibold">Completed</div>
             </div>
 
-            <div className={`glass rounded-xl p-6 text-center shadow-lg card-hover ${
-              isCompleted ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : ''
-            }`}>
-              <div className={`text-3xl font-bold mb-1 ${
-                isCompleted ? 'text-green-600' : 'text-secondary-600'
-              }`}>{mealIngredients.length}</div>
+            <div className={`glass rounded-xl p-6 text-center shadow-lg card-hover ${isCompleted ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : ''}`}>
+              <div className={`text-3xl font-bold mb-1 ${isCompleted ? 'text-green-600' : 'text-secondary-600'}`}>{mealIngredients.length}</div>
               <div className="text-sm text-gray-600 font-semibold">Meal Ingredients</div>
             </div>
 
-            <div className={`glass rounded-xl p-6 text-center shadow-lg card-hover ${
-              isCompleted ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : ''
-            }`}>
-              <div className={`text-3xl font-bold mb-1 ${
-                isCompleted ? 'text-green-600' : 'text-accent-600'
-              }`}>{customItems.length}</div>
+            <div className={`glass rounded-xl p-6 text-center shadow-lg card-hover ${isCompleted ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : ''}`}>
+              <div className={`text-3xl font-bold mb-1 ${isCompleted ? 'text-green-600' : 'text-accent-600'}`}>{customItems.length}</div>
               <div className="text-sm text-gray-600 font-semibold">Custom Items</div>
             </div>
 
-            <div className={`glass rounded-xl p-6 text-center shadow-lg card-hover ${
-              isCompleted ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : ''
-            }`}>
-              <div className={`text-3xl font-bold mb-1 ${
-                isCompleted ? 'text-green-600' : 'text-purple-600'
-              }`}>{Object.keys(categorizedItems()).length}</div>
+            <div className={`glass rounded-xl p-6 text-center shadow-lg card-hover ${isCompleted ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : ''}`}>
+              <div className={`text-3xl font-bold mb-1 ${isCompleted ? 'text-green-600' : 'text-purple-600'}`}>{Object.keys(categorizedItems()).length}</div>
               <div className="text-sm text-gray-600 font-semibold">Active Categories</div>
             </div>
           </motion.div>
