@@ -22,7 +22,8 @@
     "echarts-for-react": "^3.0.2",
     "date-fns": "4.1.0",
     "react-hot-toast": "^2.4.1",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "canvas-confetti": "^1.9.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
