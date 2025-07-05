@@ -202,7 +202,11 @@ const CookingTimer = () => {
                   {isTimerComplete ? '00:00' : formatTime(timeLeft)}
                 </div>
                 <div className={`text-sm ${isTimerComplete ? 'text-red-100 font-bold animate-pulse' : 'text-orange-100'}`}>
-                  {isTimerComplete ? (showAlarmEffect ? 'TIME\'S UP!' : 'Timer Complete!') : 'Background Timer'}
+                  {/* 🚨 FIXED: Show clear completion message */}
+                  {isTimerComplete ? 
+                    (showAlarmEffect ? 'TIME\'S UP! 🚨' : 'Timer Complete! ✅') : 
+                    'Background Timer'
+                  }
                 </div>
               </div>
               <div className="flex items-center space-x-2">
@@ -373,7 +377,11 @@ const CookingTimer = () => {
               <div className={`text-sm font-medium ${
                 isTimerComplete ? (showAlarmEffect ? 'text-white font-bold animate-pulse' : 'text-red-100 animate-pulse font-bold') : 'text-orange-100'
               }`}>
-                {isTimerComplete ? (showAlarmEffect ? 'TIME\'S UP!' : 'Timer Complete!') : 'Active Timer'}
+                {/* 🚨 FIXED: Show clear completion message */}
+                {isTimerComplete ? 
+                  (showAlarmEffect ? 'TIME\'S UP! 🚨' : 'Timer Complete! ✅') : 
+                  'Active Timer'
+                }
               </div>
             </div>
 
@@ -707,6 +715,7 @@ const CookingTimer = () => {
                               showAlarmEffect ? 'text-white' : 'text-red-600'
                             }`}
                           >
+                            {/* 🚨 FIXED: Show clear completion message */}
                             {showAlarmEffect ? '🚨 TIME\'S UP!' : '🎉 Cooking Complete!'}
                           </motion.p>
                         )}

@@ -365,37 +365,6 @@ const Recipes = () => {
     }
   };
 
-  // 🎨 NEW: Shimmer Effect Component for Cook Buttons
-  const ShimmerButton = ({ children, onClick, className = "", disabled = false }) => (
-    <motion.button
-      whileHover={{ scale: 1.02, y: -2 }}
-      whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      disabled={disabled}
-      className={`relative overflow-hidden ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-    >
-      {/* Shimmer overlay */}
-      {!disabled && (
-        <motion.div
-          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-          animate={{
-            x: ['-100%', '200%']
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            repeatDelay: 3,
-            ease: "easeInOut"
-          }}
-          style={{
-            transform: 'skewX(-20deg)',
-          }}
-        />
-      )}
-      {children}
-    </motion.button>
-  );
-
   // ✅ NEW: Recipe form component for both add and edit
   const RecipeForm = ({ recipe, setRecipe, onSubmit, isEdit = false, onCancel }) => (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -1013,14 +982,16 @@ const Recipes = () => {
                           </div>
                         )}
 
-                        {/* Cook Button with Shimmer Effect */}
-                        <ShimmerButton
+                        {/* 🚨 REMOVED: Shimmer Effect from Cook Button - Now just regular button */}
+                        <motion.button
+                          whileHover={{ scale: 1.02, y: -2 }}
+                          whileTap={{ scale: 0.98 }}
                           onClick={() => startCookingMode(recipe)}
                           className="w-full btn-gradient text-white py-3 px-4 rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
                         >
                           <SafeIcon icon={FiPlay} />
                           <span>Start Cooking</span>
-                        </ShimmerButton>
+                        </motion.button>
                       </div>
                     </motion.div>
                   );
