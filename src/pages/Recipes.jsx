@@ -351,37 +351,6 @@ const Recipes = () => {
     }
   };
 
-  // 🌟 NEW: Floating Animation Component
-  const FloatingCard = ({ children, delay = 0, className = "" }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 30, scale: 0.95 }}
-      animate={{ 
-        opacity: 1, 
-        y: 0, 
-        scale: 1,
-        rotateX: [0, 1, 0, -1, 0],
-        rotateY: [0, 0.5, 0, -0.5, 0]
-      }}
-      transition={{ 
-        opacity: { duration: 0.6, delay },
-        y: { duration: 0.6, delay },
-        scale: { duration: 0.6, delay },
-        rotateX: { duration: 8, repeat: Infinity, ease: "easeInOut" },
-        rotateY: { duration: 10, repeat: Infinity, ease: "easeInOut" }
-      }}
-      whileHover={{ 
-        y: -12, 
-        scale: 1.02,
-        boxShadow: "0 25px 50px rgba(0,0,0,0.15)",
-        rotateX: 0,
-        rotateY: 0
-      }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  );
-
   // 🌟 NEW: Shimmer Effect Component
   const ShimmerEffect = ({ children, className = "" }) => (
     <div className={`relative overflow-hidden ${className}`}>
@@ -930,23 +899,38 @@ const Recipes = () => {
                 transition={{ delay: 0.6 }}
                 className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 text-left"
               >
-                <FloatingCard delay={0.7} className="glass p-6 rounded-xl">
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="glass p-6 rounded-xl"
+                >
                   <SafeIcon icon={FiBookOpen} className="text-2xl text-primary-500 mb-3" />
                   <h3 className="font-bold text-gray-900 mb-2">Create Recipes</h3>
                   <p className="text-sm text-gray-600">Add your favorite recipes with ingredients, steps, and cooking tips.</p>
-                </FloatingCard>
+                </motion.div>
                 
-                <FloatingCard delay={0.8} className="glass p-6 rounded-xl">
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8 }}
+                  className="glass p-6 rounded-xl"
+                >
                   <SafeIcon icon={FiHeart} className="text-2xl text-red-500 mb-3" />
                   <h3 className="font-bold text-gray-900 mb-2">Save & Share</h3>
                   <p className="text-sm text-gray-600">Save recipes you love and share them with friends via email.</p>
-                </FloatingCard>
+                </motion.div>
                 
-                <FloatingCard delay={0.9} className="glass p-6 rounded-xl">
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.9 }}
+                  className="glass p-6 rounded-xl"
+                >
                   <SafeIcon icon={FiPlay} className="text-2xl text-green-500 mb-3" />
                   <h3 className="font-bold text-gray-900 mb-2">Cook Mode</h3>
                   <p className="text-sm text-gray-600">Follow step-by-step instructions with built-in timers.</p>
-                </FloatingCard>
+                </motion.div>
               </motion.div>
             </div>
           </motion.div>
@@ -1020,9 +1004,12 @@ const Recipes = () => {
                   const canEdit = canUserEditRecipe(recipe);
 
                   return (
-                    <FloatingCard
+                    <motion.div
                       key={recipe.id}
-                      delay={index * 0.05}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      whileHover={{ y: -8, scale: 1.02 }}
                       className="glass rounded-2xl overflow-hidden shadow-lg card-hover glow-effect relative"
                     >
                       {/* Recipe Image */}
@@ -1031,12 +1018,7 @@ const Recipes = () => {
                           <img src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <motion.div
-                              animate={{ rotate: [0, 10, 0, -10, 0] }}
-                              transition={{ duration: 4, repeat: Infinity }}
-                            >
-                              <SafeIcon icon={FiStar} className="text-4xl text-primary-400" />
-                            </motion.div>
+                            <SafeIcon icon={FiStar} className="text-4xl text-primary-400" />
                           </div>
                         )}
 
@@ -1114,19 +1096,9 @@ const Recipes = () => {
 
                         {/* Recipe Type Badge */}
                         <div className="absolute bottom-3 left-3 flex space-x-2">
-                          <motion.span
-                            animate={{ 
-                              boxShadow: [
-                                '0 0 10px rgba(255,255,255,0.3)',
-                                '0 0 20px rgba(255,255,255,0.6)',
-                                '0 0 10px rgba(255,255,255,0.3)'
-                              ]
-                            }}
-                            transition={{ duration: 3, repeat: Infinity }}
-                            className="bg-white/90 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-semibold shadow-lg"
-                          >
+                          <span className="bg-white/90 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
                             {recipe.difficulty}
-                          </motion.span>
+                          </span>
                           
                           {recipe.isUserCreated && (
                             <span className="bg-secondary-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
@@ -1135,19 +1107,9 @@ const Recipes = () => {
                           )}
                           
                           {recipe.shared && !recipe.isUserCreated && (
-                            <motion.span
-                              animate={{ 
-                                backgroundColor: [
-                                  'rgba(59, 130, 246, 0.9)',
-                                  'rgba(59, 130, 246, 1)',
-                                  'rgba(59, 130, 246, 0.9)'
-                                ]
-                              }}
-                              transition={{ duration: 2, repeat: Infinity }}
-                              className="backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg"
-                            >
+                            <span className="bg-blue-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
                               Community
-                            </motion.span>
+                            </span>
                           )}
                         </div>
                       </div>
@@ -1211,20 +1173,12 @@ const Recipes = () => {
                         {recipe.tags && recipe.tags.length > 0 && (
                           <div className="flex flex-wrap gap-2 mb-4">
                             {recipe.tags.slice(0, 3).map((tag, tagIndex) => (
-                              <motion.span
+                              <span
                                 key={tagIndex}
-                                animate={{ 
-                                  backgroundColor: [
-                                    'rgba(239, 68, 48, 0.1)',
-                                    'rgba(239, 68, 48, 0.15)',
-                                    'rgba(239, 68, 48, 0.1)'
-                                  ]
-                                }}
-                                transition={{ duration: 3, repeat: Infinity, delay: tagIndex * 0.5 }}
-                                className="text-xs text-primary-600 px-3 py-1 rounded-full font-semibold"
+                                className="text-xs text-primary-600 bg-primary-100/60 px-3 py-1 rounded-full font-semibold"
                               >
                                 {tag}
-                              </motion.span>
+                              </span>
                             ))}
                           </div>
                         )}
@@ -1241,7 +1195,7 @@ const Recipes = () => {
                           <ShimmerEffect className="absolute inset-0" />
                         </motion.button>
                       </div>
-                    </FloatingCard>
+                    </motion.div>
                   );
                 })}
               </motion.div>
@@ -1292,7 +1246,6 @@ const Recipes = () => {
           )}
         </AnimatePresence>
 
-        {/* Other modals remain the same but with enhanced animations... */}
         {/* Add Recipe Modal */}
         <AnimatePresence>
           {showAddModal && (
