@@ -13,12 +13,25 @@ const { FiGift, FiStar, FiTrendingUp, FiPlus, FiEdit3, FiTrash2, FiDownload, FiL
 
 const Rewards = () => {
   const { user } = useAuth();
-  const { rewards, userRewards, loading, addReward, updateReward, deleteReward, claimReward, canClaimReward, hasClaimedReward, getNextReward, getProgressToNextReward } = useRewards();
+  const { 
+    rewards, 
+    userRewards, 
+    loading, 
+    addReward, 
+    updateReward, 
+    deleteReward, 
+    claimReward, 
+    canClaimReward, 
+    hasClaimedReward, 
+    getNextReward, 
+    getProgressToNextReward 
+  } = useRewards();
   const { addXP } = useGamification();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingReward, setEditingReward] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [newReward, setNewReward] = useState({
     title: '',
     description: '',
@@ -29,6 +42,28 @@ const Rewards = () => {
   });
 
   const { progress, remaining, nextReward } = getProgressToNextReward();
+
+  // ✅ RESET FORM: Reset form when modal opens/closes
+  useEffect(() => {
+    if (!showAddModal) {
+      setNewReward({
+        title: '',
+        description: '',
+        pdfUrl: '',
+        requiredXp: '',
+        icon: '📖',
+        category: 'cookbook'
+      });
+      setSubmitting(false);
+    }
+  }, [showAddModal]);
+
+  useEffect(() => {
+    if (!showEditModal) {
+      setEditingReward(null);
+      setSubmitting(false);
+    }
+  }, [showEditModal]);
 
   // Celebration effect for claiming rewards
   const triggerRewardCelebration = () => {
@@ -70,46 +105,142 @@ const Rewards = () => {
     }
   };
 
+  // ✅ FIXED: Enhanced form validation and submission
   const handleAddReward = async (e) => {
     e.preventDefault();
-    const result = await addReward({
-      ...newReward,
-      requiredXp: parseInt(newReward.requiredXp)
-    });
+    
+    // ✅ CLIENT-SIDE VALIDATION
+    console.log('🔄 Submitting new reward:', newReward);
+    
+    if (!newReward.title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+    
+    if (!newReward.description.trim()) {
+      toast.error('Description is required');
+      return;
+    }
+    
+    if (!newReward.pdfUrl.trim()) {
+      toast.error('PDF URL is required');
+      return;
+    }
+    
+    const xpValue = parseInt(newReward.requiredXp);
+    if (!xpValue || xpValue <= 0) {
+      toast.error('Required XP must be a positive number');
+      return;
+    }
 
-    if (result.success) {
-      toast.success('✅ Reward added successfully!');
-      setShowAddModal(false);
-      setNewReward({
-        title: '',
-        description: '',
-        pdfUrl: '',
-        requiredXp: '',
-        icon: '📖',
-        category: 'cookbook'
+    setSubmitting(true);
+
+    try {
+      console.log('📤 Sending reward data:', {
+        title: newReward.title.trim(),
+        description: newReward.description.trim(),
+        pdfUrl: newReward.pdfUrl.trim(),
+        requiredXp: xpValue,
+        icon: newReward.icon,
+        category: newReward.category
       });
-    } else {
-      toast.error(result.error);
+
+      const result = await addReward({
+        title: newReward.title.trim(),
+        description: newReward.description.trim(),
+        pdfUrl: newReward.pdfUrl.trim(),
+        requiredXp: xpValue,
+        icon: newReward.icon,
+        category: newReward.category
+      });
+
+      console.log('📥 Add reward result:', result);
+
+      if (result.success) {
+        toast.success('✅ Reward added successfully!');
+        setShowAddModal(false);
+        // Form will be reset by useEffect
+      } else {
+        console.error('❌ Add reward failed:', result.error);
+        toast.error(result.error || 'Failed to add reward');
+      }
+    } catch (error) {
+      console.error('❌ Add reward error:', error);
+      toast.error('Failed to add reward - please try again');
+    } finally {
+      setSubmitting(false);
     }
   };
 
+  // ✅ FIXED: Enhanced edit reward submission
   const handleEditReward = async (e) => {
     e.preventDefault();
-    const result = await updateReward(editingReward.id, {
-      title: editingReward.title,
-      description: editingReward.description,
-      pdf_url: editingReward.pdf_url,
-      required_xp: parseInt(editingReward.required_xp),
-      icon: editingReward.icon,
-      category: editingReward.category
-    });
+    
+    if (!editingReward) {
+      toast.error('No reward selected for editing');
+      return;
+    }
 
-    if (result.success) {
-      toast.success('✅ Reward updated successfully!');
-      setShowEditModal(false);
-      setEditingReward(null);
-    } else {
-      toast.error(result.error);
+    // ✅ CLIENT-SIDE VALIDATION
+    console.log('🔄 Submitting edited reward:', editingReward);
+    
+    if (!editingReward.title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+    
+    if (!editingReward.description.trim()) {
+      toast.error('Description is required');
+      return;
+    }
+    
+    if (!editingReward.pdf_url.trim()) {
+      toast.error('PDF URL is required');
+      return;
+    }
+    
+    const xpValue = parseInt(editingReward.required_xp);
+    if (!xpValue || xpValue <= 0) {
+      toast.error('Required XP must be a positive number');
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      console.log('📤 Sending updated reward data:', {
+        title: editingReward.title.trim(),
+        description: editingReward.description.trim(),
+        pdf_url: editingReward.pdf_url.trim(),
+        required_xp: xpValue,
+        icon: editingReward.icon,
+        category: editingReward.category
+      });
+
+      const result = await updateReward(editingReward.id, {
+        title: editingReward.title.trim(),
+        description: editingReward.description.trim(),
+        pdf_url: editingReward.pdf_url.trim(),
+        required_xp: xpValue,
+        icon: editingReward.icon,
+        category: editingReward.category
+      });
+
+      console.log('📥 Update reward result:', result);
+
+      if (result.success) {
+        toast.success('✅ Reward updated successfully!');
+        setShowEditModal(false);
+        // Form will be reset by useEffect
+      } else {
+        console.error('❌ Update reward failed:', result.error);
+        toast.error(result.error || 'Failed to update reward');
+      }
+    } catch (error) {
+      console.error('❌ Update reward error:', error);
+      toast.error('Failed to update reward - please try again');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -213,7 +344,7 @@ const Rewards = () => {
                     Unlock amazing recipe cookbooks and cooking guides as you level up!
                   </p>
                 </div>
-                
+
                 {user.isAdmin && (
                   <motion.button
                     whileHover={{ scale: 1.05, y: -2 }}
@@ -244,7 +375,6 @@ const Rewards = () => {
                       <p className="text-purple-100 text-sm">/ {nextReward.required_xp} XP</p>
                     </div>
                   </div>
-                  
                   {/* Animated Progress Bar */}
                   <div className="w-full bg-white/20 rounded-full h-4 overflow-hidden">
                     <motion.div
@@ -261,7 +391,6 @@ const Rewards = () => {
                       />
                     </motion.div>
                   </div>
-                  
                   <div className="flex items-center justify-between mt-2 text-sm">
                     <span className="text-purple-100">{Math.round(progress)}% Complete</span>
                     <span className="text-white font-semibold">{nextReward.icon} {nextReward.title}</span>
@@ -338,7 +467,6 @@ const Rewards = () => {
               <SafeIcon icon={FiUnlock} className="mr-3 text-green-500" />
               Ready to Claim! 🎉
             </h2>
-            
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {availableRewards.map((reward, index) => (
                 <motion.div
@@ -353,9 +481,9 @@ const Rewards = () => {
                   <motion.div
                     animate={{
                       boxShadow: [
-                        '0 0 20px rgba(34, 197, 94, 0.3)',
-                        '0 0 40px rgba(34, 197, 94, 0.5)',
-                        '0 0 20px rgba(34, 197, 94, 0.3)'
+                        '0 0 20px rgba(34,197,94,0.3)',
+                        '0 0 40px rgba(34,197,94,0.5)',
+                        '0 0 20px rgba(34,197,94,0.3)'
                       ]
                     }}
                     transition={{ duration: 2, repeat: Infinity }}
@@ -441,7 +569,6 @@ const Rewards = () => {
               <SafeIcon icon={FiAward} className="mr-3 text-green-500" />
               Your Collection 📚
             </h2>
-            
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {claimedRewards.map((reward, index) => (
                 <motion.div
@@ -526,7 +653,6 @@ const Rewards = () => {
               <SafeIcon icon={FiLock} className="mr-3 text-orange-500" />
               Coming Soon 🔒
             </h2>
-            
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {lockedRewards.map((reward, index) => {
                 const xpNeeded = reward.required_xp - user.xp;
@@ -541,7 +667,6 @@ const Rewards = () => {
                   >
                     <div className="p-6 relative">
                       <div className="absolute inset-0 bg-gradient-to-br from-gray-50/50 to-gray-100/50 rounded-2xl" />
-                      
                       <div className="relative z-10">
                         <div className="flex items-center justify-between mb-4">
                           <span className="text-4xl opacity-50">{reward.icon}</span>
@@ -613,9 +738,7 @@ const Rewards = () => {
             <SafeIcon icon={FiGift} className="text-6xl text-gray-300 mb-6 mx-auto" />
             <h3 className="text-2xl font-bold text-gray-900 mb-3">No Rewards Yet</h3>
             <p className="text-gray-600 font-medium">
-              {user.isAdmin 
-                ? 'Add the first reward to get started!' 
-                : 'Check back later for amazing rewards!'}
+              {user.isAdmin ? 'Add the first reward to get started!' : 'Check back later for amazing rewards!'}
             </p>
             {user.isAdmin && (
               <motion.button
@@ -639,7 +762,7 @@ const Rewards = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-              onClick={() => setShowAddModal(false)}
+              onClick={() => !submitting && setShowAddModal(false)}
             >
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -653,8 +776,9 @@ const Rewards = () => {
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => setShowAddModal(false)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl"
+                    onClick={() => !submitting && setShowAddModal(false)}
+                    disabled={submitting}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl disabled:opacity-50"
                   >
                     <SafeIcon icon={FiX} className="text-2xl" />
                   </motion.button>
@@ -664,7 +788,7 @@ const Rewards = () => {
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Reward Title
+                        Reward Title *
                       </label>
                       <input
                         type="text"
@@ -673,11 +797,12 @@ const Rewards = () => {
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium focus:border-purple-500 focus:outline-none"
                         required
                         placeholder="e.g., Italian Cookbook Collection"
+                        disabled={submitting}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Required XP
+                        Required XP *
                       </label>
                       <input
                         type="number"
@@ -687,13 +812,14 @@ const Rewards = () => {
                         required
                         min="1"
                         placeholder="100"
+                        disabled={submitting}
                       />
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Description
+                      Description *
                     </label>
                     <textarea
                       value={newReward.description}
@@ -702,12 +828,13 @@ const Rewards = () => {
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium focus:border-purple-500 focus:outline-none resize-none"
                       required
                       placeholder="A comprehensive collection of authentic Italian recipes..."
+                      disabled={submitting}
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      PDF URL
+                      PDF URL *
                     </label>
                     <input
                       type="url"
@@ -716,6 +843,7 @@ const Rewards = () => {
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium focus:border-purple-500 focus:outline-none"
                       required
                       placeholder="https://example.com/cookbook.pdf"
+                      disabled={submitting}
                     />
                   </div>
 
@@ -737,6 +865,7 @@ const Rewards = () => {
                                 ? 'bg-purple-100 border-2 border-purple-500'
                                 : 'bg-gray-50 hover:bg-gray-100 border-2 border-gray-200'
                             }`}
+                            disabled={submitting}
                           >
                             {icon}
                           </motion.button>
@@ -751,6 +880,7 @@ const Rewards = () => {
                         value={newReward.category}
                         onChange={(e) => setNewReward(prev => ({ ...prev, category: e.target.value }))}
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium focus:border-purple-500 focus:outline-none"
+                        disabled={submitting}
                       >
                         {categories.map((category) => (
                           <option key={category} value={category}>
@@ -767,7 +897,8 @@ const Rewards = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setShowAddModal(false)}
-                      className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200"
+                      disabled={submitting}
+                      className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
                     >
                       Cancel
                     </motion.button>
@@ -775,10 +906,20 @@ const Rewards = () => {
                       type="submit"
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
-                      className="flex-1 px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
+                      disabled={submitting}
+                      className="flex-1 px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2 disabled:opacity-50"
                     >
-                      <SafeIcon icon={FiSave} />
-                      <span>Add Reward</span>
+                      {submitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                          <span>Adding...</span>
+                        </>
+                      ) : (
+                        <>
+                          <SafeIcon icon={FiSave} />
+                          <span>Add Reward</span>
+                        </>
+                      )}
                     </motion.button>
                   </div>
                 </form>
@@ -795,7 +936,7 @@ const Rewards = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-              onClick={() => setShowEditModal(false)}
+              onClick={() => !submitting && setShowEditModal(false)}
             >
               <motion.div
                 initial={{ opacity: 0, scale: 0.8 }}
@@ -809,8 +950,9 @@ const Rewards = () => {
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => setShowEditModal(false)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl"
+                    onClick={() => !submitting && setShowEditModal(false)}
+                    disabled={submitting}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl disabled:opacity-50"
                   >
                     <SafeIcon icon={FiX} className="text-2xl" />
                   </motion.button>
@@ -820,7 +962,7 @@ const Rewards = () => {
                   <div className="grid md:grid-cols-2 gap-6">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Reward Title
+                        Reward Title *
                       </label>
                       <input
                         type="text"
@@ -828,11 +970,12 @@ const Rewards = () => {
                         onChange={(e) => setEditingReward(prev => ({ ...prev, title: e.target.value }))}
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium focus:border-purple-500 focus:outline-none"
                         required
+                        disabled={submitting}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        Required XP
+                        Required XP *
                       </label>
                       <input
                         type="number"
@@ -841,13 +984,14 @@ const Rewards = () => {
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium focus:border-purple-500 focus:outline-none"
                         required
                         min="1"
+                        disabled={submitting}
                       />
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Description
+                      Description *
                     </label>
                     <textarea
                       value={editingReward.description}
@@ -855,12 +999,13 @@ const Rewards = () => {
                       rows={3}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium focus:border-purple-500 focus:outline-none resize-none"
                       required
+                      disabled={submitting}
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      PDF URL
+                      PDF URL *
                     </label>
                     <input
                       type="url"
@@ -868,6 +1013,7 @@ const Rewards = () => {
                       onChange={(e) => setEditingReward(prev => ({ ...prev, pdf_url: e.target.value }))}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium focus:border-purple-500 focus:outline-none"
                       required
+                      disabled={submitting}
                     />
                   </div>
 
@@ -889,6 +1035,7 @@ const Rewards = () => {
                                 ? 'bg-purple-100 border-2 border-purple-500'
                                 : 'bg-gray-50 hover:bg-gray-100 border-2 border-gray-200'
                             }`}
+                            disabled={submitting}
                           >
                             {icon}
                           </motion.button>
@@ -903,6 +1050,7 @@ const Rewards = () => {
                         value={editingReward.category}
                         onChange={(e) => setEditingReward(prev => ({ ...prev, category: e.target.value }))}
                         className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium focus:border-purple-500 focus:outline-none"
+                        disabled={submitting}
                       >
                         {categories.map((category) => (
                           <option key={category} value={category}>
@@ -919,7 +1067,8 @@ const Rewards = () => {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setShowEditModal(false)}
-                      className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200"
+                      disabled={submitting}
+                      className="flex-1 px-6 py-4 border-2 border-gray-300 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors duration-200 disabled:opacity-50"
                     >
                       Cancel
                     </motion.button>
@@ -927,10 +1076,20 @@ const Rewards = () => {
                       type="submit"
                       whileHover={{ scale: 1.02, y: -2 }}
                       whileTap={{ scale: 0.98 }}
-                      className="flex-1 px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
+                      disabled={submitting}
+                      className="flex-1 px-6 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2 disabled:opacity-50"
                     >
-                      <SafeIcon icon={FiSave} />
-                      <span>Save Changes</span>
+                      {submitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <SafeIcon icon={FiSave} />
+                          <span>Save Changes</span>
+                        </>
+                      )}
                     </motion.button>
                   </div>
                 </form>
