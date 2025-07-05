@@ -22,7 +22,6 @@ const Recipes = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCleanupModal, setShowCleanupModal] = useState(false);
-  
   const [editingRecipe, setEditingRecipe] = useState(null);
   const [cleanupResult, setCleanupResult] = useState(null);
   const [recipeToDelete, setRecipeToDelete] = useState(null);
@@ -39,7 +38,24 @@ const Recipes = () => {
     url: ''
   });
 
-  const { recipes, sharedRecipes, savedRecipes, getAllUniqueRecipes, saveRecipe, unsaveRecipe, deleteRecipe, canDeleteRecipe, isRecipeSaved, shareRecipe, emailShareRecipe, hasSharedRecipe, addRecipe, updateRecipe, cleanupDuplicates } = useRecipes();
+  const {
+    recipes,
+    sharedRecipes,
+    savedRecipes,
+    getAllUniqueRecipes,
+    saveRecipe,
+    unsaveRecipe,
+    deleteRecipe,
+    canDeleteRecipe,
+    isRecipeSaved,
+    shareRecipe,
+    emailShareRecipe,
+    hasSharedRecipe,
+    addRecipe,
+    updateRecipe,
+    cleanupDuplicates
+  } = useRecipes();
+
   const { startCookingMode } = useCookingMode();
   const { addXP } = useGamification();
   const { user } = useAuth();
@@ -49,12 +65,12 @@ const Recipes = () => {
   const allRecipes = getAllUniqueRecipes();
 
   // Get user's own created recipes (not default/shared)
-  const userCreatedRecipes = recipes.filter(recipe => 
+  const userCreatedRecipes = recipes.filter(recipe =>
     recipe.isUserCreated || (!recipe.isDefault && !recipe.shared)
   );
 
   // Get community recipes (shared but not created by current user)
-  const communityRecipes = sharedRecipes.filter(recipe => 
+  const communityRecipes = sharedRecipes.filter(recipe =>
     recipe.shared && recipe.sharedByUserId !== user?.id
   );
 
@@ -80,17 +96,13 @@ const Recipes = () => {
   // ✅ FIXED: Stable canRateRecipe function with useCallback
   const canRateRecipe = useCallback((recipe) => {
     if (!user || !recipe) return false;
-    
     // Only allow rating community recipes (shared recipes)
     if (!recipe.shared) return false;
-    
     // Users cannot rate their own recipes
     const userId = String(user.id || user.user_id || '');
     if (!userId) return false;
-    
     // Check if this is the user's own recipe
     if (String(recipe.sharedByUserId) === userId) return false;
-    
     return true;
   }, [user]);
 
@@ -109,7 +121,6 @@ const Recipes = () => {
   // Filter and sort recipes based on selected filter, search term, and sort option
   const getFilteredAndSortedRecipes = () => {
     let recipesToFilter = [];
-
     switch (selectedFilter) {
       case 'saved':
         recipesToFilter = savedRecipes;
@@ -354,6 +365,37 @@ const Recipes = () => {
     }
   };
 
+  // 🎨 NEW: Shimmer Effect Component for Cook Buttons
+  const ShimmerButton = ({ children, onClick, className = "", disabled = false }) => (
+    <motion.button
+      whileHover={{ scale: 1.02, y: -2 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      disabled={disabled}
+      className={`relative overflow-hidden ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
+      {/* Shimmer overlay */}
+      {!disabled && (
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+          animate={{
+            x: ['-100%', '200%']
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            repeatDelay: 3,
+            ease: "easeInOut"
+          }}
+          style={{
+            transform: 'skewX(-20deg)',
+          }}
+        />
+      )}
+      {children}
+    </motion.button>
+  );
+
   // ✅ NEW: Recipe form component for both add and edit
   const RecipeForm = ({ recipe, setRecipe, onSubmit, isEdit = false, onCancel }) => (
     <form onSubmit={onSubmit} className="space-y-6">
@@ -370,7 +412,6 @@ const Recipes = () => {
             required
           />
         </div>
-
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Image URL
@@ -427,7 +468,6 @@ const Recipes = () => {
             required
           />
         </div>
-
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Servings
@@ -440,7 +480,6 @@ const Recipes = () => {
             required
           />
         </div>
-
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Difficulty
@@ -762,7 +801,8 @@ const Recipes = () => {
                 <p className="text-gray-600 font-medium mb-4">
                   {searchTerm
                     ? `No recipes match "${searchTerm}" in ${filters.find(f => f.id === selectedFilter)?.name}`
-                    : `No recipes in ${filters.find(f => f.id === selectedFilter)?.name} yet`}
+                    : `No recipes in ${filters.find(f => f.id === selectedFilter)?.name} yet`
+                  }
                 </p>
                 {selectedFilter === 'my-recipes' && (
                   <motion.button
@@ -826,7 +866,6 @@ const Recipes = () => {
                           >
                             <SafeIcon icon={FiHeart} className="text-sm" />
                           </motion.button>
-
                           {user && (
                             <>
                               {/* ✅ NEW: EDIT BUTTON: Show for recipe owners */}
@@ -921,7 +960,6 @@ const Recipes = () => {
                             </motion.button>
                           )}
                         </div>
-
                         <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">
                           {recipe.description}
                         </p>
@@ -935,8 +973,8 @@ const Recipes = () => {
 
                         {/* ✅ NEW: INLINE RATING SYSTEM for community recipes */}
                         {recipe.shared && (
-                          <InlineRating 
-                            recipe={recipe} 
+                          <InlineRating
+                            recipe={recipe}
                             canRate={canRate}
                             className="mb-4"
                           />
@@ -975,16 +1013,14 @@ const Recipes = () => {
                           </div>
                         )}
 
-                        {/* Cook Button */}
-                        <motion.button
-                          whileHover={{ scale: 1.02, y: -2 }}
-                          whileTap={{ scale: 0.98 }}
+                        {/* Cook Button with Shimmer Effect */}
+                        <ShimmerButton
                           onClick={() => startCookingMode(recipe)}
                           className="w-full btn-gradient text-white py-3 px-4 rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
                         >
                           <SafeIcon icon={FiPlay} />
                           <span>Start Cooking</span>
-                        </motion.button>
+                        </ShimmerButton>
                       </div>
                     </motion.div>
                   );

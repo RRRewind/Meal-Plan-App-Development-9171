@@ -11,7 +11,7 @@ import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 import { format, addDays } from 'date-fns';
 
-const { FiChef, FiCalendar, FiTrendingUp, FiStar, FiClock, FiPlay, FiAward, FiTarget, FiShoppingCart, FiBook, FiCookie, FiExternalLink } = FiIcons;
+const { FiChef, FiCalendar, FiTrendingUp, FiStar, FiClock, FiPlay, FiAward, FiTarget, FiShoppingCart, FiBook, FiCookie, FiExternalLink, FiZap } = FiIcons;
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -26,30 +26,10 @@ const Dashboard = () => {
   const upcomingDays = Array.from({ length: 7 }, (_, i) => addDays(today, i));
 
   const stats = [
-    {
-      title: 'Recipes Cooked',
-      value: user?.recipesCooked || 0,
-      icon: FiChef,
-      color: 'from-primary-500/90 to-primary-600/90'
-    },
-    {
-      title: 'Current Level',
-      value: user?.level || 1,
-      icon: FiStar,
-      color: 'from-secondary-500/90 to-secondary-600/90'
-    },
-    {
-      title: 'Cooking Streak',
-      value: `${user?.streakDays || 0} days`,
-      icon: FiTrendingUp,
-      color: 'from-purple-500/90 to-purple-600/90'
-    },
-    {
-      title: 'Saved Recipes',
-      value: savedRecipes.length,
-      icon: FiTarget,
-      color: 'from-blue-500/90 to-blue-600/90'
-    }
+    { title: 'Recipes Cooked', value: user?.recipesCooked || 0, icon: FiChef, color: 'from-primary-500/90 to-primary-600/90' },
+    { title: 'Current Level', value: user?.level || 1, icon: FiStar, color: 'from-secondary-500/90 to-secondary-600/90' },
+    { title: 'Cooking Streak', value: `${user?.streakDays || 0} days`, icon: FiTrendingUp, color: 'from-purple-500/90 to-purple-600/90' },
+    { title: 'Saved Recipes', value: savedRecipes.length, icon: FiTarget, color: 'from-blue-500/90 to-blue-600/90' }
   ];
 
   const recentBadges = user?.badges?.slice(-3).map(badgeId => badges[badgeId]).filter(Boolean) || [];
@@ -88,6 +68,68 @@ const Dashboard = () => {
     }
   };
 
+  // 🌟 NEW: Sparkle Animation Component
+  const SparkleEffect = ({ children, className = "" }) => (
+    <div className={`relative group ${className}`}>
+      {children}
+      {/* Sparkle particles */}
+      <div className="absolute inset-0 pointer-events-none">
+        {[...Array(6)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-1 h-1 bg-yellow-400 rounded-full"
+            style={{
+              left: `${20 + i * 12}%`,
+              top: `${15 + (i % 2) * 70}%`,
+            }}
+            animate={{
+              opacity: [0, 1, 0],
+              scale: [0, 1.5, 0],
+              rotate: [0, 180, 360],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              delay: i * 0.3,
+              ease: "easeInOut"
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+
+  // 🎨 NEW: Shimmer Effect Component for Cook Buttons
+  const ShimmerButton = ({ children, onClick, className = "", disabled = false }) => (
+    <motion.button
+      whileHover={{ scale: 1.05 }}
+      whileTap={{ scale: 0.95 }}
+      onClick={onClick}
+      disabled={disabled}
+      className={`relative overflow-hidden ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
+      {/* Shimmer overlay */}
+      {!disabled && (
+        <motion.div
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+          animate={{
+            x: ['-100%', '200%']
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            repeatDelay: 3,
+            ease: "easeInOut"
+          }}
+          style={{
+            transform: 'skewX(-20deg)',
+          }}
+        />
+      )}
+      {children}
+    </motion.button>
+  );
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -108,12 +150,36 @@ const Dashboard = () => {
                 </p>
               </div>
               <div className="hidden md:block">
-                <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold">{user?.xp || 0}</div>
-                    <div className="text-sm text-primary-100">Total XP</div>
+                {/* 🌟 ENHANCED: Sparkling XP Display */}
+                <SparkleEffect>
+                  <div className="bg-white/20 backdrop-blur-sm rounded-xl p-4 relative">
+                    <div className="text-center">
+                      <motion.div 
+                        className="text-2xl font-bold"
+                        animate={{
+                          textShadow: [
+                            '0 0 5px rgba(255,255,255,0.5)',
+                            '0 0 10px rgba(255,255,255,0.8)',
+                            '0 0 5px rgba(255,255,255,0.5)'
+                          ]
+                        }}
+                        transition={{ duration: 3, repeat: Infinity }}
+                      >
+                        {user?.xp || 0}
+                      </motion.div>
+                      <div className="text-sm text-primary-100">Total XP</div>
+                    </div>
+                    {/* Extra sparkle ring */}
+                    <motion.div
+                      className="absolute inset-0 border-2 border-yellow-300/30 rounded-xl"
+                      animate={{
+                        rotate: [0, 360],
+                        scale: [1, 1.05, 1]
+                      }}
+                      transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                    />
                   </div>
-                </div>
+                </SparkleEffect>
               </div>
             </div>
           </div>
@@ -204,15 +270,13 @@ const Dashboard = () => {
                         </div>
                       </div>
                       {meal && (
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
+                        <ShimmerButton
                           onClick={() => startCookingMode(meal)}
                           className="bg-primary-500/90 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-600/90 transition-colors duration-200 flex items-center space-x-2"
                         >
                           <SafeIcon icon={FiPlay} className="text-sm" />
                           <span>Cook</span>
-                        </motion.button>
+                        </ShimmerButton>
                       )}
                     </div>
                   );
@@ -273,15 +337,13 @@ const Dashboard = () => {
                               </div>
                             </div>
                           </div>
-                          <motion.button
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
+                          <ShimmerButton
                             onClick={() => startCookingMode(snack)}
                             className="bg-amber-500/90 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-amber-600/90 transition-colors duration-200 flex items-center space-x-1 text-sm"
                           >
                             <SafeIcon icon={FiPlay} className="text-xs" />
                             <span>Cook</span>
-                          </motion.button>
+                          </ShimmerButton>
                         </motion.div>
                       ))}
                     </div>

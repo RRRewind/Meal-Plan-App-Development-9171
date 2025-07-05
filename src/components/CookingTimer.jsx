@@ -34,41 +34,40 @@ const CookingTimer = () => {
 
   const { addXP, incrementRecipesCooked } = useGamification();
 
-  // 🚨 ENHANCED: Monitor timer completion with visual alarm effects
+  // 🚨 FIXED: Monitor timer completion with proper state management
   useEffect(() => {
-    // Only show completion when timer actually finishes (was running and reached 0)
-    if (timeLeft === 0 && timer && !isTimerRunning) {
-      // Check if timer just finished (timer exists but is no longer running)
+    console.log('Timer state:', { timeLeft, timer, isTimerRunning, alarmDismissed });
+    
+    // Timer just finished (was running and reached 0)
+    if (timeLeft === 0 && timer && !isTimerRunning && !alarmDismissed) {
+      console.log('🚨 TIMER FINISHED - Showing alarm!');
       setIsTimerComplete(true);
+      setShowAlarmEffect(true);
       
-      // 🚨 NEW: Trigger visual alarm effect if not already dismissed
-      if (!alarmDismissed) {
-        setShowAlarmEffect(true);
+      // 🔊 Play notification sound
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
         
-        // 🔊 ENHANCED: Play notification sound if supported
-        try {
-          // Create a simple beep sound using Web Audio API
-          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-          const oscillator = audioContext.createOscillator();
-          const gainNode = audioContext.createGain();
-          
-          oscillator.connect(gainNode);
-          gainNode.connect(audioContext.destination);
-          
-          oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // 800 Hz tone
-          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-          
-          oscillator.start();
-          oscillator.stop(audioContext.currentTime + 0.5);
-        } catch (error) {
-          console.log('Audio notification not supported');
-        }
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.5);
+      } catch (error) {
+        console.log('Audio notification not supported');
       }
-    } else {
-      // Timer is running, paused, or no timer exists
-      setIsTimerComplete(false);
-      if (timeLeft > 0) {
+    } 
+    // Timer is running or has been reset
+    else if (timeLeft > 0 || !timer) {
+      if (isTimerComplete || showAlarmEffect) {
+        console.log('⏰ Timer reset or restarted - clearing alarm');
+        setIsTimerComplete(false);
         setShowAlarmEffect(false);
         setAlarmDismissed(false);
       }
@@ -77,6 +76,7 @@ const CookingTimer = () => {
 
   // 🚨 ENHANCED: Handle timer reset - also reset alarm states
   const handleResetTimer = () => {
+    console.log('🔄 Resetting timer and alarm states');
     resetTimer();
     setIsTimerComplete(false);
     setShowAlarmEffect(false);
@@ -85,6 +85,7 @@ const CookingTimer = () => {
 
   // 🚨 ENHANCED: Handle starting new timer - reset alarm states
   const handleStartTimer = (minutes) => {
+    console.log('▶️ Starting new timer:', minutes);
     startTimer(minutes);
     setIsTimerComplete(false);
     setShowAlarmEffect(false);
@@ -93,24 +94,24 @@ const CookingTimer = () => {
 
   // 🚨 NEW: Dismiss alarm effect
   const handleDismissAlarm = () => {
+    console.log('✅ Dismissing alarm');
     setShowAlarmEffect(false);
     setAlarmDismissed(true);
+    // Keep isTimerComplete true so we know timer finished
   };
 
   // ✅ ENHANCED: Handle recipe URL click
   const handleRecipeUrlClick = (url) => {
     if (url) {
-      // Ensure URL has protocol
       const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
       window.open(formattedUrl, '_blank', 'noopener,noreferrer');
       addXP(2, 'Recipe details viewed');
     }
   };
 
-  // ENHANCED: Show different floating widgets based on cooking mode state
+  // 🚨 FIXED: Always show timer widget when there's an active timer OR when timer is complete
   if (!isActive || !currentRecipe) {
-    // Show persistent timer indicator if there's an active timer but cooking mode is closed
-    // FIXED: Only show if timer exists and either running or completed
+    // Show persistent timer indicator if there's an active timer OR timer completed
     if (timer && (timeLeft > 0 || isTimerComplete)) {
       return (
         <motion.div
@@ -146,7 +147,7 @@ const CookingTimer = () => {
 
           <motion.div
             whileHover={{ scale: 1.05 }}
-            animate={isTimerComplete && showAlarmEffect ? {
+            animate={showAlarmEffect ? {
               scale: [1, 1.1, 1],
               rotate: [0, -2, 2, -2, 0],
               boxShadow: [
@@ -155,21 +156,21 @@ const CookingTimer = () => {
                 '0 10px 25px rgba(239,68,68,0.3)'
               ]
             } : isTimerComplete ? {
-              scale: [1, 1.1, 1],
+              scale: [1, 1.05, 1],
               boxShadow: [
-                '0 10px 25px rgba(239,68,68,0.3)',
-                '0 15px 35px rgba(239,68,68,0.5)',
-                '0 10px 25px rgba(239,68,68,0.3)'
+                '0 10px 25px rgba(239,68,68,0.2)',
+                '0 15px 35px rgba(239,68,68,0.4)',
+                '0 10px 25px rgba(239,68,68,0.2)'
               ]
             } : {}}
-            transition={isTimerComplete ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : {}}
+            transition={isTimerComplete ? { duration: 2, repeat: Infinity, ease: "easeInOut" } : {}}
             className={`rounded-2xl p-4 text-white shadow-2xl cursor-pointer relative overflow-hidden ${
               isTimerComplete ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-orange-500 to-red-500'
             }`}
             onClick={() => setIsMinimized(false)}
           >
             {/* 🚨 ENHANCED: Pulsing background effect for alarm */}
-            {isTimerComplete && showAlarmEffect && (
+            {showAlarmEffect && (
               <motion.div
                 animate={{
                   opacity: [0.3, 0.8, 0.3],
@@ -182,7 +183,7 @@ const CookingTimer = () => {
 
             <div className="flex items-center space-x-3 relative z-10">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                {isTimerComplete && showAlarmEffect ? (
+                {showAlarmEffect ? (
                   <motion.div
                     animate={{ rotate: [0, 15, -15, 0] }}
                     transition={{ duration: 0.5, repeat: Infinity, ease: "easeInOut" }}
@@ -201,12 +202,12 @@ const CookingTimer = () => {
                   {isTimerComplete ? '00:00' : formatTime(timeLeft)}
                 </div>
                 <div className={`text-sm ${isTimerComplete ? 'text-red-100 font-bold animate-pulse' : 'text-orange-100'}`}>
-                  {isTimerComplete ? (showAlarmEffect ? 'TIME\'S UP!' : 'Cooking Complete!') : 'Background Timer'}
+                  {isTimerComplete ? (showAlarmEffect ? 'TIME\'S UP!' : 'Timer Complete!') : 'Background Timer'}
                 </div>
               </div>
               <div className="flex items-center space-x-2">
                 {/* 🚨 ENHANCED: Dismiss alarm button */}
-                {isTimerComplete && showAlarmEffect && (
+                {showAlarmEffect && (
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
@@ -293,10 +294,8 @@ const CookingTimer = () => {
   const isLastStep = currentStep === currentRecipe.steps.length - 1;
   const progress = ((currentStep + 1) / currentRecipe.steps.length) * 100;
 
-  // ENHANCED: Different minimized states based on timer status - NOW IN BOTTOM RIGHT
+  // ENHANCED: Different minimized states based on timer status
   if (isMinimized) {
-    // If timer is active, show countdown-focused widget
-    // FIXED: Only show if timer exists
     if (timer && (timeLeft > 0 || isTimerComplete)) {
       return (
         <motion.div
@@ -333,7 +332,7 @@ const CookingTimer = () => {
 
           <motion.div
             whileHover={{ scale: 1.05 }}
-            animate={isTimerComplete && showAlarmEffect ? {
+            animate={showAlarmEffect ? {
               scale: [1, 1.1, 1],
               rotate: [0, -3, 3, -3, 0],
               boxShadow: [
@@ -342,20 +341,20 @@ const CookingTimer = () => {
                 '0 10px 25px rgba(239,68,68,0.3)'
               ]
             } : isTimerComplete ? {
-              scale: [1, 1.1, 1],
+              scale: [1, 1.05, 1],
               boxShadow: [
-                '0 10px 25px rgba(239,68,68,0.3)',
-                '0 15px 35px rgba(239,68,68,0.5)',
-                '0 10px 25px rgba(239,68,68,0.3)'
+                '0 10px 25px rgba(239,68,68,0.2)',
+                '0 15px 35px rgba(239,68,68,0.4)',
+                '0 10px 25px rgba(239,68,68,0.2)'
               ]
             } : {}}
-            transition={isTimerComplete ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : {}}
+            transition={isTimerComplete ? { duration: 2, repeat: Infinity, ease: "easeInOut" } : {}}
             className={`rounded-2xl p-4 text-white shadow-2xl relative overflow-hidden ${
               isTimerComplete ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-orange-500 to-red-500'
             }`}
           >
             {/* 🚨 ENHANCED: Pulsing background effect for alarm */}
-            {isTimerComplete && showAlarmEffect && (
+            {showAlarmEffect && (
               <motion.div
                 animate={{
                   opacity: [0.3, 0.8, 0.3],
@@ -368,20 +367,20 @@ const CookingTimer = () => {
 
             {/* Main Timer Display */}
             <div className="text-center mb-3 relative z-10">
-              <div className={`text-3xl font-bold mb-1 ${isTimerComplete && showAlarmEffect ? 'animate-pulse text-white' : isTimerComplete ? 'animate-pulse' : ''}`}>
+              <div className={`text-3xl font-bold mb-1 ${showAlarmEffect ? 'animate-pulse text-white' : isTimerComplete ? 'animate-pulse' : ''}`}>
                 {isTimerComplete ? '00:00' : formatTime(timeLeft)}
               </div>
               <div className={`text-sm font-medium ${
                 isTimerComplete ? (showAlarmEffect ? 'text-white font-bold animate-pulse' : 'text-red-100 animate-pulse font-bold') : 'text-orange-100'
               }`}>
-                {isTimerComplete ? (showAlarmEffect ? 'TIME\'S UP!' : 'Cooking Complete!') : 'Active Timer'}
+                {isTimerComplete ? (showAlarmEffect ? 'TIME\'S UP!' : 'Timer Complete!') : 'Active Timer'}
               </div>
             </div>
 
             {/* Timer Controls */}
             <div className="flex items-center justify-center space-x-2 mb-3 relative z-10">
               {/* 🚨 ENHANCED: Dismiss alarm button for minimized view */}
-              {isTimerComplete && showAlarmEffect && (
+              {showAlarmEffect && (
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
@@ -534,7 +533,6 @@ const CookingTimer = () => {
                 <div>
                   <div className="flex items-center space-x-3">
                     <h3 className="font-bold text-lg">{currentRecipe.title}</h3>
-                    {/* ✅ ENHANCED: Recipe URL Link in Header */}
                     {currentRecipe.url && (
                       <motion.button
                         whileHover={{ scale: 1.1 }}
@@ -614,7 +612,6 @@ const CookingTimer = () => {
                     </div>
                   </div>
 
-                  {/* ✅ ENHANCED: Recipe URL Link in Content Area */}
                   {currentRecipe.url && (
                     <div className="mb-4">
                       <motion.button
@@ -676,10 +673,10 @@ const CookingTimer = () => {
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-3">Cooking Timer</h4>
                     <div className={`bg-gray-50 rounded-xl p-4 relative overflow-hidden ${
-                      isTimerComplete && showAlarmEffect ? 'ring-4 ring-red-500' : ''
+                      showAlarmEffect ? 'ring-4 ring-red-500' : ''
                     }`}>
                       {/* 🚨 ENHANCED: Timer completion background effect */}
-                      {isTimerComplete && showAlarmEffect && (
+                      {showAlarmEffect && (
                         <motion.div
                           animate={{
                             opacity: [0.1, 0.3, 0.1],
@@ -692,7 +689,7 @@ const CookingTimer = () => {
 
                       <div className="text-center mb-4 relative z-10">
                         <div className={`text-3xl font-bold ${
-                          isTimerComplete && showAlarmEffect 
+                          showAlarmEffect 
                             ? 'text-white animate-pulse' 
                             : isTimerComplete 
                               ? 'text-red-600 animate-pulse' 
@@ -721,7 +718,7 @@ const CookingTimer = () => {
                       {(timeLeft > 0 && timer) || (isTimerComplete && timer) ? (
                         <div className="flex items-center justify-center space-x-2 relative z-10">
                           {/* 🚨 ENHANCED: Dismiss alarm button */}
-                          {isTimerComplete && showAlarmEffect && (
+                          {showAlarmEffect && (
                             <motion.button
                               whileHover={{ scale: 1.1 }}
                               whileTap={{ scale: 0.9 }}
