@@ -5,13 +5,15 @@ import { useGamification } from '../contexts/GamificationContext';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 
-const { FiClock, FiPlay, FiPause, FiSquare, FiChevronLeft, FiChevronRight, FiX, FiCheck, FiMinus, FiPlus, FiBell, FiMaximize2, FiExternalLink, FiLink } = FiIcons;
+const { FiClock, FiPlay, FiPause, FiSquare, FiChevronLeft, FiChevronRight, FiX, FiCheck, FiMinus, FiPlus, FiBell, FiMaximize2, FiExternalLink, FiLink, FiAlertCircle } = FiIcons;
 
 const CookingTimer = () => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [customMinutes, setCustomMinutes] = useState('');
   const [customSeconds, setCustomSeconds] = useState('');
   const [isTimerComplete, setIsTimerComplete] = useState(false);
+  const [showAlarmEffect, setShowAlarmEffect] = useState(false);
+  const [alarmDismissed, setAlarmDismissed] = useState(false);
 
   const {
     isActive,
@@ -32,28 +34,67 @@ const CookingTimer = () => {
 
   const { addXP, incrementRecipesCooked } = useGamification();
 
-  // FIXED: Monitor timer completion for completion state
+  // 🚨 ENHANCED: Monitor timer completion with visual alarm effects
   useEffect(() => {
     // Only show completion when timer actually finishes (was running and reached 0)
     if (timeLeft === 0 && timer && !isTimerRunning) {
       // Check if timer just finished (timer exists but is no longer running)
       setIsTimerComplete(true);
+      
+      // 🚨 NEW: Trigger visual alarm effect if not already dismissed
+      if (!alarmDismissed) {
+        setShowAlarmEffect(true);
+        
+        // 🔊 ENHANCED: Play notification sound if supported
+        try {
+          // Create a simple beep sound using Web Audio API
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          
+          oscillator.frequency.setValueAtTime(800, audioContext.currentTime); // 800 Hz tone
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+          
+          oscillator.start();
+          oscillator.stop(audioContext.currentTime + 0.5);
+        } catch (error) {
+          console.log('Audio notification not supported');
+        }
+      }
     } else {
       // Timer is running, paused, or no timer exists
       setIsTimerComplete(false);
+      if (timeLeft > 0) {
+        setShowAlarmEffect(false);
+        setAlarmDismissed(false);
+      }
     }
-  }, [timeLeft, isTimerRunning, timer]);
+  }, [timeLeft, isTimerRunning, timer, alarmDismissed]);
 
-  // Handle timer reset - also reset completion state
+  // 🚨 ENHANCED: Handle timer reset - also reset alarm states
   const handleResetTimer = () => {
     resetTimer();
     setIsTimerComplete(false);
+    setShowAlarmEffect(false);
+    setAlarmDismissed(false);
   };
 
-  // Handle starting new timer - reset completion state
+  // 🚨 ENHANCED: Handle starting new timer - reset alarm states
   const handleStartTimer = (minutes) => {
     startTimer(minutes);
     setIsTimerComplete(false);
+    setShowAlarmEffect(false);
+    setAlarmDismissed(false);
+  };
+
+  // 🚨 NEW: Dismiss alarm effect
+  const handleDismissAlarm = () => {
+    setShowAlarmEffect(false);
+    setAlarmDismissed(true);
   };
 
   // ✅ ENHANCED: Handle recipe URL click
@@ -77,48 +118,109 @@ const CookingTimer = () => {
           animate={{ scale: 1, opacity: 1 }}
           className="fixed bottom-4 right-4 z-50"
         >
+          {/* 🚨 ENHANCED: Alarm overlay effect */}
+          <AnimatePresence>
+            {showAlarmEffect && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ 
+                  opacity: [0, 1, 0.8, 1],
+                  scale: [0.8, 1.2, 1, 1.1, 1],
+                  boxShadow: [
+                    '0 0 0 0 rgba(239, 68, 68, 0)',
+                    '0 0 0 20px rgba(239, 68, 68, 0.3)',
+                    '0 0 0 40px rgba(239, 68, 68, 0)',
+                  ]
+                }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ 
+                  duration: 1.5, 
+                  repeat: Infinity, 
+                  ease: "easeInOut" 
+                }}
+                className="absolute inset-0 bg-red-500 rounded-2xl -z-10"
+                style={{ filter: 'blur(20px)' }}
+              />
+            )}
+          </AnimatePresence>
+
           <motion.div
             whileHover={{ scale: 1.05 }}
-            animate={isTimerComplete ? {
+            animate={isTimerComplete && showAlarmEffect ? {
+              scale: [1, 1.1, 1],
+              rotate: [0, -2, 2, -2, 0],
+              boxShadow: [
+                '0 10px 25px rgba(239,68,68,0.3)',
+                '0 15px 35px rgba(239,68,68,0.5)',
+                '0 10px 25px rgba(239,68,68,0.3)'
+              ]
+            } : isTimerComplete ? {
               scale: [1, 1.1, 1],
               boxShadow: [
-                '0 10px 25px rgba(239, 68, 68, 0.3)',
-                '0 15px 35px rgba(239, 68, 68, 0.5)',
-                '0 10px 25px rgba(239, 68, 68, 0.3)'
+                '0 10px 25px rgba(239,68,68,0.3)',
+                '0 15px 35px rgba(239,68,68,0.5)',
+                '0 10px 25px rgba(239,68,68,0.3)'
               ]
             } : {}}
-            transition={isTimerComplete ? {
-              duration: 1.5,
-              repeat: Infinity,
-              ease: "easeInOut"
-            } : {}}
-            className={`rounded-2xl p-4 text-white shadow-2xl cursor-pointer ${
-              isTimerComplete 
-                ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                : 'bg-gradient-to-r from-orange-500 to-red-500'
+            transition={isTimerComplete ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : {}}
+            className={`rounded-2xl p-4 text-white shadow-2xl cursor-pointer relative overflow-hidden ${
+              isTimerComplete ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-orange-500 to-red-500'
             }`}
             onClick={() => setIsMinimized(false)}
           >
-            <div className="flex items-center space-x-3">
+            {/* 🚨 ENHANCED: Pulsing background effect for alarm */}
+            {isTimerComplete && showAlarmEffect && (
+              <motion.div
+                animate={{
+                  opacity: [0.3, 0.8, 0.3],
+                  scale: [1, 1.05, 1]
+                }}
+                transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute inset-0 bg-white rounded-2xl"
+              />
+            )}
+
+            <div className="flex items-center space-x-3 relative z-10">
               <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                <SafeIcon 
-                  icon={isTimerComplete ? FiBell : FiClock} 
-                  className={`text-white text-lg ${isTimerComplete ? 'animate-pulse' : ''}`} 
-                />
+                {isTimerComplete && showAlarmEffect ? (
+                  <motion.div
+                    animate={{ rotate: [0, 15, -15, 0] }}
+                    transition={{ duration: 0.5, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <SafeIcon icon={FiAlertCircle} className="text-white text-lg" />
+                  </motion.div>
+                ) : (
+                  <SafeIcon 
+                    icon={isTimerComplete ? FiBell : FiClock} 
+                    className={`text-white text-lg ${isTimerComplete ? 'animate-pulse' : ''}`} 
+                  />
+                )}
               </div>
               <div>
                 <div className="font-bold text-lg">
                   {isTimerComplete ? '00:00' : formatTime(timeLeft)}
                 </div>
-                <div className={`text-sm ${
-                  isTimerComplete 
-                    ? 'text-red-100 font-bold animate-pulse' 
-                    : 'text-orange-100'
-                }`}>
-                  {isTimerComplete ? 'Cooking Complete!' : 'Background Timer'}
+                <div className={`text-sm ${isTimerComplete ? 'text-red-100 font-bold animate-pulse' : 'text-orange-100'}`}>
+                  {isTimerComplete ? (showAlarmEffect ? 'TIME\'S UP!' : 'Cooking Complete!') : 'Background Timer'}
                 </div>
               </div>
               <div className="flex items-center space-x-2">
+                {/* 🚨 ENHANCED: Dismiss alarm button */}
+                {isTimerComplete && showAlarmEffect && (
+                  <motion.button
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDismissAlarm();
+                    }}
+                    className="p-2 bg-white/30 rounded-lg hover:bg-white/40 transition-colors duration-200 border border-white/20"
+                    title="Dismiss alarm"
+                  >
+                    <SafeIcon icon={FiCheck} className="text-sm" />
+                  </motion.button>
+                )}
+                
                 {!isTimerComplete && (
                   <motion.button
                     whileHover={{ scale: 1.1 }}
@@ -166,7 +268,6 @@ const CookingTimer = () => {
     const mins = parseInt(customMinutes) || 0;
     const secs = parseInt(customSeconds) || 0;
     const totalMinutes = mins + (secs / 60);
-    
     if (totalMinutes > 0) {
       handleStartTimer(totalMinutes);
       setCustomMinutes('');
@@ -204,43 +305,94 @@ const CookingTimer = () => {
           exit={{ scale: 0, opacity: 0, y: 100 }}
           className="fixed bottom-4 right-4 z-50"
         >
+          {/* 🚨 ENHANCED: Alarm overlay effect for minimized view */}
+          <AnimatePresence>
+            {showAlarmEffect && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ 
+                  opacity: [0, 1, 0.8, 1],
+                  scale: [0.8, 1.2, 1, 1.1, 1],
+                  boxShadow: [
+                    '0 0 0 0 rgba(239, 68, 68, 0)',
+                    '0 0 0 30px rgba(239, 68, 68, 0.3)',
+                    '0 0 0 50px rgba(239, 68, 68, 0)',
+                  ]
+                }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ 
+                  duration: 1.5, 
+                  repeat: Infinity, 
+                  ease: "easeInOut" 
+                }}
+                className="absolute inset-0 bg-red-500 rounded-2xl -z-10"
+                style={{ filter: 'blur(25px)' }}
+              />
+            )}
+          </AnimatePresence>
+
           <motion.div
             whileHover={{ scale: 1.05 }}
-            animate={isTimerComplete ? {
+            animate={isTimerComplete && showAlarmEffect ? {
+              scale: [1, 1.1, 1],
+              rotate: [0, -3, 3, -3, 0],
+              boxShadow: [
+                '0 10px 25px rgba(239,68,68,0.3)',
+                '0 15px 35px rgba(239,68,68,0.5)',
+                '0 10px 25px rgba(239,68,68,0.3)'
+              ]
+            } : isTimerComplete ? {
               scale: [1, 1.1, 1],
               boxShadow: [
-                '0 10px 25px rgba(239, 68, 68, 0.3)',
-                '0 15px 35px rgba(239, 68, 68, 0.5)',
-                '0 10px 25px rgba(239, 68, 68, 0.3)'
+                '0 10px 25px rgba(239,68,68,0.3)',
+                '0 15px 35px rgba(239,68,68,0.5)',
+                '0 10px 25px rgba(239,68,68,0.3)'
               ]
             } : {}}
-            transition={isTimerComplete ? {
-              duration: 1.5,
-              repeat: Infinity,
-              ease: "easeInOut"
-            } : {}}
-            className={`rounded-2xl p-4 text-white shadow-2xl ${
-              isTimerComplete 
-                ? 'bg-gradient-to-r from-red-500 to-red-600' 
-                : 'bg-gradient-to-r from-orange-500 to-red-500'
+            transition={isTimerComplete ? { duration: 1.5, repeat: Infinity, ease: "easeInOut" } : {}}
+            className={`rounded-2xl p-4 text-white shadow-2xl relative overflow-hidden ${
+              isTimerComplete ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-orange-500 to-red-500'
             }`}
           >
+            {/* 🚨 ENHANCED: Pulsing background effect for alarm */}
+            {isTimerComplete && showAlarmEffect && (
+              <motion.div
+                animate={{
+                  opacity: [0.3, 0.8, 0.3],
+                  scale: [1, 1.05, 1]
+                }}
+                transition={{ duration: 1, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute inset-0 bg-white rounded-2xl"
+              />
+            )}
+
             {/* Main Timer Display */}
-            <div className="text-center mb-3">
-              <div className={`text-3xl font-bold mb-1 ${isTimerComplete ? 'animate-pulse' : ''}`}>
+            <div className="text-center mb-3 relative z-10">
+              <div className={`text-3xl font-bold mb-1 ${isTimerComplete && showAlarmEffect ? 'animate-pulse text-white' : isTimerComplete ? 'animate-pulse' : ''}`}>
                 {isTimerComplete ? '00:00' : formatTime(timeLeft)}
               </div>
               <div className={`text-sm font-medium ${
-                isTimerComplete 
-                  ? 'text-red-100 animate-pulse font-bold' 
-                  : 'text-orange-100'
+                isTimerComplete ? (showAlarmEffect ? 'text-white font-bold animate-pulse' : 'text-red-100 animate-pulse font-bold') : 'text-orange-100'
               }`}>
-                {isTimerComplete ? 'Cooking Complete!' : 'Active Timer'}
+                {isTimerComplete ? (showAlarmEffect ? 'TIME\'S UP!' : 'Cooking Complete!') : 'Active Timer'}
               </div>
             </div>
 
             {/* Timer Controls */}
-            <div className="flex items-center justify-center space-x-2 mb-3">
+            <div className="flex items-center justify-center space-x-2 mb-3 relative z-10">
+              {/* 🚨 ENHANCED: Dismiss alarm button for minimized view */}
+              {isTimerComplete && showAlarmEffect && (
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleDismissAlarm}
+                  className="p-2 bg-white/30 rounded-lg hover:bg-white/40 transition-colors duration-200 border border-white/20"
+                  title="Dismiss alarm"
+                >
+                  <SafeIcon icon={FiCheck} className="text-sm" />
+                </motion.button>
+              )}
+
               {!isTimerComplete && (
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -262,7 +414,7 @@ const CookingTimer = () => {
             </div>
 
             {/* Expand/Close Controls */}
-            <div className="flex items-center justify-between border-t border-white/20 pt-3">
+            <div className="flex items-center justify-between border-t border-white/20 pt-3 relative z-10">
               <div className="text-xs text-orange-100">
                 Step {currentStep + 1}/{currentRecipe.steps.length}
               </div>
@@ -344,7 +496,34 @@ const CookingTimer = () => {
         className="fixed inset-x-4 bottom-4 z-50 max-w-6xl mx-auto"
         style={{ maxHeight: '85vh', overflow: 'hidden' }}
       >
-        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden max-h-full">
+        {/* 🚨 ENHANCED: Full-screen alarm overlay */}
+        <AnimatePresence>
+          {showAlarmEffect && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 pointer-events-none z-40"
+            >
+              <motion.div
+                animate={{
+                  opacity: [0, 0.3, 0, 0.3, 0],
+                  backgroundColor: [
+                    'rgba(239, 68, 68, 0)',
+                    'rgba(239, 68, 68, 0.1)',
+                    'rgba(239, 68, 68, 0)',
+                    'rgba(239, 68, 68, 0.15)',
+                    'rgba(239, 68, 68, 0)'
+                  ]
+                }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute inset-0"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden max-h-full relative">
           {/* Header */}
           <div className="bg-gradient-to-r from-primary-500 to-secondary-500 p-4 text-white flex-shrink-0">
             <div className="flex items-center justify-between">
@@ -496,14 +675,30 @@ const CookingTimer = () => {
                   {/* Timer */}
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-3">Cooking Timer</h4>
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <div className="text-center mb-4">
+                    <div className={`bg-gray-50 rounded-xl p-4 relative overflow-hidden ${
+                      isTimerComplete && showAlarmEffect ? 'ring-4 ring-red-500' : ''
+                    }`}>
+                      {/* 🚨 ENHANCED: Timer completion background effect */}
+                      {isTimerComplete && showAlarmEffect && (
+                        <motion.div
+                          animate={{
+                            opacity: [0.1, 0.3, 0.1],
+                            scale: [1, 1.02, 1]
+                          }}
+                          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                          className="absolute inset-0 bg-red-500 rounded-xl"
+                        />
+                      )}
+
+                      <div className="text-center mb-4 relative z-10">
                         <div className={`text-3xl font-bold ${
-                          isTimerComplete 
-                            ? 'text-red-600 animate-pulse' 
-                            : timeLeft > 0 
-                            ? 'text-primary-600' 
-                            : 'text-gray-400'
+                          isTimerComplete && showAlarmEffect 
+                            ? 'text-white animate-pulse' 
+                            : isTimerComplete 
+                              ? 'text-red-600 animate-pulse' 
+                              : timeLeft > 0 
+                                ? 'text-primary-600' 
+                                : 'text-gray-400'
                         }`}>
                           {timeLeft > 0 || isTimerComplete ? formatTime(timeLeft) : '00:00'}
                         </div>
@@ -511,9 +706,11 @@ const CookingTimer = () => {
                           <motion.p
                             animate={{ scale: [1, 1.05, 1] }}
                             transition={{ duration: 1, repeat: Infinity }}
-                            className="text-sm text-red-600 mt-1 font-bold"
+                            className={`text-sm mt-1 font-bold ${
+                              showAlarmEffect ? 'text-white' : 'text-red-600'
+                            }`}
                           >
-                            🎉 Cooking Complete!
+                            {showAlarmEffect ? '🚨 TIME\'S UP!' : '🎉 Cooking Complete!'}
                           </motion.p>
                         )}
                         {timeLeft === 0 && !isTimerComplete && (
@@ -522,7 +719,20 @@ const CookingTimer = () => {
                       </div>
 
                       {(timeLeft > 0 && timer) || (isTimerComplete && timer) ? (
-                        <div className="flex items-center justify-center space-x-2">
+                        <div className="flex items-center justify-center space-x-2 relative z-10">
+                          {/* 🚨 ENHANCED: Dismiss alarm button */}
+                          {isTimerComplete && showAlarmEffect && (
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={handleDismissAlarm}
+                              className="p-2 bg-white text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200 border border-green-200"
+                              title="Dismiss alarm"
+                            >
+                              <SafeIcon icon={FiCheck} />
+                            </motion.button>
+                          )}
+
                           {!isTimerComplete && (
                             <motion.button
                               whileHover={{ scale: 1.1 }}
