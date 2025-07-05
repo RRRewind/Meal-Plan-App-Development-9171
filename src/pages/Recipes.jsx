@@ -96,12 +96,9 @@ const Recipes = () => {
   // ✅ FIXED: Stable canRateRecipe function with useCallback
   const canRateRecipe = useCallback((recipe) => {
     if (!user || !recipe) return false;
-    // Only allow rating community recipes (shared recipes)
     if (!recipe.shared) return false;
-    // Users cannot rate their own recipes
     const userId = String(user.id || user.user_id || '');
     if (!userId) return false;
-    // Check if this is the user's own recipe
     if (String(recipe.sharedByUserId) === userId) return false;
     return true;
   }, [user]);
@@ -178,12 +175,10 @@ const Recipes = () => {
 
   // ✅ NEW: Edit recipe functionality
   const handleEditRecipe = (recipe) => {
-    // Check if user can edit this recipe
     if (!canUserEditRecipe(recipe)) {
       toast.error('You can only edit your own recipes');
       return;
     }
-
     setEditingRecipe({
       ...recipe,
       ingredients: recipe.ingredients || [{ name: '', amount: '' }],
@@ -215,7 +210,6 @@ const Recipes = () => {
   };
 
   const handleDeleteRecipe = (recipe) => {
-    // Enhanced delete permission check - only allow deleting own recipes
     if (recipe.isUserCreated || (recipe.sharedByUserId === user?.id)) {
       setRecipeToDelete(recipe);
       setShowDeleteModal(true);
@@ -241,9 +235,7 @@ const Recipes = () => {
   // ✅ COMMUNITY SHARING: Only creators can share to community (or admins)
   const canShareRecipeToCommuity = (recipe) => {
     if (!user) return false;
-    // Admins can share any recipe
     if (user.isAdmin) return true;
-    // Regular users can only share recipes they created
     const isOwnRecipe = recipe.isUserCreated || (recipe.sharedByUserId === user.id) || (!recipe.shared && !recipe.isDefault);
     return isOwnRecipe;
   };
@@ -251,7 +243,6 @@ const Recipes = () => {
   // ✅ NEW: Check if user can edit recipe
   const canUserEditRecipe = (recipe) => {
     if (!user) return false;
-    // Users can only edit their own created recipes
     return recipe.isUserCreated || recipe.sharedByUserId === user.id;
   };
 
@@ -261,7 +252,6 @@ const Recipes = () => {
       return;
     }
 
-    // Check sharing permissions for community sharing
     if (!canShareRecipeToCommuity(recipe)) {
       toast.error('You can only share recipes that you created');
       return;
@@ -307,7 +297,6 @@ const Recipes = () => {
   const handleAddIngredient = (isEdit = false) => {
     const targetRecipe = isEdit ? editingRecipe : newRecipe;
     const setTargetRecipe = isEdit ? setEditingRecipe : setNewRecipe;
-
     setTargetRecipe(prev => ({
       ...prev,
       ingredients: [...prev.ingredients, { name: '', amount: '' }]
@@ -317,7 +306,6 @@ const Recipes = () => {
   const handleAddStep = (isEdit = false) => {
     const targetRecipe = isEdit ? editingRecipe : newRecipe;
     const setTargetRecipe = isEdit ? setEditingRecipe : setNewRecipe;
-
     setTargetRecipe(prev => ({
       ...prev,
       steps: [...prev.steps, '']
@@ -351,25 +339,70 @@ const Recipes = () => {
   // Check if user can delete a recipe (enhanced permissions)
   const canUserDeleteRecipe = (recipe) => {
     if (!user) return false;
-    // Users can only delete their own created recipes or recipes they shared
     return recipe.isUserCreated || recipe.sharedByUserId === user.id;
   };
 
   // Handle recipe URL click - ✅ ENHANCED: Always visible and functional
   const handleRecipeUrlClick = (url) => {
     if (url) {
-      // Ensure URL has protocol
       const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
       window.open(formattedUrl, '_blank', 'noopener,noreferrer');
       addXP(2, 'Recipe details viewed');
     }
   };
 
+  // 🌟 NEW: Floating Animation Component
+  const FloatingCard = ({ children, delay = 0, className = "" }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+      animate={{ 
+        opacity: 1, 
+        y: 0, 
+        scale: 1,
+        rotateX: [0, 1, 0, -1, 0],
+        rotateY: [0, 0.5, 0, -0.5, 0]
+      }}
+      transition={{ 
+        opacity: { duration: 0.6, delay },
+        y: { duration: 0.6, delay },
+        scale: { duration: 0.6, delay },
+        rotateX: { duration: 8, repeat: Infinity, ease: "easeInOut" },
+        rotateY: { duration: 10, repeat: Infinity, ease: "easeInOut" }
+      }}
+      whileHover={{ 
+        y: -12, 
+        scale: 1.02,
+        boxShadow: "0 25px 50px rgba(0,0,0,0.15)",
+        rotateX: 0,
+        rotateY: 0
+      }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+
+  // 🌟 NEW: Shimmer Effect Component
+  const ShimmerEffect = ({ children, className = "" }) => (
+    <div className={`relative overflow-hidden ${className}`}>
+      {children}
+      <motion.div
+        animate={{ x: ['-100%', '200%'] }}
+        transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+        className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12"
+      />
+    </div>
+  );
+
   // ✅ NEW: Recipe form component for both add and edit
   const RecipeForm = ({ recipe, setRecipe, onSubmit, isEdit = false, onCancel }) => (
     <form onSubmit={onSubmit} className="space-y-6">
       <div className="grid md:grid-cols-2 gap-6">
-        <div>
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+        >
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Recipe Title
           </label>
@@ -380,8 +413,12 @@ const Recipes = () => {
             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
             required
           />
-        </div>
-        <div>
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.2 }}
+        >
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Image URL
           </label>
@@ -391,10 +428,14 @@ const Recipes = () => {
             onChange={(e) => setRecipe(prev => ({ ...prev, image: e.target.value }))}
             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
           />
-        </div>
+        </motion.div>
       </div>
 
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
         <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
           <SafeIcon icon={FiLink} className="mr-2 text-primary-500" />
           Recipe URL (Optional)
@@ -409,9 +450,13 @@ const Recipes = () => {
         <p className="text-xs text-gray-500 mt-1">
           Link to the full recipe page, video, or detailed instructions
         </p>
-      </div>
+      </motion.div>
 
-      <div>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
         <label className="block text-sm font-semibold text-gray-700 mb-2">
           Description
         </label>
@@ -422,9 +467,14 @@ const Recipes = () => {
           className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200 resize-none"
           required
         />
-      </div>
+      </motion.div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="grid grid-cols-3 gap-4"
+      >
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             Cook Time (minutes)
@@ -463,9 +513,14 @@ const Recipes = () => {
             <option value="Hard">Hard</option>
           </select>
         </div>
-      </div>
+      </motion.div>
 
-      <div>
+      {/* Ingredients Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.6 }}
+      >
         <div className="flex items-center justify-between mb-4">
           <label className="block text-sm font-semibold text-gray-700">
             Ingredients
@@ -483,7 +538,13 @@ const Recipes = () => {
         </div>
         <div className="space-y-3">
           {recipe.ingredients.map((ingredient, index) => (
-            <div key={index} className="grid grid-cols-2 gap-3">
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 * index }}
+              className="grid grid-cols-2 gap-3"
+            >
               <input
                 type="text"
                 placeholder="Ingredient name"
@@ -506,12 +567,17 @@ const Recipes = () => {
                 }}
                 className="px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200"
               />
-            </div>
+            </motion.div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
-      <div>
+      {/* Steps Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.7 }}
+      >
         <div className="flex items-center justify-between mb-4">
           <label className="block text-sm font-semibold text-gray-700">
             Cooking Steps
@@ -529,7 +595,13 @@ const Recipes = () => {
         </div>
         <div className="space-y-3">
           {recipe.steps.map((step, index) => (
-            <div key={index} className="flex items-start space-x-4">
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 * index }}
+              className="flex items-start space-x-4"
+            >
               <span className="flex-shrink-0 w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-sm font-bold mt-2">
                 {index + 1}
               </span>
@@ -544,12 +616,17 @@ const Recipes = () => {
                 rows={2}
                 className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl font-medium bg-white focus:border-primary-500 focus:outline-none transition-colors duration-200 resize-none"
               />
-            </div>
+            </motion.div>
           ))}
         </div>
-      </div>
+      </motion.div>
 
-      <div className="flex space-x-4 pt-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+        className="flex space-x-4 pt-6"
+      >
         <motion.button
           type="button"
           whileHover={{ scale: 1.02 }}
@@ -568,47 +645,95 @@ const Recipes = () => {
           <SafeIcon icon={isEdit ? FiSave : FiPlus} />
           <span>{isEdit ? 'Save Changes' : 'Add Recipe'}</span>
         </motion.button>
-      </div>
+      </motion.div>
     </form>
   );
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative overflow-hidden">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 pointer-events-none">
+          <motion.div
+            animate={{ 
+              rotate: [0, 180, 360],
+              x: [0, 100, 0],
+              y: [0, -50, 0]
+            }}
+            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+            className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-r from-primary-200/5 to-secondary-200/5 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              rotate: [360, 180, 0],
+              x: [0, -80, 0],
+              y: [0, 60, 0]
+            }}
+            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+            className="absolute top-60 right-20 w-24 h-24 bg-gradient-to-r from-accent-200/5 to-primary-200/5 rounded-full"
+          />
+        </div>
+
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8"
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 relative z-10"
         >
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            <motion.h1 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-4xl font-bold text-gray-900 mb-2"
+            >
               Recipe Collection
-            </h1>
-            <p className="text-gray-600 font-medium">
+            </motion.h1>
+            <motion.p 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="text-gray-600 font-medium"
+            >
               {selectedFilter === 'saved' && 'Your personally saved recipe favorites'}
               {selectedFilter === 'community' && 'Recipes shared by the community - rate and discover!'}
               {selectedFilter === 'my-recipes' && 'Recipes you\'ve created'}
-            </p>
+            </motion.p>
           </div>
           <div className="flex items-center space-x-3 mt-4 sm:mt-0">
             <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleCleanupDuplicates}
-              className="bg-gradient-to-r from-secondary-100 to-secondary-200 text-secondary-700 px-4 py-3 rounded-xl font-semibold shadow-lg flex items-center space-x-2 hover:from-secondary-200 hover:to-secondary-300 transition-all duration-200 glow-effect"
+              className="bg-gradient-to-r from-secondary-100 to-secondary-200 text-secondary-700 px-4 py-3 rounded-xl font-semibold shadow-lg flex items-center space-x-2 hover:from-secondary-200 hover:to-secondary-300 transition-all duration-200 glow-effect relative overflow-hidden"
             >
-              <SafeIcon icon={FiZap} />
+              <motion.div
+                animate={{ rotate: [0, 360] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+              >
+                <SafeIcon icon={FiZap} />
+              </motion.div>
               <span>Smart Cleanup</span>
+              <motion.div
+                animate={{ x: ['-100%', '200%'] }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent transform -skew-x-12"
+              />
             </motion.button>
             <motion.button
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.3 }}
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowAddModal(true)}
-              className="btn-gradient text-white px-6 py-3 rounded-xl font-semibold shadow-lg flex items-center space-x-2"
+              className="btn-gradient text-white px-6 py-3 rounded-xl font-semibold shadow-lg flex items-center space-x-2 relative overflow-hidden"
             >
               <SafeIcon icon={FiPlus} />
               <span>Add Recipe</span>
+              <ShimmerEffect className="absolute inset-0" />
             </motion.button>
           </div>
         </motion.div>
@@ -618,11 +743,31 @@ const Recipes = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="glass rounded-2xl p-6 shadow-lg mb-8"
+          className="glass rounded-2xl p-6 shadow-lg mb-8 relative overflow-hidden"
         >
-          <div className="flex flex-col lg:flex-row gap-4">
+          {/* Subtle background animation */}
+          <motion.div
+            animate={{ 
+              background: [
+                'radial-gradient(circle at 20% 50%, rgba(239, 68, 48, 0.02) 0%, transparent 50%)',
+                'radial-gradient(circle at 80% 50%, rgba(239, 68, 48, 0.02) 0%, transparent 50%)',
+                'radial-gradient(circle at 50% 20%, rgba(239, 68, 48, 0.02) 0%, transparent 50%)',
+                'radial-gradient(circle at 50% 80%, rgba(239, 68, 48, 0.02) 0%, transparent 50%)',
+                'radial-gradient(circle at 20% 50%, rgba(239, 68, 48, 0.02) 0%, transparent 50%)'
+              ]
+            }}
+            transition={{ duration: 8, repeat: Infinity }}
+            className="absolute inset-0"
+          />
+
+          <div className="flex flex-col lg:flex-row gap-4 relative z-10">
             {/* Search */}
-            <div className="flex-1 relative">
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex-1 relative"
+            >
               <SafeIcon icon={FiSearch} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
               <input
                 type="text"
@@ -631,40 +776,56 @@ const Recipes = () => {
                 placeholder="Search recipes, ingredients, or tags..."
                 className="w-full pl-12 pr-4 py-4 input-modern rounded-xl text-lg font-medium"
               />
-            </div>
+            </motion.div>
 
             {/* Filters and Sort */}
             <div className="flex flex-wrap gap-3 items-center">
               {/* Filter Buttons */}
-              {filters.map((filter) => (
+              {filters.map((filter, index) => (
                 <motion.button
                   key={filter.id}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.3 + index * 0.1 }}
                   whileHover={{ scale: 1.02, y: -1 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     setSelectedFilter(filter.id);
-                    // Reset sort when changing filters
                     if (filter.id !== 'community' && sortBy === 'rating') {
                       setSortBy('recent');
                     }
                   }}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center space-x-2 ${
+                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center space-x-2 relative overflow-hidden ${
                     selectedFilter === filter.id
                       ? 'bg-primary-500 text-white shadow-lg'
                       : 'bg-white/80 text-gray-600 hover:bg-white'
                   }`}
                 >
-                  <span>{filter.name}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    selectedFilter === filter.id ? 'bg-white/20' : 'bg-gray-100'
-                  }`}>
+                  {selectedFilter === filter.id && (
+                    <motion.div
+                      animate={{ x: ['-100%', '200%'] }}
+                      transition={{ duration: 2, repeat: Infinity, repeatDelay: 2 }}
+                      className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12"
+                    />
+                  )}
+                  <span className="relative z-10">{filter.name}</span>
+                  <motion.span 
+                    animate={selectedFilter === filter.id ? { scale: [1, 1.1, 1] } : {}}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className={`text-xs px-2 py-1 rounded-full relative z-10 ${
+                      selectedFilter === filter.id ? 'bg-white/20' : 'bg-gray-100'
+                    }`}
+                  >
                     {filter.count}
-                  </span>
+                  </motion.span>
                 </motion.button>
               ))}
 
               {/* Sort Dropdown */}
-              <select
+              <motion.select
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.6 }}
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
                 className="px-4 py-3 bg-white/80 border border-gray-200 rounded-xl font-semibold text-gray-700 hover:bg-white transition-colors duration-200"
@@ -676,14 +837,23 @@ const Recipes = () => {
                       {option.name}
                     </option>
                   ))}
-              </select>
+              </motion.select>
 
               {/* Sort indicator for community recipes */}
               {selectedFilter === 'community' && sortBy === 'rating' && (
-                <div className="flex items-center space-x-2 text-sm text-primary-600 font-semibold">
-                  <SafeIcon icon={FiTrendingUp} />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-center space-x-2 text-sm text-primary-600 font-semibold"
+                >
+                  <motion.div
+                    animate={{ rotate: [0, 10, 0, -10, 0] }}
+                    transition={{ duration: 3, repeat: Infinity }}
+                  >
+                    <SafeIcon icon={FiTrendingUp} />
+                  </motion.div>
                   <span>Smart Ranked</span>
-                </div>
+                </motion.div>
               )}
             </div>
           </div>
@@ -695,45 +865,89 @@ const Recipes = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="glass rounded-3xl p-16 text-center shadow-lg"
+            className="glass rounded-3xl p-16 text-center shadow-lg relative overflow-hidden"
           >
-            <div className="max-w-2xl mx-auto">
-              <div className="w-24 h-24 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-full flex items-center justify-center mx-auto mb-8">
+            {/* Animated background pattern */}
+            <motion.div
+              animate={{ 
+                backgroundPosition: ['0% 0%', '100% 100%', '0% 0%']
+              }}
+              transition={{ duration: 20, repeat: Infinity }}
+              className="absolute inset-0 opacity-5"
+              style={{
+                backgroundImage: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="%23ef4444" fill-opacity="0.4"%3E%3Cpath d="M30 30c0-16.569-13.431-30-30-30v30h30z"/%3E%3C/g%3E%3C/svg%3E")',
+                backgroundSize: '60px 60px'
+              }}
+            />
+
+            <div className="max-w-2xl mx-auto relative z-10">
+              <motion.div
+                animate={{ 
+                  rotate: [0, 10, 0, -10, 0],
+                  scale: [1, 1.1, 1]
+                }}
+                transition={{ duration: 4, repeat: Infinity }}
+                className="w-24 h-24 bg-gradient-to-br from-primary-100 to-secondary-100 rounded-full flex items-center justify-center mx-auto mb-8"
+              >
                 <SafeIcon icon={FiChef} className="text-4xl text-primary-500" />
-              </div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">
+              </motion.div>
+              
+              <motion.h2
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-4xl font-bold text-gray-900 mb-4"
+              >
                 Your Recipe Journey Starts Here! 🍳
-              </h2>
-              <p className="text-xl text-gray-600 mb-8 leading-relaxed">
+              </motion.h2>
+              
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="text-xl text-gray-600 mb-8 leading-relaxed"
+              >
                 You have a completely clean slate! Start building your perfect recipe collection by adding your first recipe.
-              </p>
+              </motion.p>
+              
               <motion.button
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.5 }}
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowAddModal(true)}
-                className="btn-gradient text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg flex items-center space-x-3 mx-auto"
+                className="btn-gradient text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg flex items-center space-x-3 mx-auto relative overflow-hidden"
               >
                 <SafeIcon icon={FiPlus} className="text-xl" />
                 <span>Add Your First Recipe</span>
+                <ShimmerEffect className="absolute inset-0" />
               </motion.button>
 
-              <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
-                <div className="glass p-6 rounded-xl">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+                className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6 text-left"
+              >
+                <FloatingCard delay={0.7} className="glass p-6 rounded-xl">
                   <SafeIcon icon={FiBookOpen} className="text-2xl text-primary-500 mb-3" />
                   <h3 className="font-bold text-gray-900 mb-2">Create Recipes</h3>
                   <p className="text-sm text-gray-600">Add your favorite recipes with ingredients, steps, and cooking tips.</p>
-                </div>
-                <div className="glass p-6 rounded-xl">
+                </FloatingCard>
+                
+                <FloatingCard delay={0.8} className="glass p-6 rounded-xl">
                   <SafeIcon icon={FiHeart} className="text-2xl text-red-500 mb-3" />
                   <h3 className="font-bold text-gray-900 mb-2">Save & Share</h3>
                   <p className="text-sm text-gray-600">Save recipes you love and share them with friends via email.</p>
-                </div>
-                <div className="glass p-6 rounded-xl">
+                </FloatingCard>
+                
+                <FloatingCard delay={0.9} className="glass p-6 rounded-xl">
                   <SafeIcon icon={FiPlay} className="text-2xl text-green-500 mb-3" />
                   <h3 className="font-bold text-gray-900 mb-2">Cook Mode</h3>
                   <p className="text-sm text-gray-600">Follow step-by-step instructions with built-in timers.</p>
-                </div>
-              </div>
+                </FloatingCard>
+              </motion.div>
             </div>
           </motion.div>
         ) : (
@@ -763,15 +977,22 @@ const Recipes = () => {
                 animate={{ opacity: 1 }}
                 className="text-center py-16"
               >
-                <SafeIcon icon={FiSearch} className="text-6xl text-gray-300 mb-4 mx-auto" />
+                <motion.div
+                  animate={{ 
+                    rotate: [0, 5, 0, -5, 0],
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                >
+                  <SafeIcon icon={FiSearch} className="text-6xl text-gray-300 mb-4 mx-auto" />
+                </motion.div>
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">
                   No recipes found
                 </h3>
                 <p className="text-gray-600 font-medium mb-4">
                   {searchTerm
                     ? `No recipes match "${searchTerm}" in ${filters.find(f => f.id === selectedFilter)?.name}`
-                    : `No recipes in ${filters.find(f => f.id === selectedFilter)?.name} yet`
-                  }
+                    : `No recipes in ${filters.find(f => f.id === selectedFilter)?.name} yet`}
                 </p>
                 {selectedFilter === 'my-recipes' && (
                   <motion.button
@@ -799,25 +1020,23 @@ const Recipes = () => {
                   const canEdit = canUserEditRecipe(recipe);
 
                   return (
-                    <motion.div
+                    <FloatingCard
                       key={recipe.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      whileHover={{ y: -8 }}
-                      className="glass rounded-2xl overflow-hidden shadow-lg card-hover glow-effect"
+                      delay={index * 0.05}
+                      className="glass rounded-2xl overflow-hidden shadow-lg card-hover glow-effect relative"
                     >
                       {/* Recipe Image */}
                       <div className="aspect-video bg-gradient-to-br from-primary-100 to-secondary-100 relative overflow-hidden">
                         {recipe.image ? (
-                          <img
-                            src={recipe.image}
-                            alt={recipe.title}
-                            className="w-full h-full object-cover"
-                          />
+                          <img src={recipe.image} alt={recipe.title} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <SafeIcon icon={FiStar} className="text-4xl text-primary-400" />
+                            <motion.div
+                              animate={{ rotate: [0, 10, 0, -10, 0] }}
+                              transition={{ duration: 4, repeat: Infinity }}
+                            >
+                              <SafeIcon icon={FiStar} className="text-4xl text-primary-400" />
+                            </motion.div>
                           </div>
                         )}
 
@@ -835,6 +1054,7 @@ const Recipes = () => {
                           >
                             <SafeIcon icon={FiHeart} className="text-sm" />
                           </motion.button>
+
                           {user && (
                             <>
                               {/* ✅ NEW: EDIT BUTTON: Show for recipe owners */}
@@ -894,18 +1114,40 @@ const Recipes = () => {
 
                         {/* Recipe Type Badge */}
                         <div className="absolute bottom-3 left-3 flex space-x-2">
-                          <span className="bg-white/90 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                          <motion.span
+                            animate={{ 
+                              boxShadow: [
+                                '0 0 10px rgba(255,255,255,0.3)',
+                                '0 0 20px rgba(255,255,255,0.6)',
+                                '0 0 10px rgba(255,255,255,0.3)'
+                              ]
+                            }}
+                            transition={{ duration: 3, repeat: Infinity }}
+                            className="bg-white/90 backdrop-blur-sm text-gray-700 px-3 py-1 rounded-full text-xs font-semibold shadow-lg"
+                          >
                             {recipe.difficulty}
-                          </span>
+                          </motion.span>
+                          
                           {recipe.isUserCreated && (
                             <span className="bg-secondary-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
                               My Recipe
                             </span>
                           )}
+                          
                           {recipe.shared && !recipe.isUserCreated && (
-                            <span className="bg-blue-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg">
+                            <motion.span
+                              animate={{ 
+                                backgroundColor: [
+                                  'rgba(59, 130, 246, 0.9)',
+                                  'rgba(59, 130, 246, 1)',
+                                  'rgba(59, 130, 246, 0.9)'
+                                ]
+                              }}
+                              transition={{ duration: 2, repeat: Infinity }}
+                              className="backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs font-semibold shadow-lg"
+                            >
                               Community
-                            </span>
+                            </motion.span>
                           )}
                         </div>
                       </div>
@@ -929,6 +1171,7 @@ const Recipes = () => {
                             </motion.button>
                           )}
                         </div>
+                        
                         <p className="text-gray-600 text-sm mb-4 line-clamp-2 font-medium">
                           {recipe.description}
                         </p>
@@ -942,11 +1185,7 @@ const Recipes = () => {
 
                         {/* ✅ NEW: INLINE RATING SYSTEM for community recipes */}
                         {recipe.shared && (
-                          <InlineRating
-                            recipe={recipe}
-                            canRate={canRate}
-                            className="mb-4"
-                          />
+                          <InlineRating recipe={recipe} canRate={canRate} className="mb-4" />
                         )}
 
                         {/* Recipe Stats */}
@@ -972,28 +1211,37 @@ const Recipes = () => {
                         {recipe.tags && recipe.tags.length > 0 && (
                           <div className="flex flex-wrap gap-2 mb-4">
                             {recipe.tags.slice(0, 3).map((tag, tagIndex) => (
-                              <span
+                              <motion.span
                                 key={tagIndex}
-                                className="text-xs bg-primary-50 text-primary-600 px-3 py-1 rounded-full font-semibold"
+                                animate={{ 
+                                  backgroundColor: [
+                                    'rgba(239, 68, 48, 0.1)',
+                                    'rgba(239, 68, 48, 0.15)',
+                                    'rgba(239, 68, 48, 0.1)'
+                                  ]
+                                }}
+                                transition={{ duration: 3, repeat: Infinity, delay: tagIndex * 0.5 }}
+                                className="text-xs text-primary-600 px-3 py-1 rounded-full font-semibold"
                               >
                                 {tag}
-                              </span>
+                              </motion.span>
                             ))}
                           </div>
                         )}
 
-                        {/* 🚨 REMOVED: Shimmer Effect from Cook Button - Now just regular button */}
+                        {/* Cook Button */}
                         <motion.button
                           whileHover={{ scale: 1.02, y: -2 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={() => startCookingMode(recipe)}
-                          className="w-full btn-gradient text-white py-3 px-4 rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2"
+                          className="w-full btn-gradient text-white py-3 px-4 rounded-xl font-bold shadow-lg flex items-center justify-center space-x-2 relative overflow-hidden"
                         >
                           <SafeIcon icon={FiPlay} />
                           <span>Start Cooking</span>
+                          <ShimmerEffect className="absolute inset-0" />
                         </motion.button>
                       </div>
-                    </motion.div>
+                    </FloatingCard>
                   );
                 })}
               </motion.div>
@@ -1044,79 +1292,49 @@ const Recipes = () => {
           )}
         </AnimatePresence>
 
-        {/* Cleanup Results Modal */}
+        {/* Other modals remain the same but with enhanced animations... */}
+        {/* Add Recipe Modal */}
         <AnimatePresence>
-          {showCleanupModal && cleanupResult && (
+          {showAddModal && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-              onClick={() => setShowCleanupModal(false)}
+              onClick={() => setShowAddModal(false)}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="glass rounded-3xl p-8 max-w-2xl w-full shadow-2xl max-h-[80vh] overflow-y-auto"
+                initial={{ opacity: 0, scale: 0.8, rotateX: -15 }}
+                animate={{ opacity: 1, scale: 1, rotateX: 0 }}
+                exit={{ opacity: 0, scale: 0.8, rotateX: 15 }}
+                transition={{ type: "spring", damping: 20, stiffness: 300 }}
+                className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="text-center mb-6">
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <SafeIcon icon={FiZap} className="text-3xl text-green-600" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                    🧹 Cleanup Complete!
-                  </h2>
-                  <p className="text-lg text-gray-600 font-medium">
-                    Removed {cleanupResult.totalRemoved} duplicate recipes
-                  </p>
-                </div>
-
-                <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 mb-6">
-                  <h3 className="font-bold text-gray-900 mb-4">Cleanup Summary</h3>
-                  <div className="grid grid-cols-3 gap-4 text-center">
-                    <div className="glass p-4 rounded-lg">
-                      <div className="text-2xl font-bold text-green-600">{cleanupResult.report.savedRecipes}</div>
-                      <div className="text-sm text-gray-600">Saved Recipes</div>
-                    </div>
-                    <div className="glass p-4 rounded-lg">
-                      <div className="text-2xl font-bold text-blue-600">{cleanupResult.report.userRecipes}</div>
-                      <div className="text-sm text-gray-600">My Recipes</div>
-                    </div>
-                    <div className="glass p-4 rounded-lg">
-                      <div className="text-2xl font-bold text-purple-600">{cleanupResult.report.sharedRecipes}</div>
-                      <div className="text-sm text-gray-600">Shared Recipes</div>
-                    </div>
-                  </div>
-                </div>
-
-                {cleanupResult.report.details.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="font-bold text-gray-900 mb-3">Removed Duplicates:</h3>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {cleanupResult.report.details.map((detail, index) => (
-                        <div key={index} className="bg-red-50 p-3 rounded-lg border-l-4 border-red-200">
-                          <div className="font-medium text-red-800">"{detail.duplicate.title}"</div>
-                          <div className="text-sm text-red-600">
-                            From: {detail.source} • {detail.reason}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-center">
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setShowCleanupModal(false)}
-                    className="px-8 py-3 btn-gradient text-white rounded-xl font-bold shadow-lg"
+                <div className="flex items-center justify-between mb-8">
+                  <motion.h2 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="text-3xl font-bold text-gray-900"
                   >
-                    Awesome! 🎉
+                    Add New Recipe
+                  </motion.h2>
+                  <motion.button
+                    whileHover={{ scale: 1.1, rotate: 90 }}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowAddModal(false)}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl transition-colors duration-200"
+                  >
+                    <SafeIcon icon={FiX} className="text-2xl" />
                   </motion.button>
                 </div>
+                <RecipeForm
+                  recipe={newRecipe}
+                  setRecipe={setNewRecipe}
+                  onSubmit={handleSubmitRecipe}
+                  isEdit={false}
+                  onCancel={() => setShowAddModal(false)}
+                />
               </motion.div>
             </motion.div>
           )}
@@ -1133,16 +1351,24 @@ const Recipes = () => {
               onClick={() => setShowDeleteModal(false)}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, scale: 0.8, y: 50 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 50 }}
+                transition={{ type: "spring", damping: 25, stiffness: 400 }}
                 className="glass rounded-3xl p-8 max-w-md w-full shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="text-center">
-                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <motion.div
+                    animate={{ 
+                      rotate: [0, -10, 10, -10, 0],
+                      scale: [1, 1.1, 1]
+                    }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6"
+                  >
                     <SafeIcon icon={FiAlertTriangle} className="text-3xl text-red-600" />
-                  </div>
+                  </motion.div>
                   <h2 className="text-2xl font-bold text-gray-900 mb-3">
                     Delete Recipe?
                   </h2>
@@ -1171,48 +1397,6 @@ const Recipes = () => {
                     </motion.button>
                   </div>
                 </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Add Recipe Modal */}
-        <AnimatePresence>
-          {showAddModal && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-              onClick={() => setShowAddModal(false)}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-3xl font-bold text-gray-900">
-                    Add New Recipe
-                  </h2>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setShowAddModal(false)}
-                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-xl"
-                  >
-                    <SafeIcon icon={FiX} className="text-2xl" />
-                  </motion.button>
-                </div>
-                <RecipeForm
-                  recipe={newRecipe}
-                  setRecipe={setNewRecipe}
-                  onSubmit={handleSubmitRecipe}
-                  isEdit={false}
-                  onCancel={() => setShowAddModal(false)}
-                />
               </motion.div>
             </motion.div>
           )}
