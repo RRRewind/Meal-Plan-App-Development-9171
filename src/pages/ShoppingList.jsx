@@ -17,15 +17,25 @@ const ShoppingList = () => {
   const [checkedItems, setCheckedItems] = useState(new Set());
   const [wasCompleted, setWasCompleted] = useState(false);
   const [viewMode, setViewMode] = useState('categories'); // 'categories' or 'list'
-
+  
   // ✅ FIX: Add refs to prevent duplicate notifications
   const lastXPAwardRef = useRef(null);
   const completionProcessedRef = useRef(false);
   const previousIngredientsRef = useRef(new Set()); // Track previous ingredients
+  const confettiTimeoutRef = useRef(null); // Track confetti cleanup
 
   const { getAllIngredients } = useMealPlan();
   const { addXP, addShoppingProgressXP, isActionOnCooldown, getCooldownTimeRemaining, formatCooldownTime } = useGamification();
   const { user } = useAuth();
+
+  // ✅ CLEANUP: Clear confetti timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (confettiTimeoutRef.current) {
+        clearTimeout(confettiTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // ✅ PERSISTENCE: Load saved data on mount and when user changes
   useEffect(() => {
@@ -175,7 +185,6 @@ const ShoppingList = () => {
     // Clean up checked items - only keep items that still exist
     setCheckedItems(prevChecked => {
       const cleanedChecked = new Set();
-      
       for (const checkedKey of prevChecked) {
         if (allCurrentKeys.has(checkedKey)) {
           cleanedChecked.add(checkedKey);
@@ -211,9 +220,15 @@ const ShoppingList = () => {
       textColor: 'text-green-700',
       keywords: [
         // Vegetables
-        'tomato', 'onion', 'garlic', 'potato', 'carrot', 'celery', 'bell pepper', 'pepper', 'broccoli', 'cauliflower', 'spinach', 'lettuce', 'cabbage', 'cucumber', 'zucchini', 'mushroom', 'corn', 'peas', 'green bean', 'asparagus', 'kale', 'arugula', 'basil', 'cilantro', 'parsley', 'dill', 'mint', 'rosemary', 'thyme', 'oregano', 'sage', 'ginger', 'jalapeño', 'serrano', 'habanero', 'chili', 'avocado', 'lime', 'lemon',
+        'tomato', 'onion', 'garlic', 'potato', 'carrot', 'celery', 'bell pepper', 'pepper',
+        'broccoli', 'cauliflower', 'spinach', 'lettuce', 'cabbage', 'cucumber', 'zucchini',
+        'mushroom', 'corn', 'peas', 'green bean', 'asparagus', 'kale', 'arugula', 'basil',
+        'cilantro', 'parsley', 'dill', 'mint', 'rosemary', 'thyme', 'oregano', 'sage',
+        'ginger', 'jalapeño', 'serrano', 'habanero', 'chili', 'avocado', 'lime', 'lemon',
         // Fruits
-        'apple', 'banana', 'orange', 'grape', 'strawberry', 'blueberry', 'raspberry', 'blackberry', 'pineapple', 'mango', 'papaya', 'kiwi', 'peach', 'pear', 'plum', 'cherry', 'watermelon', 'cantaloupe', 'honeydew', 'coconut'
+        'apple', 'banana', 'orange', 'grape', 'strawberry', 'blueberry', 'raspberry',
+        'blackberry', 'pineapple', 'mango', 'papaya', 'kiwi', 'peach', 'pear', 'plum',
+        'cherry', 'watermelon', 'cantaloupe', 'honeydew', 'coconut'
       ]
     },
     meat: {
@@ -224,7 +239,11 @@ const ShoppingList = () => {
       borderColor: 'border-red-300',
       textColor: 'text-red-700',
       keywords: [
-        'chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'bacon', 'ham', 'sausage', 'ground beef', 'ground turkey', 'ground chicken', 'steak', 'roast', 'chop', 'breast', 'thigh', 'wing', 'drumstick', 'salmon', 'tuna', 'cod', 'halibut', 'tilapia', 'shrimp', 'crab', 'lobster', 'scallop', 'mussel', 'clam', 'oyster', 'fish', 'seafood', 'meat'
+        'chicken', 'beef', 'pork', 'lamb', 'turkey', 'duck', 'bacon', 'ham', 'sausage',
+        'ground beef', 'ground turkey', 'ground chicken', 'steak', 'roast', 'chop',
+        'breast', 'thigh', 'wing', 'drumstick', 'salmon', 'tuna', 'cod', 'halibut',
+        'tilapia', 'shrimp', 'crab', 'lobster', 'scallop', 'mussel', 'clam', 'oyster',
+        'fish', 'seafood', 'meat'
       ]
     },
     dairy: {
@@ -235,7 +254,10 @@ const ShoppingList = () => {
       borderColor: 'border-blue-300',
       textColor: 'text-blue-700',
       keywords: [
-        'milk', 'cheese', 'yogurt', 'butter', 'cream', 'sour cream', 'cottage cheese', 'ricotta', 'mozzarella', 'cheddar', 'parmesan', 'swiss', 'goat cheese', 'feta', 'brie', 'camembert', 'blue cheese', 'cream cheese', 'egg', 'heavy cream', 'half and half', 'buttermilk', 'ice cream', 'frozen yogurt'
+        'milk', 'cheese', 'yogurt', 'butter', 'cream', 'sour cream', 'cottage cheese',
+        'ricotta', 'mozzarella', 'cheddar', 'parmesan', 'swiss', 'goat cheese', 'feta',
+        'brie', 'camembert', 'blue cheese', 'cream cheese', 'egg', 'heavy cream',
+        'half and half', 'buttermilk', 'ice cream', 'frozen yogurt'
       ]
     },
     pantry: {
@@ -246,7 +268,15 @@ const ShoppingList = () => {
       borderColor: 'border-amber-300',
       textColor: 'text-amber-700',
       keywords: [
-        'rice', 'pasta', 'noodle', 'quinoa', 'oats', 'flour', 'sugar', 'salt', 'pepper', 'olive oil', 'vegetable oil', 'coconut oil', 'vinegar', 'soy sauce', 'hot sauce', 'ketchup', 'mustard', 'mayonnaise', 'ranch', 'italian dressing', 'balsamic', 'honey', 'maple syrup', 'vanilla', 'cinnamon', 'paprika', 'cumin', 'chili powder', 'garlic powder', 'onion powder', 'black pepper', 'red pepper', 'bay leaf', 'canned tomato', 'tomato sauce', 'tomato paste', 'chicken broth', 'beef broth', 'vegetable broth', 'coconut milk', 'canned beans', 'black beans', 'kidney beans', 'chickpeas', 'lentils', 'peanut butter', 'jelly', 'jam', 'cereal', 'crackers', 'bread', 'tortilla', 'pita', 'bagel', 'english muffin'
+        'rice', 'pasta', 'noodle', 'quinoa', 'oats', 'flour', 'sugar', 'salt', 'pepper',
+        'olive oil', 'vegetable oil', 'coconut oil', 'vinegar', 'soy sauce', 'hot sauce',
+        'ketchup', 'mustard', 'mayonnaise', 'ranch', 'italian dressing', 'balsamic',
+        'honey', 'maple syrup', 'vanilla', 'cinnamon', 'paprika', 'cumin', 'chili powder',
+        'garlic powder', 'onion powder', 'black pepper', 'red pepper', 'bay leaf',
+        'canned tomato', 'tomato sauce', 'tomato paste', 'chicken broth', 'beef broth',
+        'vegetable broth', 'coconut milk', 'canned beans', 'black beans', 'kidney beans',
+        'chickpeas', 'lentils', 'peanut butter', 'jelly', 'jam', 'cereal', 'crackers',
+        'bread', 'tortilla', 'pita', 'bagel', 'english muffin'
       ]
     },
     frozen: {
@@ -257,7 +287,10 @@ const ShoppingList = () => {
       borderColor: 'border-cyan-300',
       textColor: 'text-cyan-700',
       keywords: [
-        'frozen', 'ice cream', 'frozen yogurt', 'frozen vegetable', 'frozen fruit', 'frozen meal', 'frozen pizza', 'frozen chicken', 'frozen fish', 'frozen shrimp', 'frozen berries', 'frozen peas', 'frozen corn', 'frozen broccoli', 'frozen spinach', 'ice', 'popsicle', 'frozen waffle', 'frozen bagel', 'frozen bread'
+        'frozen', 'ice cream', 'frozen yogurt', 'frozen vegetable', 'frozen fruit',
+        'frozen meal', 'frozen pizza', 'frozen chicken', 'frozen fish', 'frozen shrimp',
+        'frozen berries', 'frozen peas', 'frozen corn', 'frozen broccoli', 'frozen spinach',
+        'ice', 'popsicle', 'frozen waffle', 'frozen bagel', 'frozen bread'
       ]
     },
     beverages: {
@@ -268,7 +301,10 @@ const ShoppingList = () => {
       borderColor: 'border-purple-300',
       textColor: 'text-purple-700',
       keywords: [
-        'water', 'juice', 'soda', 'coffee', 'tea', 'beer', 'wine', 'energy drink', 'sports drink', 'coconut water', 'almond milk', 'soy milk', 'oat milk', 'orange juice', 'apple juice', 'cranberry juice', 'grape juice', 'lemonade', 'sparkling water', 'tonic water', 'club soda', 'kombucha'
+        'water', 'juice', 'soda', 'coffee', 'tea', 'beer', 'wine', 'energy drink',
+        'sports drink', 'coconut water', 'almond milk', 'soy milk', 'oat milk',
+        'orange juice', 'apple juice', 'cranberry juice', 'grape juice', 'lemonade',
+        'sparkling water', 'tonic water', 'club soda', 'kombucha'
       ]
     },
     snacks: {
@@ -279,7 +315,9 @@ const ShoppingList = () => {
       borderColor: 'border-orange-300',
       textColor: 'text-orange-700',
       keywords: [
-        'chips', 'cookie', 'candy', 'chocolate', 'nuts', 'almonds', 'peanuts', 'cashews', 'walnuts', 'pecans', 'pistachios', 'trail mix', 'granola', 'granola bar', 'protein bar', 'crackers', 'pretzels', 'popcorn', 'gum', 'mints'
+        'chips', 'cookie', 'candy', 'chocolate', 'nuts', 'almonds', 'peanuts', 'cashews',
+        'walnuts', 'pecans', 'pistachios', 'trail mix', 'granola', 'granola bar',
+        'protein bar', 'crackers', 'pretzels', 'popcorn', 'gum', 'mints'
       ]
     },
     other: {
@@ -296,8 +334,9 @@ const ShoppingList = () => {
   // 🏷️ CATEGORIZE ITEMS: Smart categorization based on keywords
   const categorizeItem = (itemName) => {
     if (!itemName || typeof itemName !== 'string') return 'other';
+    
     const name = itemName.toLowerCase().trim();
-
+    
     for (const [categoryId, category] of Object.entries(groceryCategories)) {
       if (categoryId === 'other') continue; // Skip 'other' category for now
       
@@ -389,10 +428,16 @@ const ShoppingList = () => {
     }
   }, [customItems]);
 
-  // ✅ FIX: CONFETTI CELEBRATION - Prevent duplicate celebrations
+  // ✅ FIX: CONFETTI CELEBRATION - Prevent duplicate celebrations and navigation blocking
   useEffect(() => {
     if (isCompleted && !wasCompleted && totalCount > 0 && !completionProcessedRef.current) {
       completionProcessedRef.current = true;
+      
+      // ✅ FIX: Clear any existing confetti timeouts first
+      if (confettiTimeoutRef.current) {
+        clearTimeout(confettiTimeoutRef.current);
+      }
+      
       triggerConfettiCelebration();
       setWasCompleted(true);
 
@@ -412,14 +457,20 @@ const ShoppingList = () => {
     } else if (!isCompleted && wasCompleted) {
       setWasCompleted(false);
       completionProcessedRef.current = false;
+      
+      // ✅ FIX: Clear confetti when no longer completed
+      if (confettiTimeoutRef.current) {
+        clearTimeout(confettiTimeoutRef.current);
+        confettiTimeoutRef.current = null;
+      }
     }
   }, [isCompleted, wasCompleted, totalCount, addXP]);
 
-  // 🎊 CONFETTI FUNCTION: Multiple bursts with different effects
+  // 🎊 CONFETTI FUNCTION: Multiple bursts with different effects - ✅ FIX: Ensure proper cleanup
   const triggerConfettiCelebration = () => {
     const duration = 3000;
     const animationEnd = Date.now() + duration;
-    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 10000 };
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 999 }; // ✅ FIX: Lower zIndex
 
     function randomInRange(min, max) {
       return Math.random() * (max - min) + min;
@@ -460,14 +511,16 @@ const ShoppingList = () => {
         angle: 60,
         spread: 55,
         origin: { x: 0, y: 0.3 },
-        colors: ['#06b6d4', '#0891b2', '#67e8f9', '#a5f3fc', '#cffafe']
+        colors: ['#06b6d4', '#0891b2', '#67e8f9', '#a5f3fc', '#cffafe'],
+        zIndex: 999
       });
       confetti({
         particleCount: 50,
         angle: 120,
         spread: 55,
         origin: { x: 1, y: 0.3 },
-        colors: ['#f97316', '#ea580c', '#fb923c', '#fdba74', '#fed7aa']
+        colors: ['#f97316', '#ea580c', '#fb923c', '#fdba74', '#fed7aa'],
+        zIndex: 999
       });
     }, 900);
 
@@ -486,7 +539,8 @@ const ShoppingList = () => {
           x: randomInRange(0.1, 0.9),
           y: randomInRange(0.3, 0.7)
         },
-        colors: ['#10b981', '#8b5cf6', '#ef4444', '#06b6d4', '#f97316', '#fbbf24']
+        colors: ['#10b981', '#8b5cf6', '#ef4444', '#06b6d4', '#f97316', '#fbbf24'],
+        zIndex: 999
       });
     }, 200);
 
@@ -501,6 +555,12 @@ const ShoppingList = () => {
         colors: ['#10b981', '#059669', '#34d399', '#fbbf24', '#f59e0b', '#8b5cf6', '#ef4444']
       });
     }, 1200);
+
+    // ✅ FIX: Set cleanup timeout and store reference
+    confettiTimeoutRef.current = setTimeout(() => {
+      console.log('🎊 Confetti celebration completed, navigation should work normally');
+      confettiTimeoutRef.current = null;
+    }, duration + 500);
   };
 
   // ✅ FIX: Prevent duplicate XP notifications
@@ -513,10 +573,10 @@ const ShoppingList = () => {
         isCustom: true,
         id: Date.now().toString()
       };
-
+      
       setCustomItems(prev => [...prev, item]);
       setNewItem('');
-
+      
       // ✅ FIX: Only award XP once with proper debouncing
       const currentTime = Date.now();
       if (!lastXPAwardRef.current || (currentTime - lastXPAwardRef.current) > 1000) {
@@ -549,13 +609,13 @@ const ShoppingList = () => {
         updated.delete(itemKey);
       } else {
         updated.add(itemKey);
-
+        
         // ✅ FIX: Only one progress XP notification
         const currentTime = Date.now();
         if (!lastXPAwardRef.current || (currentTime - lastXPAwardRef.current) > 500) {
           lastXPAwardRef.current = currentTime;
           const progressXPAwarded = addShoppingProgressXP();
-
+          
           // 🎉 MINI CELEBRATION: Small confetti for individual items (only if progress XP awarded)
           if (progressXPAwarded && Math.random() > 0.7) { // 30% chance for mini celebration
             confetti({
@@ -563,7 +623,7 @@ const ShoppingList = () => {
               spread: 30,
               origin: { x: 0.5, y: 0.7 },
               colors: ['#10b981', '#34d399', '#6ee7b7'],
-              zIndex: 9999
+              zIndex: 999
             });
           }
         }
@@ -577,19 +637,19 @@ const ShoppingList = () => {
     
     setCustomItems(prev => prev.filter(item => !checkedItems.has(item.id)));
     setCheckedItems(new Set());
-
+    
     if (completedCustomItems.length > 0) {
       const xpAwarded = addXP(5, 'Cleared completed items', 'items_cleared');
       if (xpAwarded) {
         toast.success(`🎉 Cleared ${completedCustomItems.length} completed items`);
-
+        
         // 🎊 SMALL CELEBRATION: For clearing items
         confetti({
           particleCount: 50,
           spread: 45,
           origin: { x: 0.5, y: 0.6 },
           colors: ['#6b7280', '#9ca3af', '#d1d5db'],
-          zIndex: 9999
+          zIndex: 999
         });
       }
     }
@@ -599,7 +659,7 @@ const ShoppingList = () => {
     const listText = allItems
       .map(item => `• ${item.name} - ${item.amount}`)
       .join('\n');
-
+    
     navigator.clipboard.writeText(listText).then(() => {
       toast.success('📋 Shopping list copied to clipboard!');
       addXP(5, 'Shopping list exported', 'list_exported');
@@ -613,7 +673,7 @@ const ShoppingList = () => {
       const listText = allItems
         .map(item => `• ${item.name} - ${item.amount}`)
         .join('\n');
-
+      
       navigator.share({
         title: 'My Smart Shopping List',
         text: `Shopping List (${allItems.length} items):\n\n${listText}\n\nGenerated by Meal Plan App 🍳`
@@ -630,9 +690,9 @@ const ShoppingList = () => {
   const XPCooldownWarning = ({ action, children }) => {
     const onCooldown = isActionOnCooldown(action);
     const remainingTime = getCooldownTimeRemaining(action);
-
+    
     if (!onCooldown) return children;
-
+    
     return (
       <div className="relative group">
         {children}
@@ -652,7 +712,10 @@ const ShoppingList = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className={`${isCompleted ? 'bg-gradient-to-r from-green-500 via-green-600 to-emerald-500' : 'bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-500'} rounded-3xl p-8 text-white shadow-2xl glow-effect transition-all duration-1000`}>
+          <div className={`${isCompleted 
+            ? 'bg-gradient-to-r from-green-500 via-green-600 to-emerald-500' 
+            : 'bg-gradient-to-r from-primary-500 via-primary-600 to-secondary-500'
+          } rounded-3xl p-8 text-white shadow-2xl glow-effect transition-all duration-1000`}>
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-4xl font-bold mb-3 flex items-center">
@@ -677,7 +740,7 @@ const ShoppingList = () => {
                   }
                 </p>
               </div>
-
+              
               <div className="hidden md:block text-right">
                 <div className="text-4xl font-bold mb-1">
                   {checkedCount}/{totalCount}
@@ -771,8 +834,8 @@ const ShoppingList = () => {
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setViewMode('categories')}
                   className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 ${
-                    viewMode === 'categories'
-                      ? 'bg-white text-primary-600 shadow-md'
+                    viewMode === 'categories' 
+                      ? 'bg-white text-primary-600 shadow-md' 
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -783,8 +846,8 @@ const ShoppingList = () => {
                   whileTap={{ scale: 0.95 }}
                   onClick={() => setViewMode('list')}
                   className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 flex items-center space-x-2 ${
-                    viewMode === 'list'
-                      ? 'bg-white text-primary-600 shadow-md'
+                    viewMode === 'list' 
+                      ? 'bg-white text-primary-600 shadow-md' 
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -893,8 +956,8 @@ const ShoppingList = () => {
                             whileTap={{ scale: 0.9 }}
                             onClick={() => handleToggleItem(item.key)}
                             className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
-                              item.isChecked
-                                ? 'bg-green-500 border-green-500 text-white shadow-lg'
+                              item.isChecked 
+                                ? 'bg-green-500 border-green-500 text-white shadow-lg' 
                                 : 'border-gray-300 hover:border-primary-500 hover:shadow-md'
                             }`}
                           >
@@ -949,8 +1012,8 @@ const ShoppingList = () => {
                             whileTap={{ scale: 0.9 }}
                             onClick={() => handleToggleItem(itemKey)}
                             className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all duration-200 ${
-                              isChecked
-                                ? 'bg-green-500 border-green-500 text-white shadow-lg'
+                              isChecked 
+                                ? 'bg-green-500 border-green-500 text-white shadow-lg' 
                                 : 'border-gray-300 hover:border-primary-500 hover:shadow-md'
                             }`}
                           >

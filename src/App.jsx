@@ -8,7 +8,7 @@ import { GamificationProvider } from './contexts/GamificationContext';
 import { CookingModeProvider } from './contexts/CookingModeContext';
 import { RatingProvider } from './contexts/RatingContext';
 import { SettingsProvider } from './contexts/SettingsContext';
-import { RewardsProvider } from './contexts/RewardsContext';
+import { RewardsProvider } from './contexts/RewardsProvider';
 import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import Scheduler from './pages/Scheduler';
@@ -20,6 +20,17 @@ import Rewards from './pages/Rewards';
 import CookingTimer from './components/CookingTimer';
 
 function App() {
+  // ✅ FIX: Add error boundary and navigation debugging
+  React.useEffect(() => {
+    // Debug navigation issues
+    const handleRouteChange = () => {
+      console.log('Route changed to:', window.location.hash);
+    };
+
+    window.addEventListener('hashchange', handleRouteChange);
+    return () => window.removeEventListener('hashchange', handleRouteChange);
+  }, []);
+
   return (
     <AuthProvider>
       <SettingsProvider>
@@ -30,7 +41,7 @@ function App() {
                 <CookingModeProvider>
                   <RewardsProvider>
                     <Router>
-                      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50">
+                      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-green-50 relative">
                         <Routes>
                           <Route path="/" element={<Landing />} />
                           <Route path="/dashboard" element={<Dashboard />} />
@@ -41,7 +52,14 @@ function App() {
                           <Route path="/settings" element={<Settings />} />
                           <Route path="/rewards" element={<Rewards />} />
                         </Routes>
-                        <CookingTimer />
+                        
+                        {/* ✅ FIX: Ensure CookingTimer doesn't block navigation */}
+                        <div className="pointer-events-none fixed inset-0 z-40">
+                          <div className="pointer-events-auto">
+                            <CookingTimer />
+                          </div>
+                        </div>
+
                         <Toaster
                           position="top-right"
                           toastOptions={{

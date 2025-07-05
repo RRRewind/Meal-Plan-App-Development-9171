@@ -23,13 +23,28 @@ const Layout = ({ children }) => {
 
   // Add admin panel for admin users
   if (user?.isAdmin) {
-    navigation.push({ name: 'Admin Panel', href: '/admin', icon: FiShield });
+    navigation.push({
+      name: 'Admin Panel',
+      href: '/admin',
+      icon: FiShield
+    });
   }
+
+  // ✅ FIX: Ensure navigation handler works properly
+  const handleNavigation = (href, e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+    
+    // Add small delay to ensure any ongoing animations complete
+    setTimeout(() => {
+      navigate(href);
+    }, 50);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50/20 to-orange-50/10">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-gray-200/50">
+      <header className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-gray-200/50 relative z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
@@ -37,7 +52,12 @@ const Layout = ({ children }) => {
               <div className="w-8 h-8 bg-gradient-to-br from-primary-500/90 to-primary-600/90 rounded-lg flex items-center justify-center">
                 <SafeIcon icon={FiBook} className="text-white text-sm" />
               </div>
-              <span className="text-xl font-bold text-gray-900">Meal Plan</span>
+              <button 
+                onClick={(e) => handleNavigation('/dashboard', e)}
+                className="text-xl font-bold text-gray-900 hover:text-primary-600 transition-colors duration-200"
+              >
+                Meal Plan
+              </button>
             </div>
 
             {/* Navigation */}
@@ -49,8 +69,8 @@ const Layout = ({ children }) => {
                     key={item.name}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate(item.href)}
-                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 ${
+                    onClick={(e) => handleNavigation(item.href, e)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center space-x-2 relative z-10 ${
                       isActive
                         ? item.name === 'Admin Panel'
                           ? 'bg-purple-100/60 text-purple-700'
@@ -75,15 +95,15 @@ const Layout = ({ children }) => {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/rewards')}
-                    className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-primary-100/60 to-secondary-100/60 hover:from-primary-200/60 hover:to-secondary-200/60 px-3 py-1 rounded-full transition-all duration-200 cursor-pointer"
+                    onClick={(e) => handleNavigation('/rewards', e)}
+                    className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-primary-100/60 to-secondary-100/60 hover:from-primary-200/60 hover:to-secondary-200/60 px-3 py-1 rounded-full transition-all duration-200 cursor-pointer relative z-10"
                   >
                     <SafeIcon icon={FiStar} className="text-primary-600 text-sm" />
                     <span className="text-sm font-medium text-gray-700">
                       Level {user.level}
                     </span>
                     <div className="w-12 bg-gray-200 rounded-full h-1.5">
-                      <div
+                      <div 
                         className="bg-gradient-to-r from-primary-500/90 to-secondary-500/90 h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${(user.xp % 100)}%` }}
                       />
@@ -108,8 +128,8 @@ const Layout = ({ children }) => {
               <motion.button
                 key={item.name}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => navigate(item.href)}
-                className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all duration-200 ${
+                onClick={(e) => handleNavigation(item.href, e)}
+                className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg transition-all duration-200 relative z-10 ${
                   isActive
                     ? item.name === 'Admin Panel'
                       ? 'bg-purple-100/60 text-purple-700'
@@ -121,10 +141,10 @@ const Layout = ({ children }) => {
               >
                 <SafeIcon icon={item.icon} className="text-lg mb-1" />
                 <span className="text-xs font-medium">
-                  {item.name === 'Admin Panel'
-                    ? 'Admin'
-                    : item.name === 'Shopping List'
-                    ? 'Shopping'
+                  {item.name === 'Admin Panel' 
+                    ? 'Admin' 
+                    : item.name === 'Shopping List' 
+                    ? 'Shopping' 
                     : item.name}
                 </span>
               </motion.button>
