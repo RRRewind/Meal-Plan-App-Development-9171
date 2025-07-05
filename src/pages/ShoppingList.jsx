@@ -21,6 +21,7 @@ const ShoppingList = () => {
   // ✅ FIX: Add refs to prevent duplicate notifications
   const lastXPAwardRef = useRef(null);
   const completionProcessedRef = useRef(false);
+  const previousIngredientsRef = useRef(new Set()); // Track previous ingredients
 
   const { getAllIngredients } = useMealPlan();
   const { addXP, addShoppingProgressXP, isActionOnCooldown, getCooldownTimeRemaining, formatCooldownTime } = useGamification();
@@ -157,6 +158,43 @@ const ShoppingList = () => {
   });
 
   const allItems = [...mealIngredients, ...validCustomItems];
+
+  // ✅ NEW: Sync checked items when meal ingredients change
+  useEffect(() => {
+    // Create a set of current meal ingredient keys
+    const currentMealIngredientKeys = new Set(
+      mealIngredients.map((ingredient, index) => `meal-${ingredient.name}-${index}`)
+    );
+
+    // Create a set of current custom item keys
+    const currentCustomItemKeys = new Set(validCustomItems.map(item => item.id));
+
+    // Combine all current valid keys
+    const allCurrentKeys = new Set([...currentMealIngredientKeys, ...currentCustomItemKeys]);
+
+    // Clean up checked items - only keep items that still exist
+    setCheckedItems(prevChecked => {
+      const cleanedChecked = new Set();
+      
+      for (const checkedKey of prevChecked) {
+        if (allCurrentKeys.has(checkedKey)) {
+          cleanedChecked.add(checkedKey);
+        }
+      }
+
+      // Log the cleanup for debugging
+      const removedCount = prevChecked.size - cleanedChecked.size;
+      if (removedCount > 0) {
+        console.log(`🧹 Cleaned up ${removedCount} orphaned checked items from shopping list`);
+      }
+
+      return cleanedChecked;
+    });
+
+    // Update the previous ingredients ref
+    previousIngredientsRef.current = currentMealIngredientKeys;
+  }, [mealIngredients, validCustomItems]);
+
   const checkedCount = Array.from(checkedItems).length;
   const totalCount = allItems.length;
   const progress = totalCount > 0 ? (checkedCount / totalCount) * 100 : 0;

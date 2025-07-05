@@ -211,10 +211,12 @@ export const RecipeProvider = ({ children }) => {
       cookTime: parseInt(recipe.cookTime) || 0,
       servings: parseInt(recipe.servings) || 1,
       difficulty: recipe.difficulty || 'Easy',
-      ingredients: Array.isArray(recipe.ingredients) ? 
-        recipe.ingredients.filter(ing => ing.name && ing.name.trim()) : [],
-      steps: Array.isArray(recipe.steps) ? 
-        recipe.steps.filter(step => step && step.trim()) : [],
+      ingredients: Array.isArray(recipe.ingredients) 
+        ? recipe.ingredients.filter(ing => ing.name && ing.name.trim()) 
+        : [],
+      steps: Array.isArray(recipe.steps) 
+        ? recipe.steps.filter(step => step && step.trim()) 
+        : [],
       tags: Array.isArray(recipe.tags) ? recipe.tags : [],
       image: recipe.image || null,
       url: recipe.url || null
@@ -351,11 +353,9 @@ export const RecipeProvider = ({ children }) => {
 
       if (error) {
         console.error('❌ Supabase update error:', error);
-        
         if (error.code === 'PGRST116') {
           throw new Error('Recipe not found or you do not have permission to edit it');
         }
-        
         throw new Error(`Database error: ${error.message}`);
       }
 
@@ -426,10 +426,10 @@ export const RecipeProvider = ({ children }) => {
   // Load data on mount and when user changes
   useEffect(() => {
     console.log('🔄 RecipeContext: Loading data...');
-
+    
     // Load community recipes for all users
     loadCommunityRecipes();
-
+    
     // Load user-specific data if logged in
     if (user) {
       loadUserRecipes();
@@ -484,7 +484,7 @@ export const RecipeProvider = ({ children }) => {
 
       // Update local state
       setRecipes(prev => prev.map(r => r.id === recipeId ? savedRecipe : r));
-
+      
       // Also update in saved recipes if it exists there
       setSavedRecipes(prev => prev.map(r => r.id === recipeId ? { ...r, ...savedRecipe } : r));
 
@@ -573,7 +573,7 @@ export const RecipeProvider = ({ children }) => {
 
       // Update local state
       setSavedRecipes(prev => [recipe, ...prev]);
-      
+
       return { success: true, message: 'Recipe saved successfully!' };
     } catch (error) {
       console.error('❌ Error saving recipe:', error);
@@ -625,9 +625,11 @@ export const RecipeProvider = ({ children }) => {
     return { success: true, message: 'Recipe shared to community!' };
   };
 
-  // Email sharing
+  // ✅ ENHANCED: Email sharing with app link
   const emailShareRecipe = (recipe) => {
     const shareLink = generateShareableLink(recipe);
+    const appLink = 'https://mealplan.supertasty.recipes';
+    
     const subject = `🍳 Check out this delicious recipe: ${recipe.title}`;
     const body = `Hi there! 👋
 
@@ -640,7 +642,19 @@ ${recipe.description}
 👥 Servings: ${recipe.servings}
 📊 Difficulty: ${recipe.difficulty}
 
-Happy cooking! 🍳✨`;
+🔗 **Get this recipe in the Meal Plan app:**
+${appLink}
+
+📧 **Or use this direct link:**
+${shareLink}
+
+The Meal Plan app helps you organize recipes, plan meals, create smart shopping lists, and earn XP for cooking! It's completely free to use.
+
+Happy cooking! 🍳✨
+
+---
+Shared from Meal Plan App
+${appLink}`;
 
     const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 
@@ -717,7 +731,12 @@ Happy cooking! 🍳✨`;
     return {
       success: true,
       totalRemoved: 0,
-      report: { savedRecipes: 0, userRecipes: 0, sharedRecipes: 0, details: [] },
+      report: {
+        savedRecipes: 0,
+        userRecipes: 0,
+        sharedRecipes: 0,
+        details: []
+      },
       message: 'No duplicates found in your collection!'
     };
   };
@@ -728,7 +747,7 @@ Happy cooking! 🍳✨`;
     const communityRecipes = sharedRecipes.filter(recipe => {
       return !recipe.originalId || !recipes.some(userRecipe => userRecipe.id === recipe.originalId);
     });
-
+    
     return [...userRecipes, ...communityRecipes];
   };
 
