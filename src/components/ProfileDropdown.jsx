@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
-import { useNavigate } from 'react-router-dom';
 import UsernameInput from './UsernameInput';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
@@ -26,7 +25,6 @@ const ProfileDropdown = () => {
 
   const { user, logout } = useAuth();
   const { preferences, loading, updatePreferences } = useSettings();
-  const navigate = useNavigate();
 
   // Mobile detection
   useEffect(() => {
@@ -41,9 +39,9 @@ const ProfileDropdown = () => {
 
     const handleClickOutside = (event) => {
       if (
-        dropdownRef.current &&
+        dropdownRef.current && 
         !dropdownRef.current.contains(event.target) &&
-        buttonRef.current &&
+        buttonRef.current && 
         !buttonRef.current.contains(event.target)
       ) {
         setIsOpen(false);
@@ -94,18 +92,6 @@ const ProfileDropdown = () => {
     setHasChanges(hasFormChanges);
   }, [formData, preferences]);
 
-  // ✅ FIX: Ensure proper navigation handling
-  const handleNavigation = (path, e) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    setIsOpen(false);
-    
-    // Add small delay to ensure dropdown closes first
-    setTimeout(() => {
-      navigate(path);
-    }, 50);
-  };
-
   const handleToggle = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -117,10 +103,7 @@ const ProfileDropdown = () => {
   };
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
@@ -154,7 +137,7 @@ const ProfileDropdown = () => {
       <button
         ref={buttonRef}
         onClick={handleToggle}
-        className="flex items-center space-x-2 p-2 rounded-xl hover:bg-gray-100 transition-colors duration-200 relative z-10"
+        className="flex items-center space-x-2 p-2 rounded-xl hover:bg-gray-100 transition-colors duration-200"
       >
         <img
           src={user.avatar}
@@ -167,7 +150,9 @@ const ProfileDropdown = () => {
         </span>
         <SafeIcon
           icon={FiChevronDown}
-          className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          className={`text-gray-400 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
         />
       </button>
 
@@ -227,7 +212,6 @@ const ProfileDropdown = () => {
                       <SafeIcon icon={FiX} className="text-xl" />
                     </button>
                   </div>
-
                   {/* Progress Bar */}
                   <div className="w-full bg-white/20 rounded-full h-2">
                     <div
@@ -399,6 +383,7 @@ const ProfileDropdown = () => {
                         </button>
                       )}
                     </div>
+
                     <button
                       onClick={handleLogout}
                       className="flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200 text-sm font-medium"
