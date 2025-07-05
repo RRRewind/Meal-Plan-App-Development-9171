@@ -13,7 +13,6 @@ const CookingTimer = () => {
   const [customSeconds, setCustomSeconds] = useState('');
   const [isTimerComplete, setIsTimerComplete] = useState(false);
   const [showAlarmEffect, setShowAlarmEffect] = useState(false);
-  const [alarmDismissed, setAlarmDismissed] = useState(false);
 
   const {
     isActive,
@@ -34,73 +33,93 @@ const CookingTimer = () => {
 
   const { addXP, incrementRecipesCooked } = useGamification();
 
-  // 🚨 ENHANCED: Monitor timer completion with proper state management
+  // 🚨 FIXED: Enhanced timer completion detection
   useEffect(() => {
-    console.log('Timer state:', { timeLeft, timer, isTimerRunning, alarmDismissed });
+    console.log('Timer state:', { timeLeft, timer, isTimerRunning });
     
-    // Timer just finished (was running and reached 0)
-    if (timeLeft === 0 && timer && !isTimerRunning && !alarmDismissed) {
-      console.log('🚨 TIMER FINISHED - Showing alarm!');
+    // Timer just finished - check for completion
+    if (timer && timeLeft === 0 && !isTimerRunning) {
+      console.log('🚨 TIMER COMPLETED!');
       setIsTimerComplete(true);
       setShowAlarmEffect(true);
       
-      // 🔊 Play notification sound
+      // 🔊 Enhanced notification sound
       try {
+        // Create multiple tones for attention
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
         
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
+        // First tone
+        const oscillator1 = audioContext.createOscillator();
+        const gainNode1 = audioContext.createGain();
+        oscillator1.connect(gainNode1);
+        gainNode1.connect(audioContext.destination);
+        oscillator1.frequency.setValueAtTime(800, audioContext.currentTime);
+        gainNode1.gain.setValueAtTime(0.3, audioContext.currentTime);
+        oscillator1.start();
+        oscillator1.stop(audioContext.currentTime + 0.3);
         
-        oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
-        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+        // Second tone (higher pitch)
+        setTimeout(() => {
+          const oscillator2 = audioContext.createOscillator();
+          const gainNode2 = audioContext.createGain();
+          oscillator2.connect(gainNode2);
+          gainNode2.connect(audioContext.destination);
+          oscillator2.frequency.setValueAtTime(1000, audioContext.currentTime);
+          gainNode2.gain.setValueAtTime(0.3, audioContext.currentTime);
+          oscillator2.start();
+          oscillator2.stop(audioContext.currentTime + 0.3);
+        }, 400);
         
-        oscillator.start();
-        oscillator.stop(audioContext.currentTime + 0.5);
+        // Third tone (even higher)
+        setTimeout(() => {
+          const oscillator3 = audioContext.createOscillator();
+          const gainNode3 = audioContext.createGain();
+          oscillator3.connect(gainNode3);
+          gainNode3.connect(audioContext.destination);
+          oscillator3.frequency.setValueAtTime(1200, audioContext.currentTime);
+          gainNode3.gain.setValueAtTime(0.3, audioContext.currentTime);
+          oscillator3.start();
+          oscillator3.stop(audioContext.currentTime + 0.3);
+        }, 800);
+        
       } catch (error) {
         console.log('Audio notification not supported');
       }
     } 
-    // Timer is running or has been reset
+    // Timer is running or reset
     else if (timeLeft > 0 || !timer) {
       if (isTimerComplete || showAlarmEffect) {
-        console.log('⏰ Timer reset or restarted - clearing alarm');
+        console.log('⏰ Timer reset - clearing completion state');
         setIsTimerComplete(false);
         setShowAlarmEffect(false);
-        setAlarmDismissed(false);
       }
     }
-  }, [timeLeft, isTimerRunning, timer, alarmDismissed]);
+  }, [timeLeft, isTimerRunning, timer]);
 
-  // 🚨 ENHANCED: Handle timer reset - also reset alarm states
+  // 🚨 FIXED: Handle timer reset
   const handleResetTimer = () => {
-    console.log('🔄 Resetting timer and alarm states');
+    console.log('🔄 Resetting timer');
     resetTimer();
     setIsTimerComplete(false);
     setShowAlarmEffect(false);
-    setAlarmDismissed(false);
   };
 
-  // 🚨 ENHANCED: Handle starting new timer - reset alarm states
+  // 🚨 FIXED: Handle starting new timer
   const handleStartTimer = (minutes) => {
-    console.log('▶️ Starting new timer:', minutes);
+    console.log('▶️ Starting timer:', minutes);
     startTimer(minutes);
     setIsTimerComplete(false);
     setShowAlarmEffect(false);
-    setAlarmDismissed(false);
   };
 
-  // 🚨 ENHANCED: Dismiss alarm effect with visual feedback
+  // 🚨 FIXED: Dismiss alarm
   const handleDismissAlarm = () => {
     console.log('✅ Dismissing alarm');
     setShowAlarmEffect(false);
-    setAlarmDismissed(true);
-    // Keep isTimerComplete true so we know timer finished
+    // Keep isTimerComplete true but remove the urgent alarm effect
   };
 
-  // ✅ ENHANCED: Handle recipe URL click
+  // Handle recipe URL click
   const handleRecipeUrlClick = (url) => {
     if (url) {
       const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
@@ -109,7 +128,7 @@ const CookingTimer = () => {
     }
   };
 
-  // 🚨 ENHANCED: Timer Completion Component with Pulsing and Message
+  // 🚨 ENHANCED: Timer Completion Display with Better Pulsing
   const TimerCompletionDisplay = ({ isMinimizedView = false, className = "" }) => {
     if (!isTimerComplete) return null;
 
@@ -119,22 +138,26 @@ const CookingTimer = () => {
         animate={{ opacity: 1, scale: 1 }}
         className={`${className} relative`}
       >
-        {/* 🎯 PULSING COMPLETION INDICATOR */}
+        {/* 🎯 ENHANCED PULSING EFFECT */}
         <motion.div
           animate={{
-            scale: [1, 1.1, 1],
-            opacity: [0.8, 1, 0.8],
+            scale: showAlarmEffect ? [1, 1.15, 1, 1.15, 1] : [1, 1.08, 1],
+            opacity: showAlarmEffect ? [0.7, 1, 0.7, 1, 0.7] : [0.8, 1, 0.8],
           }}
           transition={{
-            duration: 2,
+            duration: showAlarmEffect ? 1 : 2,
             repeat: Infinity,
             ease: "easeInOut"
           }}
           className={`${
             isMinimizedView 
-              ? 'absolute -inset-2 bg-green-400/30 rounded-xl' 
-              : 'absolute -inset-4 bg-green-400/20 rounded-2xl'
-          } pointer-events-none`}
+              ? 'absolute -inset-3 rounded-xl' 
+              : 'absolute -inset-5 rounded-2xl'
+          } ${
+            showAlarmEffect 
+              ? 'bg-red-400/30 border-2 border-red-400/50' 
+              : 'bg-green-400/30 border-2 border-green-400/50'
+          } pointer-events-none shadow-lg`}
         />
 
         {/* 🎉 COMPLETION MESSAGE */}
@@ -145,87 +168,97 @@ const CookingTimer = () => {
             showAlarmEffect 
               ? 'bg-gradient-to-r from-red-500 to-red-600' 
               : 'bg-gradient-to-r from-green-500 to-green-600'
-          } text-white p-4 rounded-xl shadow-lg relative z-10`}
+          } text-white p-4 rounded-xl shadow-xl relative z-10 border-2 ${
+            showAlarmEffect ? 'border-red-300' : 'border-green-300'
+          }`}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <motion.div
                 animate={{
-                  rotate: showAlarmEffect ? [0, -10, 10, -10, 0] : [0, 360],
-                  scale: [1, 1.2, 1]
+                  rotate: showAlarmEffect ? [0, -15, 15, -15, 0] : [0, 360],
+                  scale: showAlarmEffect ? [1, 1.3, 1, 1.3, 1] : [1, 1.2, 1]
                 }}
                 transition={{
-                  duration: showAlarmEffect ? 0.5 : 2,
+                  duration: showAlarmEffect ? 0.6 : 2,
                   repeat: Infinity,
-                  ease: "easeInOut"
+                  ease: showAlarmEffect ? "easeInOut" : "linear"
                 }}
-                className={`w-10 h-10 ${
-                  showAlarmEffect ? 'bg-white/30' : 'bg-white/20'
-                } rounded-full flex items-center justify-center`}
+                className={`w-12 h-12 ${
+                  showAlarmEffect ? 'bg-white/40' : 'bg-white/30'
+                } rounded-full flex items-center justify-center shadow-lg`}
               >
                 <SafeIcon 
                   icon={showAlarmEffect ? FiAlertCircle : FiCheckCircle} 
-                  className="text-white text-lg" 
+                  className="text-white text-xl" 
                 />
               </motion.div>
               
               <div>
                 <motion.p
                   animate={{ 
-                    scale: showAlarmEffect ? [1, 1.05, 1] : [1, 1.02, 1]
+                    scale: showAlarmEffect ? [1, 1.08, 1, 1.08, 1] : [1, 1.03, 1]
                   }}
                   transition={{ duration: 1, repeat: Infinity }}
-                  className={`font-bold ${isMinimizedView ? 'text-lg' : 'text-xl'}`}
+                  className={`font-black ${isMinimizedView ? 'text-lg' : 'text-2xl'} tracking-wide`}
                 >
-                  {showAlarmEffect ? '🚨 TIME\'S UP!' : '🎉 Timer Complete!'}
+                  {showAlarmEffect ? '🚨 TIME\'S UP!' : '🎉 TIMER COMPLETE!'}
                 </motion.p>
                 <p className={`${
                   showAlarmEffect ? 'text-red-100' : 'text-green-100'
-                } ${isMinimizedView ? 'text-sm' : 'text-base'}`}>
-                  {showAlarmEffect ? 'Your cooking timer has finished' : 'Great job! Your timer is done'}
+                } ${isMinimizedView ? 'text-sm' : 'text-base'} font-semibold`}>
+                  {showAlarmEffect ? 'Your cooking timer has finished!' : 'Great job! Your timer is done!'}
                 </p>
               </div>
             </div>
 
-            {/* 🚨 ENHANCED: Prominent Dismiss Button */}
+            {/* 🚨 ENHANCED: Super Prominent Dismiss Button */}
             <motion.button
-              whileHover={{ scale: 1.1 }}
+              whileHover={{ scale: 1.15 }}
               whileTap={{ scale: 0.9 }}
+              animate={{
+                boxShadow: showAlarmEffect 
+                  ? ['0 0 0 0 rgba(255,255,255,0.4)', '0 0 0 8px rgba(255,255,255,0)', '0 0 0 0 rgba(255,255,255,0.4)']
+                  : ['0 0 0 0 rgba(255,255,255,0.3)', '0 0 0 6px rgba(255,255,255,0)', '0 0 0 0 rgba(255,255,255,0.3)']
+              }}
+              transition={{ duration: 2, repeat: Infinity }}
               onClick={handleDismissAlarm}
               className={`${
                 showAlarmEffect 
-                  ? 'bg-white/30 hover:bg-white/40 border-2 border-white/50' 
-                  : 'bg-white/20 hover:bg-white/30 border-2 border-white/30'
-              } text-white rounded-lg transition-all duration-200 ${
-                isMinimizedView ? 'p-2' : 'p-3'
-              } font-bold flex items-center space-x-2`}
-              title="Dismiss notification"
+                  ? 'bg-white/40 hover:bg-white/60 border-3 border-white/70' 
+                  : 'bg-white/30 hover:bg-white/50 border-3 border-white/50'
+              } text-white rounded-xl transition-all duration-200 ${
+                isMinimizedView ? 'p-3' : 'p-4'
+              } font-black flex items-center space-x-2 text-lg shadow-xl`}
+              title="Dismiss timer notification"
             >
-              <SafeIcon icon={FiCheck} className={isMinimizedView ? 'text-sm' : 'text-base'} />
-              {!isMinimizedView && <span>Dismiss</span>}
+              <SafeIcon icon={FiCheck} className={isMinimizedView ? 'text-lg' : 'text-xl'} />
+              {!isMinimizedView && <span>DISMISS</span>}
             </motion.button>
           </div>
 
-          {/* 🎊 CELEBRATION PARTICLES for non-alarm completion */}
+          {/* 🎊 ENHANCED CELEBRATION PARTICLES */}
           {!showAlarmEffect && (
             <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-xl">
-              {[...Array(6)].map((_, i) => (
+              {[...Array(8)].map((_, i) => (
                 <motion.div
                   key={i}
-                  className="absolute w-2 h-2 bg-yellow-300 rounded-full opacity-70"
+                  className="absolute w-3 h-3 bg-yellow-300 rounded-full opacity-80"
                   style={{
-                    left: `${20 + i * 12}%`,
-                    top: `${30 + (i % 2) * 40}%`,
+                    left: `${15 + i * 10}%`,
+                    top: `${25 + (i % 3) * 25}%`,
                   }}
                   animate={{
-                    y: [-20, -40, -20],
-                    opacity: [0.7, 1, 0.7],
-                    scale: [1, 1.5, 1]
+                    y: [-25, -50, -25],
+                    x: [0, (i % 2 ? 10 : -10), 0],
+                    opacity: [0.8, 1, 0.8],
+                    scale: [1, 1.8, 1],
+                    rotate: [0, 180, 360]
                   }}
                   transition={{
-                    duration: 2,
+                    duration: 2.5,
                     repeat: Infinity,
-                    delay: i * 0.3,
+                    delay: i * 0.2,
                     ease: "easeInOut"
                   }}
                 />
@@ -237,9 +270,8 @@ const CookingTimer = () => {
     );
   };
 
-  // 🚨 FIXED: Always show timer widget when there's an active timer OR when timer is complete
+  // Show persistent timer widget when there's an active timer
   if (!isActive || !currentRecipe) {
-    // Show persistent timer indicator if there's an active timer OR timer completed
     if (timer && (timeLeft > 0 || isTimerComplete)) {
       return (
         <motion.div
@@ -247,7 +279,6 @@ const CookingTimer = () => {
           animate={{ scale: 1, opacity: 1 }}
           className="fixed bottom-4 right-4 z-50"
         >
-          {/* 🚨 ENHANCED: Show completion display for background timer */}
           {isTimerComplete ? (
             <TimerCompletionDisplay isMinimizedView={true} />
           ) : (
@@ -331,7 +362,6 @@ const CookingTimer = () => {
   };
 
   const handleClose = () => {
-    // Only allow closing if no timer is running
     if (timeLeft === 0 || !isTimerRunning) {
       stopCookingMode();
     }
@@ -340,7 +370,7 @@ const CookingTimer = () => {
   const isLastStep = currentStep === currentRecipe.steps.length - 1;
   const progress = ((currentStep + 1) / currentRecipe.steps.length) * 100;
 
-  // ENHANCED: Different minimized states based on timer status
+  // Minimized view
   if (isMinimized) {
     if (timer && (timeLeft > 0 || isTimerComplete)) {
       return (
@@ -350,11 +380,9 @@ const CookingTimer = () => {
           exit={{ scale: 0, opacity: 0, y: 100 }}
           className="fixed bottom-4 right-4 z-50"
         >
-          {/* 🚨 ENHANCED: Show completion display for minimized timer */}
           {isTimerComplete ? (
             <div className="space-y-3">
               <TimerCompletionDisplay isMinimizedView={true} />
-              {/* Expand/Close Controls */}
               <div className="flex items-center justify-center space-x-2">
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -372,7 +400,6 @@ const CookingTimer = () => {
               whileHover={{ scale: 1.05 }}
               className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-4 text-white shadow-2xl relative overflow-hidden"
             >
-              {/* Main Timer Display */}
               <div className="text-center mb-3 relative z-10">
                 <div className="text-3xl font-bold mb-1">
                   {formatTime(timeLeft)}
@@ -382,7 +409,6 @@ const CookingTimer = () => {
                 </div>
               </div>
 
-              {/* Timer Controls */}
               <div className="flex items-center justify-center space-x-2 mb-3 relative z-10">
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -402,7 +428,6 @@ const CookingTimer = () => {
                 </motion.button>
               </div>
 
-              {/* Expand/Close Controls */}
               <div className="flex items-center justify-between border-t border-white/20 pt-3 relative z-10">
                 <div className="text-xs text-orange-100">
                   Step {currentStep + 1}/{currentRecipe.steps.length}
@@ -424,7 +449,6 @@ const CookingTimer = () => {
         </motion.div>
       );
     } else {
-      // If no timer, show regular minimized cooking mode widget
       return (
         <motion.div
           initial={{ scale: 0, opacity: 0, y: 100 }}
@@ -461,7 +485,6 @@ const CookingTimer = () => {
               </motion.button>
             </div>
 
-            {/* Mini Progress Bar */}
             <div className="mt-3">
               <div className="w-full bg-white/20 rounded-full h-1.5">
                 <motion.div
@@ -497,16 +520,16 @@ const CookingTimer = () => {
             >
               <motion.div
                 animate={{
-                  opacity: [0, 0.3, 0, 0.3, 0],
+                  opacity: [0, 0.4, 0, 0.4, 0],
                   backgroundColor: [
                     'rgba(239, 68, 68, 0)',
-                    'rgba(239, 68, 68, 0.1)',
-                    'rgba(239, 68, 68, 0)',
                     'rgba(239, 68, 68, 0.15)',
+                    'rgba(239, 68, 68, 0)',
+                    'rgba(239, 68, 68, 0.2)',
                     'rgba(239, 68, 68, 0)'
                   ]
                 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
                 className="absolute inset-0"
               />
             </motion.div>
@@ -570,7 +593,6 @@ const CookingTimer = () => {
               </div>
             </div>
 
-            {/* Progress Bar */}
             <div className="mt-3">
               <div className="w-full bg-white/20 rounded-full h-2">
                 <motion.div
@@ -664,7 +686,6 @@ const CookingTimer = () => {
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-3">Cooking Timer</h4>
                     
-                    {/* 🚨 ENHANCED: Show completion display in full timer view */}
                     {isTimerComplete ? (
                       <TimerCompletionDisplay className="mb-4" />
                     ) : (
@@ -705,7 +726,6 @@ const CookingTimer = () => {
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {/* Quick Timer Buttons */}
                             <div className="grid grid-cols-2 gap-2">
                               {[5, 10, 15, 30].map((minutes) => (
                                 <motion.button
@@ -720,7 +740,6 @@ const CookingTimer = () => {
                               ))}
                             </div>
 
-                            {/* Custom Timer */}
                             <div className="border-t border-gray-200 pt-4">
                               <p className="text-sm font-medium text-gray-700 mb-3">Custom Timer:</p>
                               <div className="flex items-center space-x-2">

@@ -6,7 +6,7 @@ import ProfileDropdown from './ProfileDropdown';
 import SafeIcon from '../common/SafeIcon';
 import * as FiIcons from 'react-icons/fi';
 
-const { FiHome, FiCalendar, FiBook, FiShoppingCart, FiStar, FiShield } = FiIcons;
+const { FiHome, FiCalendar, FiBook, FiShoppingCart, FiStar, FiShield, FiGift } = FiIcons;
 
 const Layout = ({ children }) => {
   const location = useLocation();
@@ -18,6 +18,7 @@ const Layout = ({ children }) => {
     { name: 'Scheduler', href: '/scheduler', icon: FiCalendar },
     { name: 'Recipes', href: '/recipes', icon: FiBook },
     { name: 'Shopping List', href: '/shopping-list', icon: FiShoppingCart },
+    { name: 'Rewards', href: '/rewards', icon: FiGift },
   ];
 
   // Add admin panel for admin users
@@ -53,6 +54,8 @@ const Layout = ({ children }) => {
                       isActive
                         ? item.name === 'Admin Panel'
                           ? 'bg-purple-100/60 text-purple-700'
+                          : item.name === 'Rewards'
+                          ? 'bg-pink-100/60 text-pink-700'
                           : 'bg-primary-100/60 text-primary-700'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/60'
                     }`}
@@ -68,8 +71,13 @@ const Layout = ({ children }) => {
             <div className="flex items-center space-x-4">
               {user && (
                 <div className="flex items-center space-x-3">
-                  {/* Level & XP */}
-                  <div className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-primary-100/60 to-secondary-100/60 px-3 py-1 rounded-full">
+                  {/* Level & XP - Clickable to navigate to rewards */}
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => navigate('/rewards')}
+                    className="hidden sm:flex items-center space-x-2 bg-gradient-to-r from-primary-100/60 to-secondary-100/60 hover:from-primary-200/60 hover:to-secondary-200/60 px-3 py-1 rounded-full transition-all duration-200 cursor-pointer"
+                  >
                     <SafeIcon icon={FiStar} className="text-primary-600 text-sm" />
                     <span className="text-sm font-medium text-gray-700">
                       Level {user.level}
@@ -80,7 +88,7 @@ const Layout = ({ children }) => {
                         style={{ width: `${(user.xp % 100)}%` }}
                       />
                     </div>
-                  </div>
+                  </motion.button>
 
                   {/* Profile Dropdown */}
                   <ProfileDropdown />
@@ -93,7 +101,7 @@ const Layout = ({ children }) => {
 
       {/* Mobile Navigation */}
       <div className="md:hidden bg-white/90 backdrop-blur-sm border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50">
-        <div className={`grid ${user?.isAdmin ? 'grid-cols-5' : 'grid-cols-4'} gap-1 p-2`}>
+        <div className={`grid ${user?.isAdmin ? 'grid-cols-6' : 'grid-cols-5'} gap-1 p-2`}>
           {navigation.map((item) => {
             const isActive = location.pathname === item.href;
             return (
@@ -105,13 +113,19 @@ const Layout = ({ children }) => {
                   isActive
                     ? item.name === 'Admin Panel'
                       ? 'bg-purple-100/60 text-purple-700'
+                      : item.name === 'Rewards'
+                      ? 'bg-pink-100/60 text-pink-700'
                       : 'bg-primary-100/60 text-primary-700'
                     : 'text-gray-600'
                 }`}
               >
                 <SafeIcon icon={item.icon} className="text-lg mb-1" />
                 <span className="text-xs font-medium">
-                  {item.name === 'Admin Panel' ? 'Admin' : item.name === 'Shopping List' ? 'Shopping' : item.name}
+                  {item.name === 'Admin Panel'
+                    ? 'Admin'
+                    : item.name === 'Shopping List'
+                    ? 'Shopping'
+                    : item.name}
                 </span>
               </motion.button>
             );
