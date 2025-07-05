@@ -15,8 +15,8 @@ const Layout = ({ children }) => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: FiHome },
-    { name: 'Scheduler', href: '/scheduler', icon: FiCalendar },
     { name: 'Recipes', href: '/recipes', icon: FiBook },
+    { name: 'Scheduler', href: '/scheduler', icon: FiCalendar },
     { name: 'Shopping List', href: '/shopping-list', icon: FiShoppingCart },
     { name: 'Rewards', href: '/rewards', icon: FiGift },
   ];
