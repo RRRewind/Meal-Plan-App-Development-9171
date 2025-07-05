@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMealPlan } from '../contexts/MealPlanContext';
 import { useGamification } from '../contexts/GamificationContext';
@@ -17,6 +17,10 @@ const ShoppingList = () => {
   const [checkedItems, setCheckedItems] = useState(new Set());
   const [wasCompleted, setWasCompleted] = useState(false);
   const [viewMode, setViewMode] = useState('categories'); // 'categories' or 'list'
+
+  // ✅ FIX: Add refs to prevent duplicate notifications
+  const lastXPAwardRef = useRef(null);
+  const completionProcessedRef = useRef(false);
 
   const { getAllIngredients } = useMealPlan();
   const { addXP, addShoppingProgressXP, isActionOnCooldown, getCooldownTimeRemaining, formatCooldownTime } = useGamification();
@@ -347,9 +351,10 @@ const ShoppingList = () => {
     }
   }, [customItems]);
 
-  // 🎉 CONFETTI CELEBRATION: Trigger when shopping is completed
+  // ✅ FIX: CONFETTI CELEBRATION - Prevent duplicate celebrations
   useEffect(() => {
-    if (isCompleted && !wasCompleted && totalCount > 0) {
+    if (isCompleted && !wasCompleted && totalCount > 0 && !completionProcessedRef.current) {
+      completionProcessedRef.current = true;
       triggerConfettiCelebration();
       setWasCompleted(true);
 
@@ -368,6 +373,7 @@ const ShoppingList = () => {
       }
     } else if (!isCompleted && wasCompleted) {
       setWasCompleted(false);
+      completionProcessedRef.current = false;
     }
   }, [isCompleted, wasCompleted, totalCount, addXP]);
 
@@ -459,6 +465,7 @@ const ShoppingList = () => {
     }, 1200);
   };
 
+  // ✅ FIX: Prevent duplicate XP notifications
   const handleAddCustomItem = (e) => {
     e.preventDefault();
     if (newItem.trim()) {
@@ -472,9 +479,16 @@ const ShoppingList = () => {
       setCustomItems(prev => [...prev, item]);
       setNewItem('');
 
-      // Rate-limited XP for adding items
-      const xpAwarded = addXP(2, 'Item added to shopping list', 'item_added');
-      if (xpAwarded) {
+      // ✅ FIX: Only award XP once with proper debouncing
+      const currentTime = Date.now();
+      if (!lastXPAwardRef.current || (currentTime - lastXPAwardRef.current) > 1000) {
+        lastXPAwardRef.current = currentTime;
+        const xpAwarded = addXP(2, 'Item added to shopping list', 'item_added');
+        if (xpAwarded) {
+          toast.success('Item added to shopping list!');
+        }
+      } else {
+        // Just show success without XP
         toast.success('Item added to shopping list!');
       }
     }
@@ -489,6 +503,7 @@ const ShoppingList = () => {
     });
   };
 
+  // ✅ FIX: Prevent duplicate progress notifications
   const handleToggleItem = (itemKey) => {
     setCheckedItems(prev => {
       const updated = new Set(prev);
@@ -497,18 +512,22 @@ const ShoppingList = () => {
       } else {
         updated.add(itemKey);
 
-        // 🛒 NEW: Award XP for shopping progress (every 10 items)
-        const progressXPAwarded = addShoppingProgressXP();
+        // ✅ FIX: Only one progress XP notification
+        const currentTime = Date.now();
+        if (!lastXPAwardRef.current || (currentTime - lastXPAwardRef.current) > 500) {
+          lastXPAwardRef.current = currentTime;
+          const progressXPAwarded = addShoppingProgressXP();
 
-        // 🎉 MINI CELEBRATION: Small confetti for individual items (only if progress XP awarded)
-        if (progressXPAwarded && Math.random() > 0.7) { // 30% chance for mini celebration
-          confetti({
-            particleCount: 20,
-            spread: 30,
-            origin: { x: 0.5, y: 0.7 },
-            colors: ['#10b981', '#34d399', '#6ee7b7'],
-            zIndex: 9999
-          });
+          // 🎉 MINI CELEBRATION: Small confetti for individual items (only if progress XP awarded)
+          if (progressXPAwarded && Math.random() > 0.7) { // 30% chance for mini celebration
+            confetti({
+              particleCount: 20,
+              spread: 30,
+              origin: { x: 0.5, y: 0.7 },
+              colors: ['#10b981', '#34d399', '#6ee7b7'],
+              zIndex: 9999
+            });
+          }
         }
       }
       return updated;

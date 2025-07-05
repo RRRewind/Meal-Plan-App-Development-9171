@@ -13,6 +13,7 @@ const CookingTimer = () => {
   const [customSeconds, setCustomSeconds] = useState('');
   const [isTimerComplete, setIsTimerComplete] = useState(false);
   const [showAlarmEffect, setShowAlarmEffect] = useState(false);
+  const [alarmDismissed, setAlarmDismissed] = useState(false);
 
   const {
     isActive,
@@ -33,57 +34,66 @@ const CookingTimer = () => {
 
   const { addXP, incrementRecipesCooked } = useGamification();
 
-  // 🚨 FIXED: Enhanced timer completion detection
+  // ✅ FIXED: Enhanced timer completion detection with better state management
   useEffect(() => {
-    console.log('Timer state:', { timeLeft, timer, isTimerRunning });
-    
+    console.log('Timer state:', { timeLeft, timer, isTimerRunning, isTimerComplete, showAlarmEffect });
+
     // Timer just finished - check for completion
-    if (timer && timeLeft === 0 && !isTimerRunning) {
+    if (timer && timeLeft === 0 && !isTimerRunning && !alarmDismissed) {
       console.log('🚨 TIMER COMPLETED!');
       setIsTimerComplete(true);
       setShowAlarmEffect(true);
-      
-      // 🔊 Enhanced notification sound
+
+      // ✅ FIXED: Enhanced notification sound with multiple attempts
       try {
-        // Create multiple tones for attention
+        // Method 1: Web Audio API with multiple tones
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         
-        // First tone
-        const oscillator1 = audioContext.createOscillator();
-        const gainNode1 = audioContext.createGain();
-        oscillator1.connect(gainNode1);
-        gainNode1.connect(audioContext.destination);
-        oscillator1.frequency.setValueAtTime(800, audioContext.currentTime);
-        gainNode1.gain.setValueAtTime(0.3, audioContext.currentTime);
-        oscillator1.start();
-        oscillator1.stop(audioContext.currentTime + 0.3);
+        const playTone = (frequency, duration, delay = 0) => {
+          setTimeout(() => {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + duration);
+          }, delay);
+        };
+
+        // Play sequence of alarm tones
+        playTone(800, 0.3, 0);     // First tone
+        playTone(1000, 0.3, 400);  // Second tone (higher)
+        playTone(1200, 0.3, 800);  // Third tone (even higher)
+        playTone(800, 0.5, 1200);  // Final long tone
         
-        // Second tone (higher pitch)
+        // ✅ BACKUP: Try HTML5 Audio as fallback
         setTimeout(() => {
-          const oscillator2 = audioContext.createOscillator();
-          const gainNode2 = audioContext.createGain();
-          oscillator2.connect(gainNode2);
-          gainNode2.connect(audioContext.destination);
-          oscillator2.frequency.setValueAtTime(1000, audioContext.currentTime);
-          gainNode2.gain.setValueAtTime(0.3, audioContext.currentTime);
-          oscillator2.start();
-          oscillator2.stop(audioContext.currentTime + 0.3);
-        }, 400);
-        
-        // Third tone (even higher)
-        setTimeout(() => {
-          const oscillator3 = audioContext.createOscillator();
-          const gainNode3 = audioContext.createGain();
-          oscillator3.connect(gainNode3);
-          gainNode3.connect(audioContext.destination);
-          oscillator3.frequency.setValueAtTime(1200, audioContext.currentTime);
-          gainNode3.gain.setValueAtTime(0.3, audioContext.currentTime);
-          oscillator3.start();
-          oscillator3.stop(audioContext.currentTime + 0.3);
-        }, 800);
-        
+          try {
+            // Create a simple beep sound using data URI
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMFKnjI8N2QQAoUXrTp66hVFApGn+DyvmwhBTmS2vDFeiMF');
+            audio.volume = 0.3;
+            audio.play().catch(e => console.log('Audio backup failed:', e));
+          } catch (audioError) {
+            console.log('HTML5 Audio backup failed:', audioError);
+          }
+        }, 100);
+
       } catch (error) {
-        console.log('Audio notification not supported');
+        console.log('Audio notification not supported:', error);
+        
+        // ✅ FINAL FALLBACK: Browser notification
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('Timer Complete!', {
+            body: 'Your cooking timer has finished.',
+            icon: '/favicon.ico'
+          });
+        }
       }
     } 
     // Timer is running or reset
@@ -92,30 +102,34 @@ const CookingTimer = () => {
         console.log('⏰ Timer reset - clearing completion state');
         setIsTimerComplete(false);
         setShowAlarmEffect(false);
+        setAlarmDismissed(false);
       }
     }
-  }, [timeLeft, isTimerRunning, timer]);
+  }, [timeLeft, isTimerRunning, timer, isTimerComplete, showAlarmEffect, alarmDismissed]);
 
-  // 🚨 FIXED: Handle timer reset
+  // ✅ FIXED: Handle timer reset
   const handleResetTimer = () => {
     console.log('🔄 Resetting timer');
     resetTimer();
     setIsTimerComplete(false);
     setShowAlarmEffect(false);
+    setAlarmDismissed(false);
   };
 
-  // 🚨 FIXED: Handle starting new timer
+  // ✅ FIXED: Handle starting new timer
   const handleStartTimer = (minutes) => {
     console.log('▶️ Starting timer:', minutes);
     startTimer(minutes);
     setIsTimerComplete(false);
     setShowAlarmEffect(false);
+    setAlarmDismissed(false);
   };
 
-  // 🚨 FIXED: Dismiss alarm
+  // ✅ FIXED: Dismiss alarm
   const handleDismissAlarm = () => {
     console.log('✅ Dismissing alarm');
     setShowAlarmEffect(false);
+    setAlarmDismissed(true);
     // Keep isTimerComplete true but remove the urgent alarm effect
   };
 
@@ -128,7 +142,7 @@ const CookingTimer = () => {
     }
   };
 
-  // 🚨 ENHANCED: Timer Completion Display with Better Pulsing
+  // ✅ ENHANCED: Timer Completion Display with Better Pulsing
   const TimerCompletionDisplay = ({ isMinimizedView = false, className = "" }) => {
     if (!isTimerComplete) return null;
 
@@ -149,11 +163,7 @@ const CookingTimer = () => {
             repeat: Infinity,
             ease: "easeInOut"
           }}
-          className={`${
-            isMinimizedView 
-              ? 'absolute -inset-3 rounded-xl' 
-              : 'absolute -inset-5 rounded-2xl'
-          } ${
+          className={`${isMinimizedView ? 'absolute -inset-3 rounded-xl' : 'absolute -inset-5 rounded-2xl'} ${
             showAlarmEffect 
               ? 'bg-red-400/30 border-2 border-red-400/50' 
               : 'bg-green-400/30 border-2 border-green-400/50'
@@ -193,13 +203,15 @@ const CookingTimer = () => {
                   className="text-white text-xl" 
                 />
               </motion.div>
-              
               <div>
                 <motion.p
-                  animate={{ 
+                  animate={{
                     scale: showAlarmEffect ? [1, 1.08, 1, 1.08, 1] : [1, 1.03, 1]
                   }}
-                  transition={{ duration: 1, repeat: Infinity }}
+                  transition={{
+                    duration: 1,
+                    repeat: Infinity
+                  }}
                   className={`font-black ${isMinimizedView ? 'text-lg' : 'text-2xl'} tracking-wide`}
                 >
                   {showAlarmEffect ? '🚨 TIME\'S UP!' : '🎉 TIMER COMPLETE!'}
@@ -207,21 +219,35 @@ const CookingTimer = () => {
                 <p className={`${
                   showAlarmEffect ? 'text-red-100' : 'text-green-100'
                 } ${isMinimizedView ? 'text-sm' : 'text-base'} font-semibold`}>
-                  {showAlarmEffect ? 'Your cooking timer has finished!' : 'Great job! Your timer is done!'}
+                  {showAlarmEffect 
+                    ? 'Your cooking timer has finished!' 
+                    : 'Great job! Your timer is done!'
+                  }
                 </p>
               </div>
             </div>
 
-            {/* 🚨 ENHANCED: Super Prominent Dismiss Button */}
+            {/* ✅ ENHANCED: Super Prominent Dismiss Button */}
             <motion.button
               whileHover={{ scale: 1.15 }}
               whileTap={{ scale: 0.9 }}
               animate={{
                 boxShadow: showAlarmEffect 
-                  ? ['0 0 0 0 rgba(255,255,255,0.4)', '0 0 0 8px rgba(255,255,255,0)', '0 0 0 0 rgba(255,255,255,0.4)']
-                  : ['0 0 0 0 rgba(255,255,255,0.3)', '0 0 0 6px rgba(255,255,255,0)', '0 0 0 0 rgba(255,255,255,0.3)']
+                  ? [
+                      '0 0 0 0 rgba(255,255,255,0.4)',
+                      '0 0 0 8px rgba(255,255,255,0)',
+                      '0 0 0 0 rgba(255,255,255,0.4)'
+                    ] 
+                  : [
+                      '0 0 0 0 rgba(255,255,255,0.3)',
+                      '0 0 0 6px rgba(255,255,255,0)',
+                      '0 0 0 0 rgba(255,255,255,0.3)'
+                    ]
               }}
-              transition={{ duration: 2, repeat: Infinity }}
+              transition={{
+                duration: 2,
+                repeat: Infinity
+              }}
               onClick={handleDismissAlarm}
               className={`${
                 showAlarmEffect 
@@ -346,6 +372,7 @@ const CookingTimer = () => {
     const mins = parseInt(customMinutes) || 0;
     const secs = parseInt(customSeconds) || 0;
     const totalMinutes = mins + (secs / 60);
+    
     if (totalMinutes > 0) {
       handleStartTimer(totalMinutes);
       setCustomMinutes('');
@@ -509,7 +536,7 @@ const CookingTimer = () => {
         className="fixed inset-x-4 bottom-4 z-50 max-w-6xl mx-auto"
         style={{ maxHeight: '85vh', overflow: 'hidden' }}
       >
-        {/* 🚨 ENHANCED: Full-screen alarm overlay */}
+        {/* ✅ ENHANCED: Full-screen alarm overlay */}
         <AnimatePresence>
           {showAlarmEffect && (
             <motion.div
@@ -529,7 +556,11 @@ const CookingTimer = () => {
                     'rgba(239, 68, 68, 0)'
                   ]
                 }}
-                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                transition={{
+                  duration: 1.5,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
                 className="absolute inset-0"
               />
             </motion.div>
@@ -566,6 +597,7 @@ const CookingTimer = () => {
                   </div>
                 </div>
               </div>
+
               <div className="flex items-center space-x-2">
                 <motion.button
                   whileHover={{ scale: 1.1 }}
@@ -685,15 +717,12 @@ const CookingTimer = () => {
                   {/* Timer */}
                   <div>
                     <h4 className="font-semibold text-gray-900 mb-3">Cooking Timer</h4>
-                    
                     {isTimerComplete ? (
                       <TimerCompletionDisplay className="mb-4" />
                     ) : (
                       <div className="bg-gray-50 rounded-xl p-4 relative overflow-hidden">
                         <div className="text-center mb-4 relative z-10">
-                          <div className={`text-3xl font-bold ${
-                            timeLeft > 0 ? 'text-primary-600' : 'text-gray-400'
-                          }`}>
+                          <div className={`text-3xl font-bold ${timeLeft > 0 ? 'text-primary-600' : 'text-gray-400'}`}>
                             {timeLeft > 0 ? formatTime(timeLeft) : '00:00'}
                           </div>
                           {timeLeft === 0 && (
